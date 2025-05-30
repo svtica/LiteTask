@@ -1,0 +1,262 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows8.0</TargetFramework>
+    <StartupObject>LiteTask.LiteTask.Program</StartupObject>
+    <UseWindowsForms>true</UseWindowsForms>
+    <MyType>WindowsForms</MyType>
+    <Title>LiteTask</Title>
+    <PackageIcon>logo.png</PackageIcon>
+    <FileVersion>1.0.0.1</FileVersion>
+    <AssemblyVersion>1.0.0.1</AssemblyVersion>
+    <ImportedNamespaces>Microsoft.Extensions.DependencyInjection=False,Microsoft.Management.Infrastructure=False,Microsoft.PowerShell=False,Microsoft.Win32=False,System.ComponentModel=False,System.IO=False,System.Management.Automation=False,System.Management.Automation.Runspaces=False,System.Net=False,System.Runtime.InteropServices=False,System.Runtime.Remoting=False,System.Security=False,System.Security.Permissions=False,System.Security.Principal=False,System.ServiceProcess=False,System.Text=False,System.Threading=False,System.Windows.Forms=False,System.Windows.Forms.VisualStyles=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Linq=True,System.Xml.Linq=True,System.Threading.Tasks=True,LiteTask=True</ImportedNamespaces>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <IncludeSymbols>False</IncludeSymbols>
+    <GenerateDocumentationFile>False</GenerateDocumentationFile>
+    <PackAsTool>True</PackAsTool>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Lite Task is a Lightweight Alternative to the Windows Task Scheduler</Description>
+    <PackageProjectUrl>github.com/svtica/LiteTask</PackageProjectUrl>
+    <RepositoryUrl>github.com/svtica/LiteTask</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <UseWPF>False</UseWPF>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    <EnableUnsafeUTF7Encoding>true</EnableUnsafeUTF7Encoding>
+	  <ServerGarbageCollection>true</ServerGarbageCollection>
+    <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)bin\$(Configuration)\</OutDir>
+    <OutputPath>$(OutDir)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <ApplicationIcon>res\ico\logo.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="res\img\*.png" />
+    <EmbeddedResource Include="res\img\*.jpg" />
+    <EmbeddedResource Include="res\ico\*.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="res\lang\**" />
+    <Compile Remove="res\txt\**" />
+    <Compile Remove="System\**" />
+    <Compile Remove="tools\**" />
+    <EmbeddedResource Remove="res\lang\**" />
+    <EmbeddedResource Remove="res\txt\**" />
+    <EmbeddedResource Remove="System\**" />
+    <EmbeddedResource Remove="tools\**" />
+    <None Remove="res\lang\**" />
+    <None Remove="res\txt\**" />
+    <None Remove="System\**" />
+    <None Remove="tools\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Host\Microsoft.PowerShell.Host.psd1" />
+    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Management\Microsoft.PowerShell.Management.psd1" />
+    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1" />
+    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1" />
+    <None Remove="lib\Aga.Controls.dll" />
+    <None Remove="lib\LiteWMI.dll" />
+    <None Remove="lib\SecurePasswordTextBox.dll" />
+    <None Remove="lib\System.ServiceModel.dll" />
+    <None Remove="lib\System.ServiceProcess.ServiceController.dll" />
+    <None Remove="lib\System.Windows.Forms.Ribbon.dll" />
+    <None Remove="lib\TaskDialog.dll" />
+    <None Remove="LiteTaskData\InstallModules.ps1" />
+    <None Remove="LiteTaskData\lang\fr.xml" />
+    <None Remove="LiteTaskData\tools\adcache.xml" />
+    <None Remove="LiteTaskData\tools\LiteDeploy.exe" />
+    <None Remove="LiteTaskData\tools\LiteDeploy.exe.config" />
+    <None Remove="LiteTaskData\tools\LitePM.exe" />
+    <None Remove="LiteTaskData\tools\LitePM.exe.config" />
+    <None Remove="LiteTaskData\tools\LiteWMI.dll" />
+    <None Remove="LiteTaskData\tools\RDPWInst.exe" />
+    <None Remove="LiteTaskData\tools\SecurePasswordTextBox.dll" />
+    <None Remove="LiteTaskData\tools\sqlcmd.exe" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="lib\System.ServiceModel.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="lib\System.ServiceProcess.ServiceController.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\InstallModules.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\lang\fr.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\LiteDeploy.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\LiteDeploy.exe.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\LitePM.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\LitePM.exe.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\SecurePasswordTextBox.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\sqlcmd.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="res\ico\logo.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="My Project\Resources\logo">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="help.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="LICENSE">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="LiteTask-Post-Build.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="LiteTaskData\tools\LiteSrv-README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="LiteTaskData\tools\LiteSrv.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="LiteTaskData\tools\LiteSrv.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="LiteTaskData\tools\Logger.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="logo.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Update="My Project\Settings.settings">
+      <CustomToolNamespace>My</CustomToolNamespace>
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.vb</LastGenOutput>
+    </None>
+    <None Update="README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\certificate.cer">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="res\img\logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Update="Unblock-Files.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="My Project\Resources.Designer.vb">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Update="My Project\Settings.Designer.vb">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="My Project\Resources.resx">
+      <CustomToolNamespace>My.Resources</CustomToolNamespace>
+      <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.vb</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Import Include="Microsoft.Extensions.DependencyInjection" />
+    <Import Include="Microsoft.Management.Infrastructure" />
+    <Import Include="Microsoft.PowerShell" />
+    <Import Include="Microsoft.Win32" />
+    <Import Include="System.ComponentModel" />
+    <Import Include="System.IO" />
+    <Import Include="System.Management.Automation" />
+    <Import Include="System.Management.Automation.Runspaces" />
+    <Import Include="System.Net" />
+    <Import Include="System.Runtime.InteropServices" />
+    <Import Include="System.Runtime.Remoting" />
+    <Import Include="System.Security" />
+    <Import Include="System.Security.Permissions" />
+    <Import Include="System.Security.Principal" />
+    <Import Include="System.ServiceProcess" />
+    <Import Include="System.Text" />
+    <Import Include="System.Threading" />
+    <Import Include="System.Windows.Forms" />
+    <Import Include="System.Windows.Forms.VisualStyles" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.4.6" />
+	  <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="SecurePasswordTextBox">
+      <HintPath>lib\SecurePasswordTextBox.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Data.SqlClient">
+      <HintPath>lib\System.Data.SqlClient.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ServiceModel">
+      <HintPath>lib\System.ServiceModel.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ServiceProcess.ServiceController">
+      <HintPath>lib\System.ServiceProcess.ServiceController.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+<Target Name="CopyDependencies" AfterTargets="Build">
+  <ItemGroup>
+    <DependencyFiles Include="$(OutDir)*.dll" Exclude="$(OutDir)$(AssemblyName).dll" />
+  </ItemGroup>
+  <Copy SourceFiles="@(DependencyFiles)" DestinationFolder="$(OutDir)lib" />
+  <Delete Files="@(DependencyFiles)" />
+</Target>
+</Project>

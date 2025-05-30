@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<translations>
+	<!-- MainForm Menu -->
+	<translation key="_fileMenu.Text">Fichier</translation>
+	<translation key="_importMenuItem.Text">Importer des tâches</translation>
+	<translation key="_exportMenuItem.Text">Exporter les tâches</translation>
+	<translation key="_exportAllMenuItem.Text">Exporter toutes les tâches</translation>
+	<translation key="_credentialManagerMenuItem.Text">Gestionnaire d'identifiants</translation>
+	<translation key="_elevateMenuItem.Text">Exécuter en tant qu'administrateur</translation>
+	<translation key="ElevateConfirm.Message">L'exécution en tant qu'administrateur redémarrera l'application. Continuer?</translation>
+	<translation key="ElevateConfirm.Title">Élévation requise</translation>
+	<translation key="ElevateError.Title">Erreur d'élévation</translation>
+	<translation key="ElevateError.Message">Échec du redémarrage avec élévation: {0}</translation>
+	<translation key="_exitMenuItem.Text">Quitter LiteTask</translation>
+	<translation key="FileMenu.Exit">Quitter LiteTask</translation>
+	<translation key="ExitConfirm.Message">Êtes-vous sûr de vouloir quitter LiteTask ?</translation>
+	<translation key="ExitConfirm.Title">Confirmation de sortie</translation>
+
+	<translation key="_serviceMenu.Text">Service</translation>
+	<translation key="_installServiceMenuItem.Text">Installer le service</translation>
+	<translation key="_uninstallServiceMenuItem.Text">Désinstaller le service</translation>
+	<translation key="_startServiceMenuItem.Text">Démarrer le service</translation>
+	<translation key="_stopServiceMenuItem.Text">Arrêter le service</translation>
+
+	<translation key="_viewMenu.Text">Affichage</translation>
+	<translation key="_refreshMenuItem.Text">Actualiser</translation>
+	<translation key="_toggleLogMenuItem.Text">Afficher/Masquer le journal</translation>
+
+	<translation key="_toolsMenu.Text">Outils</translation>
+	<translation key="_checkToolsMenuItem.Text">Vérifier les outils</translation>
+	<translation key="_updateToolsMenuItem.Text">Mettre à jour les outils</translation>
+	<translation key="_executionToolMenu.Text">Sélectionner l'outil d'exécution</translation>
+	<translation key="_monitorTasksMenuItem.Text">Gestionnaire de processus</translation>
+	<translation key="_optionsMenuItem.Text">Options</translation>
+
+	<translation key="_helpMenu.Text">Aide</translation>
+	<translation key="_aboutMenuItem.Text">À propos</translation>
+	<translation key="_checkUpdatesMenuItem.Text">Vérifier les mises à jour</translation>
+
+	<!-- MainForm Buttons -->
+	<translation key="_runTaskButton">Exécuter</translation>
+	<translation key="_createTaskButton">Créer</translation>
+	<translation key="_editTaskButton">Modifier</translation>
+	<translation key="_deleteTaskButton">Supprimer</translation>
+	
+	<!-- MainForm Context Menu -->
+	<translation key="_runSelectedMenuItem.Text">Exécuter la sélection</translation>
+	<translation key="_editSelectedMenuItem.Text">Modifier la sélection</translation>
+	<translation key="_deleteSelectedMenuItem.Text">Supprimer la sélection</translation>
+	<translation key="_exportSelectedMenuItem.Text">Exporter la sélection</translation>
+
+	<!-- MainForm GridView -->
+	<translation key="OrderColumn.HeaderText">Ordre</translation>
+	<translation key="NameColumn.HeaderText">Nom</translation>
+	<translation key="DescriptionColumn.HeaderText">Description</translation>
+	<translation key="NextRunColumn.HeaderText">Prochaine exécution</translation>
+	<translation key="ScheduleTypeColumn.HeaderText">Type de planification</translation>
+	<translation key="ActionsColumn.HeaderText">Actions</translation>
+	<translation key="StatusColumn.HeaderText">État</translation>
+
+	<!-- MainForm Grid Columns -->
+	<translation key="NameColumn.HeaderText">Nom</translation>
+	<translation key="DescriptionColumn.HeaderText">Description</translation>
+	<translation key="NextRunColumn.HeaderText">Prochaine exécution</translation>
+	<translation key="ScheduleTypeColumn.HeaderText">Type de planification</translation>
+	<translation key="ActionsColumn.HeaderText">Actions</translation>
+	<translation key="StatusColumn.HeaderText">État</translation>
+	
+	<!-- Task Details Form -->
+	<translation key="TaskForm">Détails de la tâche</translation>
+
+	<!-- General Tab -->
+	<translation key="_nameLabel.Text">Nom :</translation>
+	<translation key="_descriptionLabel.Text">Description :</translation>
+	<translation key="_credentialLabel.TaskGeneral.Text">Identifiant :</translation>
+	<translation key="_requiresElevationCheckBox.Text">Nécessite une élévation de privilèges</translation>
+
+	<translation key="_generalTab.Text">Général</translation>
+	<translation key="_nameLabel.Text">Nom :</translation>
+	<translation key="_descriptionLabel.Text">Description :</translation>
+	<translation key="_targetLabel.Text">Cible :</translation>
+	<translation key="_credentialLabel.Text">Identifiant :</translation>
+	
+	<!-- TaskForm Grid Columns -->
+	<translation key="TargetColumn.HeaderText">Cible</translation>
+	<translation key="DependsOnColumn.HeaderText">Dépend de</translation>
+	
+	<!-- TaskForm General Tab Labels -->
+	<translation key="_nameLabel">Nom :</translation>
+	<translation key="_descriptionLabel">Description :</translation>
+	<translation key="_credentialLabel">Identifiant :</translation>
+	
+	<!-- Schedule Tab -->
+	<translation key="_scheduleTab.Text">Planification</translation>
+	<translation key="_startDateLabel">Date de début :</translation>
+	<translation key="_startTimeLabel">Heure de début :</translation>
+	<translation key="_recurringLabel">Récurrent</translation>
+	<translation key="_recurrenceTypeLabel">Type de récurrence :</translation>
+	<translation key="Daily">Quotidien</translation>
+	<translation key="Interval">Intervalle</translation>
+	<translation key="_intervalLabel.text">Intervalle (minutes) :</translation>
+	<translation key="_addTimeButton.Text">Ajouter</translation>
+	<translation key="_removeTimeButton.Text">Supprimer</translation>
+
+	<!-- Actions Tab -->
+	<translation key="_actionsTab">Actions</translation>
+	<translation key="_actionNameLabel">Nom :</translation>
+	<translation key="_actionTypeLabel">Type :</translation>
+	<translation key="_actionTargetLabel">Cible :</translation>
+	<translation key="_parametersLabel.Text">Paramètres :</translation>
+	<translation key="_dependsOnLabel.Text">Dépend de :</translation>
+	<translation key="_waitForCompletionCheck.Text">Attendre la fin de l'exécution</translation>
+	<translation key="_continueOnErrorCheck.Text">Continuer en cas d'erreur</translation>
+	<translation key="_timeoutLabel.Text">Délai expiration</translation>
+	<translation key="_retryCountLabel.Text">Nb essais</translation>
+	<translation key="_retryDelayLabel.Text">Délai entre essais</translation>
+
+	<translation key="_addActionButton.Text">Ajouter</translation>
+	<translation key="_editActionButton.Text">Modifier</translation>
+	<translation key="_deleteActionButton.Text">Supprimer</translation>
+	<translation key="_moveUpButton.Text">Monter</translation>
+	<translation key="_moveDownButton.Text">Descendre</translation>
+
+	<!-- Common Buttons -->
+	<translation key="_okButton">OK</translation>
+	<translation key="_cancelButton">Annuler</translation>
+	<translation key="_cancelButton.Text">Annuler</translation>
+	<translation key="_closeButton">Fermer</translation>
+	<translation key="Browse">Parcourir</translation>
+
+	<!-- NotifyIcon -->
+	<translation key="Show">Afficher</translation>
+	<translation key="Exit">Quitter</translation>
+	<translation key="NotifyIcon.Text">LiteTask</translation>
+	<translation key="NotifyIcon.BalloonTipTitle">LiteTask</translation>
+	<translation key="NotifyIcon.BalloonTipText">Application minimisée dans la barre des tâches</translation>
+
+	<!-- Dialog Messages -->
+	<translation key="ConfirmDelete">Êtes-vous sûr de vouloir supprimer cette tâche ?</translation>
+	<translation key="ConfirmDeleteMultiple">Êtes-vous sûr de vouloir supprimer ces {0} tâches ?</translation>
+	<translation key="ConfirmExit">Êtes-vous sûr de vouloir quitter LiteTask ?</translation>
+	<translation key="ConfirmExitTitle">Confirmer la fermeture</translation>
+	<translation key="SaveChanges">Voulez-vous enregistrer les modifications avant de quitter ?</translation>
+	<translation key="SaveChangesTitle">Enregistrer les modifications</translation>
+
+	<!-- Status Messages -->
+	<translation key="StatusRunning">En cours d'exécution...</translation>
+	<translation key="StatusCompleted">Terminé</translation>
+	<translation key="StatusError">Erreur</translation>
+	<translation key="StatusPending">En attente</translation>
+	<translation key="Ready">Prêt</translation>
+	<translation key="Running">En cours d'exécution</translation>
+	<translation key="Failed">Échec</translation>
+	<translation key="Completed">Terminé</translation>
+	<translation key="Pending">En attente</translation>
+	<translation key="Due">À échéance</translation>
+
+	<!-- Error Messages -->
+	<translation key="Error">Erreur</translation>
+	<translation key="ErrorValidation">Erreur de validation</translation>
+	<translation key="ErrorExecution">Erreur d'exécution</translation>
+	<translation key="InitializationError">Erreur d'initialisation</translation>
+	<translation key="ErrorDuringExit">Erreur lors de la fermeture de l'application</translation>
+
+	<!-- Success Messages -->
+	<translation key="Success">Succès</translation>
+	<translation key="TaskCreatedSuccess">Tâche créée avec succès</translation>
+	<translation key="TaskUpdatedSuccess">Tâche mise à jour avec succès</translation>
+	<translation key="TaskDeletedSuccess">Tâche supprimée avec succès</translation>
+
+	<!-- Information Messages -->
+	<translation key="Information">Information</translation>
+	<translation key="Warning">Avertissement</translation>
+	<translation key="Confirm">Confirmer</translation>
+	<translation key="AlreadyRunning">Une autre instance de LiteTask est déjà en cours d'exécution.</translation>
+
+	<!-- Loading Form -->
+	<translation key="Loading">Chargement</translation>
+
+	<!-- CredentialManager -->
+	<translation key="CredentialManagerForm.Text">Gestionnaire d'identifiants</translation>
+	<translation key="_targetLabel.Credential.Text">Cible :</translation>
+	<translation key="_usernameLabel.Text">Nom d'utilisateur :</translation>
+	<translation key="_passwordLabel.Text">Mot de passe :</translation>
+	<translation key="_accountTypeLabel.Text">Type de compte :</translation>
+	<translation key="_addButton.Text">Ajouter</translation>
+	<translation key="_updateButton.Text">Mettre à jour</translation>
+	<translation key="_deleteButton.Text">Supprimer</translation>
+	<translation key="_closeButton.Text">Fermer</translation>
+
+	<!-- Options Form -->
+	<translation key="OptionsForm">Options</translation>
+
+	<!-- Logging Tab -->
+	<translation key="_loggingTab">Journalisation</translation>
+	<translation key="_logFolderLabel">Dossier des journaux :</translation>
+	<translation key="_logLevelLabel">Niveau de journalisation :</translation>
+	<translation key="_alertLevelLabel">Niveau d'alerte :</translation>
+	<translation key="_maxLogSizeLabel">Taille maximale du journal (Mo) :</translation>
+	<translation key="_logRetentionLabel">Jours de conservation :</translation>
+	<translation key="_browseLogFolderButton">Parcourir...</translation>
+
+	<!-- Log Levels -->
+	<translation key="LogLevel.Debug">Débogage</translation>
+	<translation key="LogLevel.Info">Information</translation>
+	<translation key="LogLevel.Warning">Avertissement</translation>
+	<translation key="LogLevel.Error">Erreur</translation>
+	<translation key="LogLevel.Critical">Critique</translation>
+
+	<!-- Email Notifications Tab -->
+	<translation key="_notificationsTab">Notifications par email</translation>
+	<translation key="_emailNotificationsLabel">Paramètres de notification</translation>
+	<translation key="_enableNotificationsCheckBox">Activer les notifications par email</translation>
+	<translation key="_smtpServerLabel">Serveur SMTP :</translation>
+	<translation key="_smtpPortLabel">Port SMTP :</translation>
+	<translation key="_emailFromLabel">Email de :</translation>
+	<translation key="_emailToLabel">Email à :</translation>
+	<translation key="_useSSLCheckBox">Utiliser SSL</translation>
+	<translation key="_useCredentialsCheckBox">Utiliser des identifiants</translation>
+	<translation key="_credentialLabel">Identifiant :</translation>
+	<translation key="_testEmailButton">Envoyer un email test</translation>
+
+	<!-- SQL Settings Tab -->
+	<translation key="_sqlTab">Paramètres SQL</translation>
+	<translation key="_defaultServerLabel">Serveur par défaut :</translation>
+	<translation key="_defaultDatabaseLabel">Base de données par défaut :</translation>
+	<translation key="_commandTimeoutLabel">Délai d'expiration (secondes) :</translation>
+	<translation key="_maxBatchSizeLabel">Taille maximale du lot :</translation>
+
+	<!-- Options Form Messages -->
+	<translation key="Options.SaveSuccess">Options enregistrées avec succès</translation>
+	<translation key="Options.SaveError">Erreur lors de l'enregistrement des options</translation>
+	<translation key="Options.ValidationError">Erreur de validation des options</translation>
+	<translation key="Options.TestEmail.Success">Email test envoyé avec succès</translation>
+	<translation key="Options.TestEmail.Error">Erreur lors de l'envoi de l'email test</translation>
+	<translation key="Options.TestEmail.Subject">LiteTask - Email test</translation>
+	<translation key="Options.TestEmail.Body">Ceci est un email test de LiteTask. Si vous recevez cet email, la configuration est correcte.</translation>
+
+	<!-- Options Form Validation Messages -->
+	<translation key="Options.Validation.LogFolder">Le dossier des journaux est requis</translation>
+	<translation key="Options.Validation.SmtpServer">Le serveur SMTP est requis quand les notifications sont activées</translation>
+	<translation key="Options.Validation.SmtpPort">Le port SMTP doit être entre 1 et 65535</translation>
+	<translation key="Options.Validation.EmailFrom">L'adresse email expéditeur est requise et doit être valide</translation>
+	<translation key="Options.Validation.EmailTo">Au moins une adresse email destinataire valide est requise</translation>
+	<translation key="Options.Validation.InvalidEmail">Adresse email invalide : {0}</translation>
+	<translation key="Options.Validation.CredentialRequired">Veuillez sélectionner un identifiant ou désactiver l'utilisation des identifiants</translation>
+	<translation key="Options.Validation.MaxLogSize">La taille maximale du journal doit être supérieure à 0 Mo</translation>
+	<translation key="Options.Validation.RetentionDays">Les jours de conservation doivent être supérieurs à 0</translation>
+
+	<!-- Options Form Tooltips -->
+	<translation key="Options.Tooltip.LogFolder">Dossier où les fichiers journaux seront stockés</translation>
+	<translation key="Options.Tooltip.LogLevel">Niveau de détail des journaux</translation>
+	<translation key="Options.Tooltip.AlertLevel">Niveau minimal pour l'envoi de notifications</translation>
+	<translation key="Options.Tooltip.MaxLogSize">Taille maximale d'un fichier journal avant rotation</translation>
+	<translation key="Options.Tooltip.RetentionDays">Nombre de jours de conservation des journaux</translation>
+	<translation key="Options.Tooltip.SmtpServer">Adresse du serveur SMTP pour l'envoi des emails</translation>
+	<translation key="Options.Tooltip.SmtpPort">Port du serveur SMTP (généralement 25 ou 587)</translation>
+	<translation key="Options.Tooltip.EmailFrom">Adresse email utilisée comme expéditeur</translation>
+	<translation key="Options.Tooltip.EmailTo">Adresses email des destinataires (séparées par des points-virgules)</translation>
+	<translation key="Options.Tooltip.Server">Spécifiez le serveur SQL par défaut</translation>
+	<translation key="Options.Tooltip.Database">Spécifiez la base de données par défaut</translation>
+	<translation key="Options.Tooltip.Timeout">Délai maximum pour l'exécution des commandes</translation>
+	<translation key="Options.Tooltip.BatchSize">Nombre maximum d'enregistrements par lot</translation>
+
+	<!-- TaskForm Grid Columns -->
+	<translation key="TargetColumn.HeaderText">Cible</translation>
+	<translation key="DependsOnColumn.HeaderText">Dépend de</translation>
+
+	<!-- TaskForm General Tab -->
+	<translation key="_generalTab">Général</translation>
+	<translation key="_nameLabel">Nom :</translation>
+	<translation key="_descriptionLabel">Description :</translation>
+	<translation key="_targetLabel">Cible :</translation>
+	<translation key="_credentialLabel">Identifiant :</translation>
+
+	<!-- MainForm Grid Columns -->
+	<translation key="NameColumn.HeaderText">Nom</translation>
+	<translation key="DescriptionColumn.HeaderText">Description</translation>
+	<translation key="NextRunColumn.HeaderText">Prochaine exécution</translation>
+	<translation key="ScheduleTypeColumn.HeaderText">Type de planification</translation>
+	<translation key="ActionsColumn.HeaderText">Actions</translation>
+	<translation key="StatusColumn.HeaderText">État</translation>
+
+	<!-- MainForm Buttons -->
+	<translation key="_runTaskButton.Text">Exécuter</translation>
+	<translation key="_createTaskButton.Text">Créer</translation>
+	<translation key="_editTaskButton.Text">Modifier</translation>
+	<translation key="_deleteTaskButton.Text">Supprimer</translation>
+
+	<!-- Tasks Tab -->
+	<translation key="_taskTabPage">Tâches</translation>
+
+	<!-- RunTab -->
+	<translation key="RunTab.Text">Exécution</translation>
+	<translation key="RunTab.ScriptLabel">Script :</translation>
+	<translation key="RunTab.OutputLabel">Sortie :</translation>
+	<translation key="RunTab.TargetLabel">Cible :</translation>
+	<translation key="RunTab.CredentialLabel">Identifiant :</translation>
+	<translation key="RunTab.ExecutionTypeLabel">Mode d'exécution :</translation>
+	<translation key="RunTab.RequiresElevation">Nécessite une élévation</translation>
+	<translation key="RunTab.AutoDetect">Détection automatique du type d'exécution</translation>
+	<translation key="RunTab.RunButton">Exécuter le script</translation>
+
+	<!-- SQLTab -->
+	<translation key="SQLTab.Text">SQL</translation>
+	<translation key="SQLTab.QueryLabel">Requête :</translation>
+	<translation key="SQLTab.OutputLabel">Sortie :</translation>
+	<translation key="SQLTab.ServerLabel">Serveur :</translation>
+	<translation key="SQLTab.DatabaseLabel">Base de données :</translation>
+	<translation key="SQLTab.CredentialLabel">Identifiant :</translation>
+	<translation key="SQLTab.Connect">Connecter</translation>
+	<translation key="SQLTab.SelectAll">Tout sélectionner (CSV)</translation>
+	<translation key="SQLTab.LastEntry">Dernière entrée</translation>
+	<translation key="SQLTab.ObjectListLabel.Text">Objet :</translation>
+	<translation key="SQLTab.RunButton.Text">Exécuter</translation>
+	<translation key="SQLTab.QueryTypeLabel.Text">Type de requête :</translation>
+	<translation key="SQLTab.QueryType.Select">Sélectionner le type de requête</translation>
+	<translation key="SQLTab.QueryType.Table">Table</translation>
+	<translation key="SQLTab.QueryType.View">Vue</translation>
+	<translation key="SQLTab.QueryType.StoredProcedure">Procédure stockée</translation>
+	<translation key="SQLTab.QueryType.SQLFile">Fichier SQL</translation>
+</translations>
