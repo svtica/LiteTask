@@ -1,0 +1,97 @@
+# .github/workflows/build-and-release.yml
+# GitHub Actions workflow for LiteTask (.NET 8.0 VB.NET)
+
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET 8.0
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore LiteTask.sln
+      
+    - name: Build solution
+      run: dotnet build LiteTask.sln --configuration Release --no-restore
+      
+    - name: Run tests (if any)
+      run: dotnet test LiteTask.sln --configuration Release --no-build --verbosity normal
+      continue-on-error: true
+      
+    - name: Publish application
+      run: |
+        dotnet publish LiteTask.vbproj -c Release -r win-x64 --self-contained false -o ./publish
+        
+    - name: Copy additional files
+      run: |
+        Copy-Item "README.md" -Destination "./publish/"
+        Copy-Item "LICENSE" -Destination "./publish/"
+        Copy-Item "help.md" -Destination "./publish/" -ErrorAction SilentlyContinue
+        Copy-Item "LiteTaskData" -Destination "./publish/" -Recurse -ErrorAction SilentlyContinue
+      shell: powershell
+      
+    - name: Create release package
+      run: |
+        $version = "1.0.0"
+        if ($env:GITHUB_REF -like "refs/tags/*") {
+          $version = $env:GITHUB_REF -replace "refs/tags/v", ""
+        } elseif ($env:GITHUB_REF -like "refs/heads/*") {
+          $branch = $env:GITHUB_REF -replace "refs/heads/", ""
+          $sha = $env:GITHUB_SHA.Substring(0,7)
+          $version = "1.0.0-$branch-$sha"
+        }
+        
+        Compress-Archive -Path "./publish/*" -DestinationPath "LiteTask-$version-win-x64.zip"
+        echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
+        echo "PACKAGE_NAME=LiteTask-$version-win-x64.zip" >> $env:GITHUB_ENV
+      shell: powershell
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: LiteTask-${{ env.PACKAGE_VERSION }}
+        path: LiteTask-${{ env.PACKAGE_VERSION }}-win-x64.zip
+        
+    - name: Upload to release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./LiteTask-${{ env.PACKAGE_VERSION }}-win-x64.zip
+        asset_name: LiteTask-${{ env.PACKAGE_VERSION }}-win-x64.zip
+        asset_content_type: application/zip
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v2
+      with:
+        languages: 'csharp'
+        
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+      
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
