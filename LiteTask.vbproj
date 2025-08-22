@@ -7,8 +7,8 @@
     <MyType>WindowsForms</MyType>
     <Title>LiteTask</Title>
     <PackageIcon>logo.png</PackageIcon>
-    <FileVersion>1.0.0.1</FileVersion>
-    <AssemblyVersion>1.0.0.1</AssemblyVersion>
+    <FileVersion>1.0.0.2</FileVersion>
+    <AssemblyVersion>1.0.0.2</AssemblyVersion>
     <ImportedNamespaces>Microsoft.Extensions.DependencyInjection=False,Microsoft.Management.Infrastructure=False,Microsoft.PowerShell=False,Microsoft.Win32=False,System.ComponentModel=False,System.IO=False,System.Management.Automation=False,System.Management.Automation.Runspaces=False,System.Net=False,System.Runtime.InteropServices=False,System.Runtime.Remoting=False,System.Security=False,System.Security.Permissions=False,System.Security.Principal=False,System.ServiceProcess=False,System.Text=False,System.Threading=False,System.Windows.Forms=False,System.Windows.Forms.VisualStyles=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Linq=True,System.Xml.Linq=True,System.Threading.Tasks=True,LiteTask=True</ImportedNamespaces>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <IncludeSymbols>False</IncludeSymbols>
@@ -105,6 +105,7 @@
     <None Remove="LiteTaskData\tools\RDPWInst.exe" />
     <None Remove="LiteTaskData\tools\SecurePasswordTextBox.dll" />
     <None Remove="LiteTaskData\tools\sqlcmd.exe" />
+    <None Remove="PsExec64.exe" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="lib\System.ServiceModel.dll">
@@ -144,6 +145,9 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="PsExec64.exe" />
   </ItemGroup>
   <ItemGroup>
     <None Update="help.md">
