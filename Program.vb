@@ -29,6 +29,19 @@ Namespace LiteTask
 
                 ' Initialize container
                 InitializeContainer()
+                
+                ' Clean up any orphaned temp files from previous runs
+                Try
+                    Dim logger = ApplicationContainer.GetService(Of Logger)()
+                    logger.CleanupAllTempFiles()
+                    
+                    ' Also cleanup config files and backups
+                    Dim xmlManager = ApplicationContainer.GetService(Of XMLManager)()
+                    xmlManager.CleanupConfigFiles()
+                Catch ex As Exception
+                    ' Log cleanup failure but don't stop application startup
+                    Console.WriteLine($"Warning: Failed to cleanup temp files: {ex.Message}")
+                End Try
 
                 ' Set up global exception handlers
                 AddHandler Application.ThreadException, AddressOf Application_ThreadException
@@ -400,6 +413,19 @@ Namespace LiteTask
 
                 ' Initialize app with secure defaults
                 InitializeContainer()
+                
+                ' Clean up any orphaned temp files from previous runs
+                Try
+                    Dim logger = ApplicationContainer.GetService(Of Logger)()
+                    logger.CleanupAllTempFiles()
+                    
+                    ' Also cleanup config files and backups
+                    Dim xmlManager = ApplicationContainer.GetService(Of XMLManager)()
+                    xmlManager.CleanupConfigFiles()
+                Catch ex As Exception
+                    EventLog.WriteEntry(ServiceName, $"Warning: Failed to cleanup temp files: {ex.Message}", EventLogEntryType.Warning)
+                End Try
+                
                 Dim service = ApplicationContainer.GetService(Of LiteTaskService)()
 
                 Dim servicesToRun() As ServiceBase = {service}

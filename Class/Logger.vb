@@ -1,5 +1,7 @@
 Imports System.Collections.Concurrent
 Imports System.IO.Compression
+Imports System.Diagnostics
+Imports System.IO
 
 
 Namespace LiteTask
@@ -102,6 +104,61 @@ Namespace LiteTask
                             End Function)
         End Function
 
+        'Enhanced cleanup method that handles both custom temp directory and system temp directory
+        Public Sub CleanupAllTempFiles()
+            Try
+                ' Clean up custom temp directory
+                Dim customTempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiteTaskData", "temp")
+                CleanupTempDirectory(customTempDir, "*.tmp")
+                
+                ' Clean up any orphaned files in system temp directory (legacy cleanup)
+                Dim systemTempDir = Path.GetTempPath()
+                CleanupTempDirectory(systemTempDir, "tmp*.tmp") ' System temp files have specific naming pattern
+                CleanupTempDirectory(systemTempDir, "log_rotation_*.tmp") ' Our specific pattern
+                CleanupTempDirectory(systemTempDir, "LiteTask_*.log") ' PowerShell module install logs
+                
+            Catch ex As Exception
+                Debug.WriteLine($"Error during comprehensive temp file cleanup: {ex.Message}")
+            End Try
+        End Sub
+
+        Private Sub CleanupTempDirectory(directory As String, searchPattern As String)
+            Try
+                If Not System.IO.Directory.Exists(directory) Then Return
+                
+                Dim cutoffTime = DateTime.Now.AddHours(-1) ' Files older than 1 hour
+                Dim tempFiles = System.IO.Directory.GetFiles(directory, searchPattern)
+                
+                For Each file In tempFiles
+                    Try
+                        Dim fileInfo = New System.IO.FileInfo(file)
+                        If fileInfo.LastWriteTime < cutoffTime Then
+                            ' Additional check: ensure file is not in use
+                            If Not IsFileLocked(file) Then
+                                System.IO.File.Delete(file)
+                                Debug.WriteLine($"Cleaned up old temp file: {file}")
+                            End If
+                        End If
+                    Catch ex As Exception
+                        Debug.WriteLine($"Failed to delete temp file {file}: {ex.Message}")
+                    End Try
+                Next
+                
+            Catch ex As Exception
+                Debug.WriteLine($"Error cleaning temp directory {directory}: {ex.Message}")
+            End Try
+        End Sub
+
+        Private Function IsFileLocked(filePath As String) As Boolean
+            Try
+                Using fs = System.IO.File.Open(filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None)
+                    Return False
+                End Using
+            Catch
+                Return True
+            End Try
+        End Function
+
         Protected Overridable Sub Dispose(disposing As Boolean)
             If Not _disposed Then
                 If disposing Then
@@ -171,10 +228,15 @@ Namespace LiteTask
                 Dim fileInfo = New FileInfo(_logFile)
                 If fileInfo.Length >= _maxLogSize Then
                     Dim timestamp = DateTime.Now.ToString("yyyyMMddHHmmss")
-                    Dim tempPath = Path.GetTempFileName()
+                    
+                    ' Create a custom temp directory for log rotation
+                    Dim customTempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiteTaskData", "temp")
+                    Directory.CreateDirectory(customTempDir)  ' Ensure directory exists
+                    Dim tempPath = Path.Combine(customTempDir, $"log_rotation_{Guid.NewGuid()}.tmp")
+                    
                     Dim archivePath = Path.Combine(_logFolder, $"{Path.GetFileNameWithoutExtension(_logFile)}_{timestamp}{Path.GetExtension(_logFile)}")
 
-                    ' Create atomic rotation
+                    ' Create atomic rotation with better error handling
                     Try
                         ' Copy current log to temp file
                         File.Copy(_logFile, tempPath, True)
@@ -187,10 +249,33 @@ Namespace LiteTask
 
                         ' Compress archive
                         Await CompressLogAsync(archivePath)
+                        
+                    Catch ex As Exception
+                        '_logger?.LogError($"Error during log rotation: {ex.Message}")
+                        ' If rotation failed, restore from temp file if it exists
+                        If File.Exists(tempPath) AndAlso Not File.Exists(_logFile) Then
+                            Try
+                                File.Move(tempPath, _logFile)
+                            Catch restoreEx As Exception
+                                Debug.WriteLine($"Failed to restore log file: {restoreEx.Message}")
+                            End Try
+                        End If
+                        Throw
                     Finally
-                        ' Cleanup temp file if exists
+                        ' Cleanup temp file with retry logic
                         If File.Exists(tempPath) Then
-                            File.Delete(tempPath)
+                            For retry = 1 To 3
+                                Try
+                                    File.Delete(tempPath)
+                                    Exit For
+                                Catch ex As Exception
+                                    If retry = 3 Then
+                                        Debug.WriteLine($"Failed to delete temp file after {retry} attempts: {tempPath} - {ex.Message}")
+                                    Else
+                                        Thread.Sleep(100) ' Wait 100ms before retry
+                                    End If
+                                End Try
+                            Next
                         End If
                     End Try
                 End If
@@ -210,14 +295,22 @@ Namespace LiteTask
 
         Private Sub StartLogProcessor()
             _processorTask = Task.Run(Async Function()
+                                          Dim emptyQueueCount = 0
                                           While Not _processorCancellation.Token.IsCancellationRequested
                                               Try
                                                   Dim entry As LogEntry = Nothing
                                                   If _logQueue.TryDequeue(entry) Then
                                                       Await WriteLogEntryAsync(entry)
+                                                      emptyQueueCount = 0 ' Reset counter on successful dequeue
                                                   Else
-                                                      Await Task.Delay(100, _processorCancellation.Token)
+                                                      emptyQueueCount += 1
+                                                      ' Adaptive delay: short delay initially, longer for extended idle periods
+                                                      Dim delayMs = Math.Min(100 + (emptyQueueCount * 10), 1000)
+                                                      Await Task.Delay(delayMs, _processorCancellation.Token)
                                                   End If
+                                              Catch ex As OperationCanceledException
+                                                  ' Normal shutdown, exit gracefully
+                                                  Return
                                               Catch ex As Exception
                                                   ' Last resort error handling
                                                   Debug.WriteLine($"Error processing log entry: {ex.Message}")
@@ -258,12 +351,18 @@ Namespace LiteTask
         End Sub
 
         Private Async Function WriteLogEntryAsync(entry As LogEntry) As Task
-            Dim logEntry = $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{entry.Level}] {entry.Message}"
+            Dim logEntryBuilder As New StringBuilder()
+            logEntryBuilder.Append($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{entry.Level}] {entry.Message}")
+            
             If entry.Exception IsNot Nothing Then
-                logEntry &= $"{Environment.NewLine}Exception: {entry.Exception.Message}"
-                logEntry &= $"{Environment.NewLine}StackTrace: {entry.Exception.StackTrace}"
+                logEntryBuilder.AppendLine()
+                logEntryBuilder.Append($"Exception: {entry.Exception.Message}")
+                logEntryBuilder.AppendLine()
+                logEntryBuilder.Append($"StackTrace: {entry.Exception.StackTrace}")
             End If
-            logEntry &= Environment.NewLine
+            logEntryBuilder.AppendLine()
+            
+            Dim logEntry = logEntryBuilder.ToString()
 
             Try
                 SyncLock _lock
@@ -273,8 +372,10 @@ Namespace LiteTask
                     End Using
                 End SyncLock
 
-                ' Write to debug output for development
-                Debug.WriteLine(logEntry)
+                ' Write to debug output for development (only if debugger attached)
+                If Debugger.IsAttached Then
+                    Debug.WriteLine(logEntry)
+                End If
 
                 ' Notify UI if needed
                 RaiseEvent LogEntryAdded(Me, New LogEntryEventArgs(entry))

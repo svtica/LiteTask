@@ -76,6 +76,9 @@ Namespace LiteTask
             ' Finally load embedded PsExec
             GetEmbeddedPsExec()
 
+            ' Clean up any old temporary files from previous runs
+            CleanupOldTempFiles()
+
         End Sub
 
         'Private Function DataTableToString(dt As DataTable) As String
@@ -512,15 +515,15 @@ Namespace LiteTask
                         End Using
 
                 Finally
-                If File.Exists(TempFile) Then
-                    Try
-                        File.Delete(TempFile)
-                        _logger.LogInfo($"Deleted temporary SQL file: {TempFile}")
-                    Catch ex As Exception
-                        _logger.LogWarning($"Failed to delete temp file {TempFile}: {ex.Message}")
-                    End Try
-                End If
-            End Try
+                    If File.Exists(tempFile) Then
+                        Try
+                            File.Delete(tempFile)
+                            _logger.LogInfo($"Deleted temporary SQL file: {tempFile}")
+                        Catch ex As Exception
+                            _logger.LogWarning($"Failed to delete temp file {tempFile}: {ex.Message}")
+                        End Try
+                    End If
+                End Try
 
             Catch ex As Exception
             _logger.LogError($"Error executing SQL command: {ex.Message}")
@@ -677,10 +680,14 @@ Namespace LiteTask
             Try
                 If String.IsNullOrEmpty(parameters) Then Return result
 
-                For Each param In parameters.Split(" "c)
-                    Dim parts = param.Split("="c)
-                    If parts.Length = 2 Then
-                        result(parts(0).Trim()) = parts(1).Trim()
+                ' Use Span for more efficient string splitting (if available) or stick with optimized approach
+                Dim _paramArray = parameters.Split(New Char() {" "c}, StringSplitOptions.RemoveEmptyEntries)
+                For Each param In _paramArray
+                    Dim equalIndex = param.IndexOf("="c)
+                    If equalIndex > 0 AndAlso equalIndex < param.Length - 1 Then
+                        Dim key = param.Substring(0, equalIndex)
+                        Dim value = param.Substring(equalIndex + 1)
+                        result(key) = value
                     End If
                 Next
 
@@ -805,6 +812,60 @@ Namespace LiteTask
             If missingTools.Any() Then
                 Throw New Exception($"Required tools missing: {String.Join(", ", missingTools)}. Please ensure all required tools are in the tools directory: {_toolManager._toolsPath}")
             End If
+        End Sub
+
+        ''' Cleans up old temporary files from previous runs
+        Public Sub CleanupOldTempFiles()
+            Try
+                Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
+                If Directory.Exists(tempDir) Then
+                    Dim cutoffTime = DateTime.Now.AddHours(-1) ' Delete files older than 1 hour
+                    
+                    ' Clean up SQL temp files
+                    Dim sqlTempFiles = Directory.GetFiles(tempDir, "*.sql")
+                    For Each _file In sqlTempFiles
+                        Try
+                            Dim fileInfo = New FileInfo(_file)
+                            If fileInfo.LastWriteTime < cutoffTime Then
+                                File.Delete(_file)
+                                _logger.LogInfo($"Cleaned up old SQL temp file: {_file}")
+                            End If
+                        Catch ex As Exception
+                            _logger.LogWarning($"Failed to delete old SQL temp file {_file}: {ex.Message}")
+                        End Try
+                    Next
+                    
+                    ' Clean up XML temp files
+                    Dim xmlTempFiles = Directory.GetFiles(tempDir, "xml_save_*.tmp")
+                    For Each _file In xmlTempFiles
+                        Try
+                            Dim fileInfo = New FileInfo(_file)
+                            If fileInfo.LastWriteTime < cutoffTime Then
+                                File.Delete(_file)
+                                _logger.LogInfo($"Cleaned up old XML temp file: {_file}")
+                            End If
+                        Catch ex As Exception
+                            _logger.LogWarning($"Failed to delete old XML temp file {_file}: {ex.Message}")
+                        End Try
+                    Next
+                    
+                    ' Clean up log rotation temp files
+                    Dim logTempFiles = Directory.GetFiles(tempDir, "log_rotation_*.tmp")
+                    For Each _file In logTempFiles
+                        Try
+                            Dim fileInfo = New FileInfo(_file)
+                            If fileInfo.LastWriteTime < cutoffTime Then
+                                File.Delete(_file)
+                                _logger.LogInfo($"Cleaned up old log rotation temp file: {_file}")
+                            End If
+                        Catch ex As Exception
+                            _logger.LogWarning($"Failed to delete old log rotation temp file {_file}: {ex.Message}")
+                        End Try
+                    Next
+                End If
+            Catch ex As Exception
+                _logger.LogError($"Error during temp file cleanup: {ex.Message}")
+            End Try
         End Sub
 
     End Class

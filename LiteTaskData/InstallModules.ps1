@@ -74,7 +74,7 @@ param (
     [string[]]$Modules = $DEFAULT_MODULES,
     
     [Parameter(Mandatory=$false)]
-    [string]$LogPath = "$env:TEMP\LiteTask_ModuleInstall.log",
+    [string]$LogPath = ".\LiteTaskData\temp\LiteTask_ModuleInstall.log",
     
     [Parameter(Mandatory=$false)]
     [string]$Destination = ".\LiteTaskData\Modules",
@@ -112,7 +112,7 @@ function Write-LogMessage {
         }
     }
     catch {
-        $tempLogPath = Join-Path $env:TEMP "LiteTask_ModuleInstall.log"
+        $tempLogPath = ".\LiteTaskData\temp\LiteTask_ModuleInstall.log"
         Add-Content -Path $tempLogPath -Value $logMessage
         if ($LogPath -ne $tempLogPath) {
             Write-Warning "Failed to write to $LogPath, using $tempLogPath instead"

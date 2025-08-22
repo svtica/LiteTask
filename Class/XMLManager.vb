@@ -1,4 +1,5 @@
 Imports System.Xml
+Imports System.IO
 Imports LiteTask.LiteTask.ScheduledTask
 
 Namespace LiteTask
@@ -7,6 +8,12 @@ Namespace LiteTask
         Private _logger As Logger
         Private ReadOnly _xmlLock As New ReaderWriterLockSlim()
         Private ReadOnly _backupPath As String
+        Private ReadOnly _tempPath As String
+        
+        ' Simple cache for frequently accessed config values
+        Private _configCache As New Dictionary(Of String, String)
+        Private _cacheExpiry As DateTime = DateTime.MinValue
+        Private ReadOnly _cacheTimeout As TimeSpan = TimeSpan.FromMinutes(5)
 
         Public Sub New(filePath As String)
             If String.IsNullOrWhiteSpace(filePath) Then
@@ -15,11 +22,13 @@ Namespace LiteTask
 
             _filePath = filePath
             _backupPath = Path.Combine(Path.GetDirectoryName(filePath), "backup")
+            _tempPath = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
 
             ' Create directories with proper error handling
             Try
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath))
                 Directory.CreateDirectory(_backupPath)
+                Directory.CreateDirectory(_tempPath)
             Catch ex As Exception When TypeOf ex Is IOException OrElse TypeOf ex Is UnauthorizedAccessException
                 Throw New InvalidOperationException($"Unable to create required directories: {ex.Message}", ex)
             End Try
@@ -199,20 +208,13 @@ Namespace LiteTask
 
                     ' Remove the task node
                     tasksNode.RemoveChild(taskNode)
+                    
+                    ' Create a backup before saving (using existing backup mechanism)
+                    CreateBackup()
+                    
                     ' Save the document
                     xmlDoc.Save(_filePath)
                     _logger?.LogInfo($"Task {taskName} deleted successfully from XML")
-
-                    ' Optional: Save a backup of the XML file
-                    Try
-                        Dim backupPath = Path.Combine(
-                    Path.GetDirectoryName(_filePath),
-                    $"backup_{Path.GetFileNameWithoutExtension(_filePath)}_{DateTime.Now:yyyyMMddHHmmss}.xml")
-                        xmlDoc.Save(backupPath)
-                        _logger?.LogInfo($"XML backup created at: {backupPath}")
-                    Catch backupEx As Exception
-                        _logger?.LogWarning($"Failed to create backup: {backupEx.Message}")
-                    End Try
                 Else
                     _logger?.LogWarning($"Task {taskName} not found in XML file")
                 End If
@@ -584,15 +586,26 @@ Namespace LiteTask
 
         Public Function ReadValue(section As String, key As String, defaultValue As String) As String
             Try
+                Dim cacheKey = $"{section}/{key}"
+                
+                ' Check cache first
+                If DateTime.Now < _cacheExpiry AndAlso _configCache.ContainsKey(cacheKey) Then
+                    Return _configCache(cacheKey)
+                End If
+                
                 Dim xmlDoc As New XmlDocument()
                 xmlDoc.Load(_filePath)
 
                 Dim node As XmlNode = xmlDoc.SelectSingleNode($"LiteTaskSettings/{section}/{key}")
-                If node IsNot Nothing Then
-                    Return node.InnerText
-                Else
-                    Return defaultValue
+                Dim value = If(node?.InnerText, defaultValue)
+                
+                ' Update cache
+                _configCache(cacheKey) = value
+                If _configCache.Count = 1 Then ' First item, set expiry
+                    _cacheExpiry = DateTime.Now.Add(_cacheTimeout)
                 End If
+                
+                Return value
             Catch ex As Exception
                 _logger.LogError($"Error reading value for {section}/{key}: {ex.Message}")
                 Return defaultValue
@@ -703,8 +716,82 @@ Namespace LiteTask
             End Try
         End Sub
 
+        'Cleans up old backup files and configuration temporary files
+        Public Sub CleanupConfigFiles()
+            Try
+                CleanupOldBackups()
+                CleanupConfigTempFiles()
+            Catch ex As Exception
+                _logger?.LogError($"Error during config file cleanup: {ex.Message}")
+            End Try
+        End Sub
+
+        'Cleans up old backup files older than specified retention period
+        Private Sub CleanupOldBackups(Optional retentionDays As Integer = 30)
+            Try
+                If Not System.IO.Directory.Exists(_backupPath) Then Return
+                
+                Dim cutoffDate = DateTime.Now.AddDays(-retentionDays)
+                Dim backupFiles = System.IO.Directory.GetFiles(_backupPath, "backup_*.xml")
+                
+                For Each backupFile In backupFiles
+                    Try
+                        Dim fileInfo = New System.IO.FileInfo(backupFile)
+                        If fileInfo.CreationTime < cutoffDate Then
+                            System.IO.File.Delete(backupFile)
+                            _logger?.LogInfo($"Deleted old backup file: {System.IO.Path.GetFileName(backupFile)}")
+                        End If
+                    Catch ex As Exception
+                        _logger?.LogWarning($"Failed to delete backup file {backupFile}: {ex.Message}")
+                    End Try
+                Next
+                
+            Catch ex As Exception
+                _logger?.LogError($"Error cleaning up old backups: {ex.Message}")
+            End Try
+        End Sub
+
+        'Cleans up temporary files created during configuration operations
+        Private Sub CleanupConfigTempFiles()
+            Try
+                If Not System.IO.Directory.Exists(_tempPath) Then Return
+                
+                Dim cutoffTime = DateTime.Now.AddHours(-1) ' Files older than 1 hour
+                Dim tempFiles = System.IO.Directory.GetFiles(_tempPath, "xml_save_*.tmp")
+                
+                For Each tempFile In tempFiles
+                    Try
+                        Dim fileInfo = New System.IO.FileInfo(tempFile)
+                        If fileInfo.LastWriteTime < cutoffTime Then
+                            ' Check if file is not locked before deleting
+                            If Not IsFileLocked(tempFile) Then
+                                System.IO.File.Delete(tempFile)
+                                _logger?.LogInfo($"Cleaned up old config temp file: {System.IO.Path.GetFileName(tempFile)}")
+                            End If
+                        End If
+                    Catch ex As Exception
+                        _logger?.LogWarning($"Failed to delete config temp file {tempFile}: {ex.Message}")
+                    End Try
+                Next
+                
+            Catch ex As Exception
+                _logger?.LogError($"Error cleaning up config temp files: {ex.Message}")
+            End Try
+        End Sub
+
+        'Checks if a file is currently locked by another process
+        Private Function IsFileLocked(filePath As String) As Boolean
+            Try
+                Using fs = System.IO.File.Open(filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None)
+                    Return False
+                End Using
+            Catch
+                Return True
+            End Try
+        End Function
+
         Private Sub SaveXmlSafely(xmlDoc As XmlDocument)
-            Dim tempPath = Path.Combine(Path.GetDirectoryName(_filePath), $"temp_{DateTime.Now:yyyyMMddHHmmss}.xml")
+            Dim tempPath = Path.Combine(_tempPath, $"xml_save_{Guid.NewGuid()}.tmp")
 
             Try
                 Using fs As New FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None)
@@ -716,9 +803,17 @@ Namespace LiteTask
                 End If
                 File.Move(tempPath, _filePath)
 
+            Catch ex As Exception
+                _logger?.LogError($"Error saving XML file safely: {ex.Message}")
+                Throw
             Finally
+                ' Ensure temp file is cleaned up even if an exception occurs
                 If File.Exists(tempPath) Then
-                    File.Delete(tempPath)
+                    Try
+                        File.Delete(tempPath)
+                    Catch cleanupEx As Exception
+                        _logger?.LogWarning($"Failed to cleanup temp file {tempPath}: {cleanupEx.Message}")
+                    End Try
                 End If
             End Try
         End Sub
@@ -752,6 +847,12 @@ Namespace LiteTask
 
                 keyNode.InnerText = value
                 xmlDoc.Save(_filePath)
+                
+                ' Clear cache for this key and related values
+                Dim cacheKey = $"{section}/{key}"
+                If _configCache.ContainsKey(cacheKey) Then
+                    _configCache.Remove(cacheKey)
+                End If
             Catch ex As Exception
                 _logger.LogError($"Error writing value for {section}/{key}: {ex.Message}")
             End Try
