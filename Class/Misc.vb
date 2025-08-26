@@ -246,4 +246,79 @@ Namespace LiteTask
         Public Property GotError As String
     End Class
 
+    '-------------------------------------------------------------------------------
+
+    ''' Safe wrapper for mutex operations
+    Public Class MutexHandle
+        Implements IDisposable
+
+        Private ReadOnly _mutexName As String
+        Private ReadOnly _taskName As String
+        Private ReadOnly _logger As Logger
+        Private _mutex As Mutex
+        Private _hasLock As Boolean
+        Private _disposed As Boolean
+
+        Public Sub New(mutexName As String, taskName As String, logger As Logger)
+            _mutexName = mutexName
+            _taskName = taskName
+            _logger = logger
+        End Sub
+
+        Public Function TryAcquire(timeoutSeconds As Integer) As Boolean
+            Try
+                _mutex = New Mutex(False, _mutexName)
+                _hasLock = _mutex.WaitOne(TimeSpan.FromSeconds(timeoutSeconds))
+                Return _hasLock
+                
+            Catch ex As AbandonedMutexException
+                _logger.LogWarning($"Recovered from abandoned mutex for task: {_taskName}")
+                _hasLock = True
+                Return True
+            Catch ex As Exception
+                _logger.LogError($"Error acquiring mutex for {_taskName}: {ex.Message}")
+                Return False
+            End Try
+        End Function
+
+        Public Sub Dispose() Implements IDisposable.Dispose
+            If Not _disposed Then
+                Try
+                    If _hasLock AndAlso _mutex IsNot Nothing Then
+                        _mutex.ReleaseMutex()
+                        _logger.LogInfo($"Mutex released for task: {_taskName}")
+                    End If
+                Catch ex As Exception
+                    _logger.LogError($"Error releasing mutex for {_taskName}: {ex.Message}")
+                Finally
+                    _mutex?.Dispose()
+                    _disposed = True
+                End Try
+            End If
+        End Sub
+    End Class
+
+    '-------------------------------------------------------------------------------
+
+    ''' Information about an active mutex
+    Public Class MutexInfo
+        Public Property TaskName As String
+        Public Property AcquiredAt As DateTime
+        Public Property MutexHandle As MutexHandle
+    End Class
+
+    '-------------------------------------------------------------------------------
+
+    ''' Diagnostic information for mutex monitoring
+    Public Class MutexDiagnosticInfo
+        Public Property TaskName As String
+        Public Property AcquiredAt As DateTime
+        Public Property DurationMinutes As Double
+        Public Property IsStale As Boolean
+        
+        Public Overrides Function ToString() As String
+            Return $"Task: {TaskName}, Duration: {DurationMinutes:F1}min, Stale: {IsStale}"
+        End Function
+    End Class
+
 End Namespace
