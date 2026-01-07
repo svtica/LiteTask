@@ -7,9 +7,9 @@
     <MyType>WindowsForms</MyType>
     <Title>LiteTask</Title>
     <PackageIcon>logo.png</PackageIcon>
-    <FileVersion>1.0.0.2</FileVersion>
-    <AssemblyVersion>1.0.0.2</AssemblyVersion>
-    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.3</FileVersion>
+    <AssemblyVersion>1.0.0.3</AssemblyVersion>
+    <Version>1.0.0.3</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <InformationalVersion>$(Version)</InformationalVersion>
     <ImportedNamespaces>Microsoft.Extensions.DependencyInjection=False,Microsoft.Management.Infrastructure=False,Microsoft.PowerShell=False,Microsoft.Win32=False,System.ComponentModel=False,System.IO=False,System.Management.Automation=False,System.Management.Automation.Runspaces=False,System.Net=False,System.Runtime.InteropServices=False,System.Runtime.Remoting=False,System.Security=False,System.Security.Permissions=False,System.Security.Principal=False,System.ServiceProcess=False,System.Text=False,System.Threading=False,System.Windows.Forms=False,System.Windows.Forms.VisualStyles=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Linq=True,System.Xml.Linq=True,System.Threading.Tasks=True,LiteTask=True</ImportedNamespaces>
