@@ -28,6 +28,7 @@ Namespace LiteTask
         Private Const CHECK_INTERVAL_SECONDS As Integer = 300
         Private ReadOnly _processingLock As New SemaphoreSlim(1, 1)
         Private _isProcessing As Boolean = False
+        Private ReadOnly _staleTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
         
         ' Enhanced mutex management properties
         Private Const MUTEX_TIMEOUT_SECONDS As Integer = 30  ' Increased from 1 second
@@ -226,7 +227,8 @@ Namespace LiteTask
         Public Sub ClearTaskStates()
             _taskStates.Clear()
             _activeMutexes.Clear()
-            _logger.LogInfo("Task states and mutex tracking cleared")
+            _staleTaskAlerts.Clear()
+            _logger.LogInfo("Task states, mutex tracking, and stale alert tracking cleared")
         End Sub
 
         Public Sub CheckAndExecuteTasks()
@@ -262,15 +264,83 @@ Namespace LiteTask
                     If taskEntry.Value.IsRunning AndAlso
                    (now - taskEntry.Value.LastStartTime) > staleTimeout Then
                         _logger.LogWarning($"Cleaning up stale task state: {taskEntry.Key}")
+
+                        ' Send email alert if not already sent for this stale instance
+                        SendStaleTaskAlert(taskEntry.Key, taskEntry.Value, staleTimeout)
+
                         taskEntry.Value.IsRunning = False
                         taskEntry.Value.LastError = "Task cleaned up due to timeout"
-                        
+
                         ' Also remove from mutex tracking
                         _activeMutexes.TryRemove(taskEntry.Key, Nothing)
                     End If
                 Next
             Catch ex As Exception
                 _logger.LogError($"Error cleaning up stale tasks: {ex.Message}")
+            End Try
+        End Sub
+
+        ''' Sends an email alert for a stale task, with duplicate prevention
+        Private Sub SendStaleTaskAlert(taskName As String, taskState As TaskState, staleTimeout As TimeSpan)
+            Try
+                Dim lastAlertTime As DateTime = Nothing
+                Dim now = DateTime.Now
+
+                ' Check if we already sent an alert for this task recently (within the last hour)
+                If _staleTaskAlerts.TryGetValue(taskName, lastAlertTime) Then
+                    If (now - lastAlertTime).TotalHours < 1 Then
+                        ' Already sent an alert recently, don't spam
+                        _logger.LogInfo($"Skipping duplicate stale task alert for {taskName} (last alert: {lastAlertTime})")
+                        Return
+                    End If
+                End If
+
+                ' Get notification manager
+                Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                If notificationManager Is Nothing Then
+                    _logger.LogWarning("NotificationManager not available for stale task alert")
+                    Return
+                End If
+
+                ' Build alert message
+                Dim subject = $"ALERT: Stale Task Detected - {taskName}"
+                Dim body As New StringBuilder()
+                body.AppendLine($"A stale task has been detected and cleaned up:")
+                body.AppendLine()
+                body.AppendLine($"Task Name: {taskName}")
+                body.AppendLine($"Started At: {taskState.LastStartTime:yyyy-MM-dd HH:mm:ss}")
+                body.AppendLine($"Detection Time: {now:yyyy-MM-dd HH:mm:ss}")
+                body.AppendLine($"Running Duration: {(now - taskState.LastStartTime).TotalMinutes:F1} minutes")
+                body.AppendLine($"Timeout Threshold: {staleTimeout.TotalMinutes} minutes")
+                body.AppendLine()
+                body.AppendLine($"Status: {taskState.StatusMessage}")
+                If Not String.IsNullOrEmpty(taskState.LastError) Then
+                    body.AppendLine($"Last Error: {taskState.LastError}")
+                End If
+                body.AppendLine()
+                body.AppendLine("Action Taken: Task state has been reset and mutex released.")
+                body.AppendLine()
+                body.AppendLine("This typically indicates:")
+                body.AppendLine("  - The task process may be hung or stuck")
+                body.AppendLine("  - An executable may still be running in the background")
+                body.AppendLine("  - The task may have crashed without cleaning up properly")
+                body.AppendLine()
+                body.AppendLine("Recommended Actions:")
+                body.AppendLine("  1. Check task manager for hung processes")
+                body.AppendLine("  2. Review task logs for errors")
+                body.AppendLine("  3. Verify task executable and parameters")
+                body.AppendLine("  4. Consider increasing timeout if task legitimately needs longer")
+
+                ' Queue the notification
+                notificationManager.QueueNotification(subject, body.ToString(), NotificationManager.NotificationPriority.High)
+
+                ' Update alert tracking
+                _staleTaskAlerts(taskName) = now
+
+                _logger.LogInfo($"Stale task alert sent for {taskName}")
+
+            Catch ex As Exception
+                _logger.LogError($"Error sending stale task alert for {taskName}: {ex.Message}")
             End Try
         End Sub
 
@@ -495,6 +565,8 @@ Namespace LiteTask
                         _taskRunning.TryRemove(_task.Name, False)
                         taskState.LastEndTime = DateTime.Now
                         taskState.IsRunning = False
+                        ' Clear any stale task alert tracking when task completes normally
+                        _staleTaskAlerts.TryRemove(_task.Name, Nothing)
                     End Try
                 End If
 
