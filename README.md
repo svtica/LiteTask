@@ -36,8 +36,9 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 
 1. Download the latest release
 2. Extract files to desired location
-3. Run `LiteTask.exe`
-4. **Optional - Install as Windows Service**:
+3. On first extraction, run LiteTask-Post-Build.ps1 to remove Mark of the Web on files and remove useless files that were gererated automatically by the compiler
+4. Run `LiteTask.exe`
+5. **Optional - Install as Windows Service**:
    ```cmd
    LiteTask.exe -register
    ```
