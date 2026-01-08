@@ -574,18 +574,56 @@ Namespace LiteTask
                 _logger.LogError($"Fatal error in ExecuteTaskAsync for {_task.Name}: {ex.Message}")
                 taskState.IsRunning = False
                 taskState.LastError = ex.Message
+
+                ' Send email notification for fatal errors
+                Try
+                    Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                    If notificationManager IsNot Nothing Then
+                        Dim errorBody As New StringBuilder()
+                        errorBody.AppendLine($"A fatal error occurred during task execution:")
+                        errorBody.AppendLine()
+                        errorBody.AppendLine($"Task Name: {_task.Name}")
+                        errorBody.AppendLine($"Error Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+                        errorBody.AppendLine($"Error Message: {ex.Message}")
+                        errorBody.AppendLine()
+                        errorBody.AppendLine($"Stack Trace:")
+                        errorBody.AppendLine(ex.StackTrace)
+
+                        notificationManager.QueueNotification(
+                            $"FATAL ERROR: Task Execution Failed - {_task.Name}",
+                            errorBody.ToString(),
+                            NotificationManager.NotificationPriority.High)
+                    End If
+                Catch notifyEx As Exception
+                    _logger.LogError($"Failed to send fatal error notification: {notifyEx.Message}")
+                End Try
+
                 Throw
             Finally
                 ' Enhanced cleanup in Finally block
                 Try
                     If hasLock AndAlso mutex IsNot Nothing Then
-                        mutex.ReleaseMutex()
-                        _logger.LogInfo($"Released mutex for task: {_task.Name}")
+                        Try
+                            mutex.ReleaseMutex()
+                            _logger.LogInfo($"Released mutex for task: {_task.Name}")
+                        Catch mutexEx As ApplicationException
+                            ' Mutex was not owned by the current thread or already released
+                            _logger.LogWarning($"Mutex already released or not owned for task: {_task.Name}")
+                        Catch mutexEx As ObjectDisposedException
+                            ' Mutex was already disposed
+                            _logger.LogWarning($"Mutex already disposed for task: {_task.Name}")
+                        End Try
                     End If
                 Catch ex As Exception
-                    _logger.LogError($"Error releasing mutex for {_task.Name}: {ex.Message}")
+                    _logger.LogError($"Error during mutex cleanup for {_task.Name}: {ex.Message}")
                 Finally
-                    mutex?.Dispose()
+                    ' Dispose mutex safely
+                    Try
+                        mutex?.Dispose()
+                    Catch disposeEx As Exception
+                        _logger.LogWarning($"Error disposing mutex for {_task.Name}: {disposeEx.Message}")
+                    End Try
+
                     _activeMutexes.TryRemove(_task.Name, Nothing)
                     If taskState.IsRunning Then
                         taskState.IsRunning = False
