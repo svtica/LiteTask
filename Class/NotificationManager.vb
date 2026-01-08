@@ -4,9 +4,6 @@ Imports LiteTask.LiteTask.NotificationManager
 
 Namespace LiteTask
     Public Class NotificationManager
-        ' TODO: Fix email processing
-        ' The email processing task is not working as expected. It is not sending emails.
-
         Implements IDisposable
 
         Private _disposed As Boolean
@@ -15,12 +12,11 @@ Namespace LiteTask
         Private _emailSettings As Dictionary(Of String, String)
         Private _smtpClient As SmtpClient
         Private _isInitialized As Boolean = False
-        Private ReadOnly _emailQueue As New ConcurrentQueue(Of EmailMessage)
+        Private ReadOnly _messageQueue As New ConcurrentQueue(Of EmailMessage)
         Private _processingTask As Task
         Private _cancellationTokenSource As New CancellationTokenSource()
         Private _isProcessingEmails As Boolean = False
         Private disposedValue As Boolean
-        Private ReadOnly _messageQueue As New ConcurrentQueue(Of EmailMessage)
         Private ReadOnly _activeBatches As New ConcurrentDictionary(Of String, NotificationBatch)
 
         Public Property Messages As New List(Of EmailMessage)
@@ -254,7 +250,7 @@ Namespace LiteTask
                 _logger.LogError($"Failed to send email: {ex.Message}")
                 If message.RetryCount < 3 Then
                     message.RetryCount += 1
-                    _emailQueue.Enqueue(message)
+                    _messageQueue.Enqueue(message)
                 End If
             End Try
         End Function
@@ -270,7 +266,7 @@ Namespace LiteTask
                                            While Not _cancellationTokenSource.Token.IsCancellationRequested
                                                Try
                                                    Dim message As EmailMessage = Nothing
-                                                   If _emailQueue.TryDequeue(message) Then
+                                                   If _messageQueue.TryDequeue(message) Then
                                                        _isProcessingEmails = True
                                                        Try
                                                            Using mail As New MailMessage()
@@ -297,7 +293,7 @@ Namespace LiteTask
                                                            _logger.LogError($"Failed to send email: {ex.Message}")
                                                            If message.RetryCount < 3 Then
                                                                message.RetryCount += 1
-                                                               _emailQueue.Enqueue(message)
+                                                               _messageQueue.Enqueue(message)
                                                                ' Move delay outside of catch block
                                                                _isProcessingEmails = False
                                                                Continue While
