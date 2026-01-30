@@ -46,6 +46,7 @@ Namespace LiteTask
         Private WithEvents _intervalPanel As Panel
         Private WithEvents _intervalTextBox As TextBox
         Private WithEvents _intervalLabel As Label
+        Private WithEvents _intervalUnitLabel As Label
         Private WithEvents _dailyPanel As Panel
         Private WithEvents _dailyTimeList As ListBox
         Private WithEvents _dailyTimePicker As DateTimePicker
@@ -215,16 +216,22 @@ Namespace LiteTask
                 _intervalPanel.Name = "_intervalPanel"
 
                 _intervalLabel.Location = New Point(0, 3)
-                _intervalLabel.Size = New Size(100, 23)
-                _intervalLabel.Text = "Interval (minutes):"
+                _intervalLabel.Size = New Size(55, 23)
+                _intervalLabel.Text = "Interval:"
                 _intervalLabel.Name = "_intervalLabel"
 
-                _intervalTextBox.Location = New Point(110, 0)
-                _intervalTextBox.Size = New Size(100, 23)
+                _intervalTextBox.Location = New Point(60, 0)
+                _intervalTextBox.Size = New Size(80, 23)
                 _intervalTextBox.Name = "_intervalTextBox"
+
+                _intervalUnitLabel.Location = New Point(145, 3)
+                _intervalUnitLabel.Size = New Size(60, 23)
+                _intervalUnitLabel.Text = "minutes"
+                _intervalUnitLabel.Name = "_intervalUnitLabel"
 
                 _intervalPanel.Controls.Add(_intervalLabel)
                 _intervalPanel.Controls.Add(_intervalTextBox)
+                _intervalPanel.Controls.Add(_intervalUnitLabel)
 
                 ' Configure Daily Panel
                 _dailyPanel.Location = New Point(120, 110)

@@ -14,8 +14,9 @@ Namespace LiteTask
         Private ReadOnly _translationManager As TranslationManager
         Private _task As ScheduledTask
         Private ReadOnly _notificationManager As NotificationManager
-        Private ReadOnly _autoRefreshTimer As System.Windows.Forms.Timer
+        Private _autoRefreshTimer As System.Windows.Forms.Timer
         Private ReadOnly _statusTimer As System.Windows.Forms.Timer
+        Private ReadOnly _schedulerTimer As System.Windows.Forms.Timer
         Private _recurrenceType As ScheduledTask.RecurrenceType
         Private _taskType As ScheduledTask.TaskType
         Private _taskTabPage As TabPage
@@ -93,6 +94,13 @@ Namespace LiteTask
                 }
                 AddHandler _statusTimer.Tick, AddressOf UpdateStatus
                 _statusTimer.Start()
+
+                ' Initialize scheduler timer for GUI mode (checks tasks every 60 seconds)
+                _schedulerTimer = New System.Windows.Forms.Timer With {
+                    .Interval = 60000  ' 60 seconds
+                }
+                AddHandler _schedulerTimer.Tick, AddressOf SchedulerTimer_Tick
+                _schedulerTimer.Start()
 
                 ' Initialize auto-refresh timer
                 _logger.LogInfo("MainForm initialized successfully")
@@ -1160,7 +1168,7 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeAutoRefresh()
-            Dim _autoRefreshTimer = New System.Windows.Forms.Timer With {
+            _autoRefreshTimer = New System.Windows.Forms.Timer With {
         .Interval = MIN_REFRESH_INTERVAL_MS,
         .Enabled = False
             }
@@ -1386,6 +1394,12 @@ Namespace LiteTask
                     _statusTimer.Stop()
                     RemoveHandler _statusTimer.Tick, AddressOf UpdateStatus
                     _statusTimer.Dispose()
+                End If
+
+                If _schedulerTimer IsNot Nothing Then
+                    _schedulerTimer.Stop()
+                    RemoveHandler _schedulerTimer.Tick, AddressOf SchedulerTimer_Tick
+                    _schedulerTimer.Dispose()
                 End If
 
                 'If _logger IsNot Nothing Then
@@ -1832,6 +1846,14 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError("Error updating status", ex)
                 UpdateStatusLabel("Error updating status", Color.Red)
+            End Try
+        End Sub
+
+        Private Sub SchedulerTimer_Tick(sender As Object, e As EventArgs)
+            Try
+                _customScheduler.CheckAndExecuteTasks()
+            Catch ex As Exception
+                _logger.LogError($"Error in scheduler timer: {ex.Message}")
             End Try
         End Sub
 
