@@ -380,6 +380,22 @@ Namespace LiteTask
                     If localModuleDirs.Length > 0 Then
                         initialSessionState.ImportPSModule(localModuleDirs)
                     End If
+                ' Collect all module directories from all known paths
+                Dim allModuleDirs As New List(Of String)
+
+                For Each basePath In GetSystemModulePaths()
+                    If Directory.Exists(basePath) Then
+                        Try
+                            allModuleDirs.AddRange(Directory.GetDirectories(basePath))
+                        Catch ex As UnauthorizedAccessException
+                            _logger.LogWarning($"Cannot access module path '{basePath}': {ex.Message}")
+                        End Try
+                    End If
+                Next
+
+                ' Import all discovered module directories into the session
+                If allModuleDirs.Count > 0 Then
+                    initialSessionState.ImportPSModule(allModuleDirs.ToArray())
                 End If
 
                 Dim ps = PowerShell.Create(initialSessionState)
