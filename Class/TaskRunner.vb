@@ -69,7 +69,22 @@ Namespace LiteTask
             _powerShellPathManager.EnsureModulePathExists()
             Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
             initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
-            initialSessionState.ImportPSModule(Directory.GetDirectories(_powerShellPathManager.GetModulePath()))
+
+            ' Import modules from all known system paths (not just local)
+            Dim allModuleDirs As New List(Of String)
+            For Each basePath In _powerShellPathManager.GetSystemModulePaths()
+                If Directory.Exists(basePath) Then
+                    Try
+                        allModuleDirs.AddRange(Directory.GetDirectories(basePath))
+                    Catch ex As UnauthorizedAccessException
+                        _logger.LogWarning($"Cannot access module path '{basePath}': {ex.Message}")
+                    End Try
+                End If
+            Next
+            If allModuleDirs.Count > 0 Then
+                initialSessionState.ImportPSModule(allModuleDirs.ToArray())
+            End If
+
             _runspace = RunspaceFactory.CreateRunspace(initialSessionState)
             _runspace.Open()
 
@@ -625,8 +640,20 @@ Namespace LiteTask
                 _logger.LogInfo($"Script path: {taskAction.Target}")
                 _logger.LogInfo($"Using credentials: {If(credential IsNot Nothing, credential.Username, "None")}")
 
+                Dim scriptContent = File.ReadAllText(taskAction.Target)
+
+                ' Detect and verify required modules before execution
+                Dim requiredModules = PowerShellPathManager.DetectRequiredModules(scriptContent)
+                If requiredModules.Count > 0 Then
+                    _logger.LogInfo($"Detected required PowerShell modules: {String.Join(", ", requiredModules)}")
+                    Dim missingModules = _powerShellPathManager.VerifyModules(requiredModules)
+                    If missingModules.Count > 0 Then
+                        _logger.LogWarning($"Missing PowerShell modules: {String.Join(", ", missingModules)}. Script may fail if these modules cannot be auto-loaded. Install them via the Modules Manager or run: Install-Module {String.Join(", ", missingModules)}")
+                    End If
+                End If
+
                 Using powerShell As PowerShell = _powerShellPathManager.CreatePowerShellInstance()
-                    powerShell.AddScript(File.ReadAllText(taskAction.Target))
+                    powerShell.AddScript(scriptContent)
 
                     If credential IsNot Nothing Then
                         _logger.LogInfo("Adding credential parameters to PowerShell script")

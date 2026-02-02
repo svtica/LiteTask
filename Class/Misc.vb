@@ -181,10 +181,71 @@ Namespace LiteTask
             Return _modulesPath
         End Function
 
+        ''' <summary>
+        ''' Gets all standard PowerShell module paths from the system.
+        ''' </summary>
+        Public Function GetSystemModulePaths() As List(Of String)
+            Dim paths As New List(Of String)
+
+            Try
+                ' Add the LiteTask local modules path first
+                paths.Add(_modulesPath)
+
+                ' Standard PowerShell module locations
+                Dim programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+                Dim userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                Dim systemRoot = Environment.GetEnvironmentVariable("SystemRoot")
+
+                ' PowerShell 7+ module paths
+                Dim ps7ModulePath = Path.Combine(programFiles, "PowerShell", "Modules")
+                If Directory.Exists(ps7ModulePath) Then paths.Add(ps7ModulePath)
+
+                Dim ps7PreviewModulePath = Path.Combine(programFiles, "PowerShell", "7", "Modules")
+                If Directory.Exists(ps7PreviewModulePath) Then paths.Add(ps7PreviewModulePath)
+
+                ' Windows PowerShell 5.1 module paths
+                If systemRoot IsNot Nothing Then
+                    Dim winPsModulePath = Path.Combine(systemRoot, "System32", "WindowsPowerShell", "v1.0", "Modules")
+                    If Directory.Exists(winPsModulePath) Then paths.Add(winPsModulePath)
+                End If
+
+                ' Program Files module path (shared between PS editions)
+                Dim pfModulePath = Path.Combine(programFiles, "WindowsPowerShell", "Modules")
+                If Directory.Exists(pfModulePath) Then paths.Add(pfModulePath)
+
+                ' User-scoped module paths
+                Dim userPsModulePath = Path.Combine(userProfile, "Documents", "PowerShell", "Modules")
+                If Directory.Exists(userPsModulePath) Then paths.Add(userPsModulePath)
+
+                Dim userWinPsModulePath = Path.Combine(userProfile, "Documents", "WindowsPowerShell", "Modules")
+                If Directory.Exists(userWinPsModulePath) Then paths.Add(userWinPsModulePath)
+
+                ' Also check the current PSModulePath environment variable for any custom paths
+                Dim envModulePath = Environment.GetEnvironmentVariable("PSModulePath")
+                If Not String.IsNullOrEmpty(envModulePath) Then
+                    For Each envPath In envModulePath.Split(Path.PathSeparator)
+                        Dim trimmedPath = envPath.Trim()
+                        If Not String.IsNullOrEmpty(trimmedPath) AndAlso Directory.Exists(trimmedPath) AndAlso Not paths.Contains(trimmedPath) Then
+                            paths.Add(trimmedPath)
+                        End If
+                    Next
+                End If
+
+            Catch ex As Exception
+                _logger.LogError($"Error discovering system module paths: {ex.Message}")
+            End Try
+
+            Return paths
+        End Function
+
         Public Function CreateInitializationScript() As String
+            ' Build a comprehensive PSModulePath that includes all system paths
+            Dim allPaths = GetSystemModulePaths()
+            Dim pathString = String.Join([Char].ToString(Path.PathSeparator), allPaths)
+
             ' This script will be prepended to all PowerShell executions
             Return $"
-                $env:PSModulePath = '{_modulesPath}' + [System.IO.Path]::PathSeparator + $env:PSModulePath
+                $env:PSModulePath = '{pathString}' + [System.IO.Path]::PathSeparator + $env:PSModulePath
                 $ErrorActionPreference = 'Stop'
                 Import-Module PowerShellGet -Force -ErrorAction SilentlyContinue
             "
@@ -202,14 +263,132 @@ Namespace LiteTask
             End If
         End Sub
 
+        ''' <summary>
+        ''' Checks whether a PowerShell module is available in any known module path.
+        ''' Returns the path where the module was found, or Nothing if not found.
+        ''' </summary>
+        Public Function FindModule(moduleName As String) As String
+            Try
+                For Each basePath In GetSystemModulePaths()
+                    If Not Directory.Exists(basePath) Then Continue For
+
+                    ' Check for module directory (most common layout)
+                    Dim moduleDirPath = Path.Combine(basePath, moduleName)
+                    If Directory.Exists(moduleDirPath) Then
+                        ' Verify it contains a module manifest or script module
+                        If File.Exists(Path.Combine(moduleDirPath, $"{moduleName}.psd1")) OrElse
+                           File.Exists(Path.Combine(moduleDirPath, $"{moduleName}.psm1")) Then
+                            Return moduleDirPath
+                        End If
+
+                        ' Check versioned subdirectories (e.g., ImportExcel/7.8.6/ImportExcel.psd1)
+                        For Each versionDir In Directory.GetDirectories(moduleDirPath)
+                            If File.Exists(Path.Combine(versionDir, $"{moduleName}.psd1")) OrElse
+                               File.Exists(Path.Combine(versionDir, $"{moduleName}.psm1")) Then
+                                Return versionDir
+                            End If
+                        Next
+                    End If
+                Next
+            Catch ex As Exception
+                _logger.LogError($"Error searching for module '{moduleName}': {ex.Message}")
+            End Try
+
+            Return Nothing
+        End Function
+
+        ''' <summary>
+        ''' Verifies a list of module names and logs their availability.
+        ''' Returns a list of modules that could not be found.
+        ''' </summary>
+        Public Function VerifyModules(moduleNames As IEnumerable(Of String)) As List(Of String)
+            Dim missingModules As New List(Of String)
+
+            For Each moduleName In moduleNames
+                Dim foundPath = FindModule(moduleName)
+                If foundPath IsNot Nothing Then
+                    _logger.LogInfo($"PowerShell module '{moduleName}' found at: {foundPath}")
+                Else
+                    _logger.LogWarning($"PowerShell module '{moduleName}' not found in any module path")
+                    missingModules.Add(moduleName)
+                End If
+            Next
+
+            Return missingModules
+        End Function
+
+        ''' <summary>
+        ''' Scans a PowerShell script file for required modules by looking for
+        ''' #Requires -Module and Import-Module statements.
+        ''' </summary>
+        Public Shared Function DetectRequiredModules(scriptContent As String) As List(Of String)
+            Dim modules As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+
+            Try
+                ' Match #Requires -Module ModuleName or #Requires -Modules ModuleName, Module2
+                Dim requiresPattern As New Text.RegularExpressions.Regex(
+                    "#Requires\s+-Modules?\s+(.+)",
+                    Text.RegularExpressions.RegexOptions.IgnoreCase Or Text.RegularExpressions.RegexOptions.Multiline)
+
+                For Each match As Text.RegularExpressions.Match In requiresPattern.Matches(scriptContent)
+                    Dim moduleList = match.Groups(1).Value
+                    For Each modName In moduleList.Split(","c)
+                        Dim cleaned = modName.Trim().Trim("'"c, """"c)
+                        ' Handle @{ModuleName = 'Name'; ...} hashtable syntax
+                        If cleaned.StartsWith("@{") Then
+                            Dim nameMatch = Text.RegularExpressions.Regex.Match(cleaned, "ModuleName\s*=\s*['""]?(\w+)")
+                            If nameMatch.Success Then modules.Add(nameMatch.Groups(1).Value)
+                        ElseIf Not String.IsNullOrWhiteSpace(cleaned) Then
+                            modules.Add(cleaned)
+                        End If
+                    Next
+                Next
+
+                ' Match Import-Module ModuleName (not variables like $module)
+                Dim importPattern As New Text.RegularExpressions.Regex(
+                    "Import-Module\s+(?:-Name\s+)?['""]?([A-Za-z][\w.]+)['""]?",
+                    Text.RegularExpressions.RegexOptions.IgnoreCase Or Text.RegularExpressions.RegexOptions.Multiline)
+
+                For Each match As Text.RegularExpressions.Match In importPattern.Matches(scriptContent)
+                    Dim modName = match.Groups(1).Value.Trim()
+                    ' Skip common built-in modules that don't need verification
+                    If Not String.IsNullOrWhiteSpace(modName) AndAlso
+                       Not modName.Equals("Microsoft.PowerShell.Management", StringComparison.OrdinalIgnoreCase) AndAlso
+                       Not modName.Equals("Microsoft.PowerShell.Utility", StringComparison.OrdinalIgnoreCase) Then
+                        modules.Add(modName)
+                    End If
+                Next
+
+            Catch ex As Exception
+                ' Don't fail script execution if detection fails
+            End Try
+
+            Return modules.ToList()
+        End Function
+
         Public Function CreatePowerShellInstance() As PowerShell
             Try
                 ' Explicitly declare the type
                 Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
-                ' Add our modules path to the session
-                initialSessionState.ImportPSModule(Directory.GetDirectories(_modulesPath))
+                ' Collect all module directories from all known paths
+                Dim allModuleDirs As New List(Of String)
+
+                For Each basePath In GetSystemModulePaths()
+                    If Directory.Exists(basePath) Then
+                        Try
+                            allModuleDirs.AddRange(Directory.GetDirectories(basePath))
+                        Catch ex As UnauthorizedAccessException
+                            _logger.LogWarning($"Cannot access module path '{basePath}': {ex.Message}")
+                        End Try
+                    End If
+                Next
+
+                ' Import all discovered module directories into the session
+                If allModuleDirs.Count > 0 Then
+                    initialSessionState.ImportPSModule(allModuleDirs.ToArray())
+                End If
 
                 Dim ps = PowerShell.Create(initialSessionState)
                 ps.AddScript(CreateInitializationScript())
