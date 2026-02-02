@@ -70,19 +70,15 @@ Namespace LiteTask
             Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
             initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
-            ' Import modules from all known system paths (not just local)
-            Dim allModuleDirs As New List(Of String)
-            For Each basePath In _powerShellPathManager.GetSystemModulePaths()
-                If Directory.Exists(basePath) Then
-                    Try
-                        allModuleDirs.AddRange(Directory.GetDirectories(basePath))
-                    Catch ex As UnauthorizedAccessException
-                        _logger.LogWarning($"Cannot access module path '{basePath}': {ex.Message}")
-                    End Try
+            ' Only import modules from the local LiteTask modules directory (safe, controlled)
+            ' System module paths are added to $env:PSModulePath via the initialization script
+            ' so PowerShell's auto-loading can find them on demand without forcing eager loading
+            Dim localModulePath = _powerShellPathManager.GetModulePath()
+            If Directory.Exists(localModulePath) Then
+                Dim localModuleDirs = Directory.GetDirectories(localModulePath)
+                If localModuleDirs.Length > 0 Then
+                    initialSessionState.ImportPSModule(localModuleDirs)
                 End If
-            Next
-            If allModuleDirs.Count > 0 Then
-                initialSessionState.ImportPSModule(allModuleDirs.ToArray())
             End If
 
             _runspace = RunspaceFactory.CreateRunspace(initialSessionState)
