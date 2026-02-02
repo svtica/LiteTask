@@ -1,4 +1,5 @@
 Imports System.Drawing
+Imports System.ServiceProcess
 
 Namespace LiteTask
     Public Class MainForm
@@ -34,6 +35,11 @@ Namespace LiteTask
         Private _refreshPending As Boolean = False
         Private _lastRefreshTime As DateTime = DateTime.MinValue
         Private Const MIN_REFRESH_INTERVAL_MS As Integer = 2000
+
+        Private Const SERVICE_NAME As String = "LiteTaskService"
+        Private _lastServiceCheck As DateTime = DateTime.MinValue
+        Private _isServiceRunning As Boolean = False
+        Private Const SERVICE_CHECK_INTERVAL_SECONDS As Integer = 120
 
         Friend WithEvents _toolsMenu As ToolStripMenuItem
         Friend WithEvents _checkToolsMenuItem As ToolStripMenuItem
@@ -1841,7 +1847,8 @@ Namespace LiteTask
                 Dim pendingTasks = tasks.Count(Function(t) t.NextRunTime > DateTime.Now)
                 Dim dueTasks = tasks.Count(Function(t) t.NextRunTime <= DateTime.Now)
 
-                UpdateStatusLabel($"Ready - {pendingTasks} pending tasks, {dueTasks} due tasks")
+                Dim serviceNote = If(IsServiceRunning(), " (service active)", "")
+                UpdateStatusLabel($"Ready - {pendingTasks} pending tasks, {dueTasks} due tasks{serviceNote}")
 
             Catch ex As Exception
                 _logger.LogError("Error updating status", ex)
@@ -1851,11 +1858,39 @@ Namespace LiteTask
 
         Private Sub SchedulerTimer_Tick(sender As Object, e As EventArgs)
             Try
+                ' Skip GUI scheduling when the Windows service is already handling it
+                If IsServiceRunning() Then
+                    Return
+                End If
+
                 _customScheduler.CheckAndExecuteTasks()
             Catch ex As Exception
                 _logger.LogError($"Error in scheduler timer: {ex.Message}")
             End Try
         End Sub
+
+        ''' <summary>
+        ''' Checks whether the LiteTask Windows service is currently running.
+        ''' Result is cached to avoid querying the service controller too frequently.
+        ''' </summary>
+        Private Function IsServiceRunning() As Boolean
+            Try
+                Dim now = DateTime.Now
+                If (now - _lastServiceCheck).TotalSeconds < SERVICE_CHECK_INTERVAL_SECONDS Then
+                    Return _isServiceRunning
+                End If
+
+                _lastServiceCheck = now
+                Using sc = New ServiceController(SERVICE_NAME)
+                    _isServiceRunning = (sc.Status = ServiceControllerStatus.Running)
+                End Using
+            Catch
+                ' Service not installed or not accessible — treat as not running
+                _isServiceRunning = False
+            End Try
+
+            Return _isServiceRunning
+        End Function
 
         Private Sub UpdateTaskStatus(task As ScheduledTask)
             'TODO: Implement task status update
