@@ -98,6 +98,7 @@ Namespace LiteTask
                 _intervalPanel = New Panel()
                 _intervalTextBox = New TextBox()
                 _intervalLabel = New Label()
+                _intervalUnitLabel = New Label()
                 _dailyPanel = New Panel()
                 _dailyTimeList = New ListBox()
                 _dailyTimePicker = New DateTimePicker()
