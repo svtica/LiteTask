@@ -25,10 +25,11 @@ Namespace LiteTask
         Private ReadOnly _taskStates As New ConcurrentDictionary(Of String, TaskState)
         Private ReadOnly _schedulerLock As New SemaphoreSlim(1, 1)
         Private Const STALE_TIMEOUT_MINUTES As Integer = 15
-        Private Const CHECK_INTERVAL_SECONDS As Integer = 300
         Private ReadOnly _processingLock As New SemaphoreSlim(1, 1)
         Private _isProcessing As Boolean = False
         Private ReadOnly _staleTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
+        Private _lastStaleCleanupTime As DateTime = DateTime.MinValue
+        Private Const STALE_CLEANUP_INTERVAL_SECONDS As Integer = 300
         
         ' Enhanced mutex management properties
         Private Const MUTEX_TIMEOUT_SECONDS As Integer = 30  ' Increased from 1 second
@@ -233,16 +234,21 @@ Namespace LiteTask
 
         Public Sub CheckAndExecuteTasks()
             Try
-                CleanupStaleTasks()
                 Dim now = DateTime.Now
+
+                ' Only run stale cleanup every few minutes instead of every tick
+                If (now - _lastStaleCleanupTime).TotalSeconds >= STALE_CLEANUP_INTERVAL_SECONDS Then
+                    _lastStaleCleanupTime = now
+                    CleanupStaleTasks()
+                End If
 
                 For Each task In _tasks.Values
                     Try
                         If task.NextRunTime <= now Then
-                            _logger.LogInfo($"Checking task for execution: {task.Name}")
                             Dim taskState = _taskStates.GetOrAdd(task.Name, New TaskState())
 
                             If Not taskState.IsRunning Then
+                                _logger.LogInfo($"Task due for execution: {task.Name}")
                                 ExecuteTaskAsync(task).ConfigureAwait(False)
                             End If
                         End If
