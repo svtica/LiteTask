@@ -8,12 +8,13 @@ This document provides detailed information on how to use LiteTask, a lightweigh
 2. [Creating Tasks](#creating-tasks)
 3. [Task Chaining](#task-chaining)
 4. [Scheduling Options](#scheduling-options)
-5. [Credential Management](#credential-management)
-6. [Remote Execution](#remote-execution)
-7. [Command-line Interface](#command-line-interface)
-8. [Tool Management](#tool-management)
-9. [PowerShell Module Management](#powershell-module-management)
-10. [Troubleshooting](#troubleshooting)
+5. [Monthly Scheduling](#monthly-scheduling)
+6. [Credential Management](#credential-management)
+7. [Remote Execution](#remote-execution)
+8. [Command-line Interface](#command-line-interface)
+9. [Tool Management](#tool-management)
+10. [PowerShell Module Management](#powershell-module-management)
+11. [Troubleshooting](#troubleshooting)
 
 ## Task Types
 
@@ -24,6 +25,31 @@ LiteTask supports the following task types:
 3. **SQL**: Execute SQL scripts using OSQL with support for Windows and SQL authentication.
 4. **Remote Execution**: Run tasks on remote machines using various methods.
 5. **Executable**: Run any executable file with specified arguments.
+
+## Scheduling Options
+
+LiteTask supports the following scheduling types:
+
+- **One-time**: Run the task once at a specified date and time
+- **Interval**: Repeat the task at a fixed interval (in minutes) from a start time
+- **Daily**: Run the task at one or more specific times every day
+- **Monthly**: Run the task on a specific day of the month at a given time
+
+Select "Recurring" in the Schedule tab to enable interval, daily, or monthly scheduling.
+
+## Monthly Scheduling
+
+Monthly scheduling allows you to run a task on a specific day each month at a chosen time.
+
+### Configuration
+1. Open the Create or Edit Task form
+2. Go to the **Schedule** tab
+3. Check **Recurring**
+4. Select **Monthly** from the recurrence type dropdown
+5. Set the **Day of month** (1-31) and the execution **Time**
+
+### Day-of-month handling
+If the selected day exceeds the number of days in a given month (e.g., day 31 in February), the task will run on the last day of that month instead. This ensures the task always executes once per month.
 
 ## Service Installation
 

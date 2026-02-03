@@ -1577,11 +1577,11 @@ Namespace LiteTask
                     Return
                 End If
 
-                UpdateStatusLabel($"Running task: {task.Name}")
+                UpdateStatusLabel(String.Format(TranslationManager.Instance.GetTranslation("Status.RunningTask", "Running task: {0}"), task.Name))
 
                 Try
                     Await _customScheduler.RunTaskAsync(task)
-                    UpdateStatusLabel($"Task completed: {task.Name}")
+                    UpdateStatusLabel(String.Format(TranslationManager.Instance.GetTranslation("Status.TaskCompleted", "Task completed: {0}"), task.Name))
 
                     ' Safe UI update
                     If Not IsDisposed Then
@@ -1594,7 +1594,7 @@ Namespace LiteTask
 
                 Catch ex As Exception
                     _logger.LogError($"Error executing task: {ex.Message}")
-                    UpdateStatusLabel("Error running task", Color.Red)
+                    UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Status.ErrorRunningTask", "Error running task"), Color.Red)
                     MessageBox.Show($"Error running task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End Try
 
@@ -1847,12 +1847,12 @@ Namespace LiteTask
                 Dim pendingTasks = tasks.Count(Function(t) t.NextRunTime > DateTime.Now)
                 Dim dueTasks = tasks.Count(Function(t) t.NextRunTime <= DateTime.Now)
 
-                Dim serviceNote = If(IsServiceRunning(), " (service active)", "")
-                UpdateStatusLabel($"Ready - {pendingTasks} pending tasks, {dueTasks} due tasks{serviceNote}")
+                Dim serviceNote = If(IsServiceRunning(), $" ({TranslationManager.Instance.GetTranslation("Status.ServiceActive", "service active")})", "")
+                UpdateStatusLabel(String.Format(TranslationManager.Instance.GetTranslation("Status.Ready", "Ready - {0} pending tasks, {1} due tasks"), pendingTasks, dueTasks) & serviceNote)
 
             Catch ex As Exception
                 _logger.LogError("Error updating status", ex)
-                UpdateStatusLabel("Error updating status", Color.Red)
+                UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Status.ErrorUpdating", "Error updating status"), Color.Red)
             End Try
         End Sub
 
