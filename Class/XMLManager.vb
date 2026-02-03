@@ -132,6 +132,8 @@ Namespace LiteTask
                 AddElement(xmlDoc, taskElement, "RecurrenceType", CType(task.Schedule, Integer).ToString())
                 AddElement(xmlDoc, taskElement, "Interval", task.Interval.TotalMinutes.ToString())
                 AddElement(xmlDoc, taskElement, "DailyTimes", String.Join(",", task.DailyTimes.Select(Function(t) t.ToString())))
+                AddElement(xmlDoc, taskElement, "MonthlyDay", task.MonthlyDay.ToString())
+                AddElement(xmlDoc, taskElement, "MonthlyTime", task.MonthlyTime.ToString())
                 AddElement(xmlDoc, taskElement, "NextRunTime", task.NextRunTime.ToString("o"))
                 AddElement(xmlDoc, taskElement, "CredentialTarget", task.CredentialTarget)
                 AddElement(xmlDoc, taskElement, "AccountType", task.AccountType)
@@ -557,6 +559,21 @@ Namespace LiteTask
             .UserSid = GetElementValue(taskNode, "UserSid"),
             .ExecutionMode = CType(Integer.Parse(GetElementValue(taskNode, "ExecutionMode", "0")), TaskExecutionMode)
         }
+
+            ' Parse monthly properties
+            Dim monthlyDayString = GetElementValue(taskNode, "MonthlyDay", "0")
+            Dim monthlyDay As Integer
+            If Integer.TryParse(monthlyDayString, monthlyDay) Then
+                task.MonthlyDay = monthlyDay
+            End If
+
+            Dim monthlyTimeString = GetElementValue(taskNode, "MonthlyTime")
+            If Not String.IsNullOrWhiteSpace(monthlyTimeString) Then
+                Dim monthlyTime As TimeSpan
+                If TimeSpan.TryParse(monthlyTimeString, monthlyTime) Then
+                    task.MonthlyTime = monthlyTime
+                End If
+            End If
 
             ' Parse daily times
             Dim dailyTimesString = GetElementValue(taskNode, "DailyTimes")

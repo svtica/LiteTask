@@ -193,8 +193,13 @@ Namespace LiteTask
             TranslationManager.Instance.GetTranslation("Interval"),
             RecurrenceType.Interval)
 
+                Dim monthlyItem As New ComboBoxItem(
+            TranslationManager.Instance.GetTranslation("Monthly"),
+            RecurrenceType.Monthly)
+
                 _recurrenceTypeCombo.Items.Add(dailyItem)
                 _recurrenceTypeCombo.Items.Add(intervalItem)
+                _recurrenceTypeCombo.Items.Add(monthlyItem)
                 _recurrenceTypeCombo.SelectedIndex = 0
 
                 ' Set default values for new tasks or load existing task data
@@ -237,6 +242,10 @@ Namespace LiteTask
                                         _logger?.LogWarning($"Invalid time format in daily times: {time}")
                                     End Try
                                 Next
+
+                            Case RecurrenceType.Monthly
+                                _monthlyDayNumeric.Value = If(_task.MonthlyDay >= 1 AndAlso _task.MonthlyDay <= 31, _task.MonthlyDay, 1)
+                                _monthlyTimePicker.Value = DateTime.Today.Add(_task.MonthlyTime)
                         End Select
                     End If
 
@@ -376,6 +385,7 @@ Namespace LiteTask
             Try
                 _intervalPanel.Visible = False
                 _dailyPanel.Visible = False
+                _monthlyPanel.Visible = False
 
                 If _recurringCheckBox.Checked AndAlso _recurrenceTypeCombo.SelectedItem IsNot Nothing Then
                     Dim selectedItem = DirectCast(_recurrenceTypeCombo.SelectedItem, ComboBoxItem)
@@ -385,6 +395,9 @@ Namespace LiteTask
                         Case RecurrenceType.Daily
                             _dailyPanel.Visible = True
                             _logger?.LogInfo("Daily time controls made visible")
+                        Case RecurrenceType.Monthly
+                            _monthlyPanel.Visible = True
+                            _logger?.LogInfo("Monthly controls made visible")
                     End Select
                 End If
             Catch ex As Exception
@@ -423,6 +436,12 @@ Namespace LiteTask
                                 End If
                             Next
                             _task.DailyTimes.Sort()
+
+                        Case RecurrenceType.Monthly
+                            _task.Interval = TimeSpan.Zero
+                            _task.DailyTimes.Clear()
+                            _task.MonthlyDay = CInt(_monthlyDayNumeric.Value)
+                            _task.MonthlyTime = _monthlyTimePicker.Value.TimeOfDay
                     End Select
                 Else
                     _task.Schedule = RecurrenceType.OneTime
@@ -470,6 +489,12 @@ Namespace LiteTask
                         End If
 
                         _logger?.LogInfo($"Current daily times during validation: {String.Join(", ", _dailyTimeList.Items.Cast(Of String)())}")
+
+                    Case RecurrenceType.Monthly
+                        If _monthlyDayNumeric.Value < 1 OrElse _monthlyDayNumeric.Value > 31 Then
+                            MessageBox.Show("Please select a valid day of the month (1-31).", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                            Return False
+                        End If
                 End Select
             End If
 

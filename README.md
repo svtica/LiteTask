@@ -12,7 +12,7 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 
 ### Core Scheduling
 - **Multiple Task Types**: PowerShell scripts, batch files, SQL scripts, and executables
-- **Advanced Scheduling**: One-time, interval-based, daily with multiple time slots, and task chaining
+- **Advanced Scheduling**: One-time, interval-based, daily with multiple time slots, monthly, and task chaining
 - **Action System**: Multiple actions per task with dependencies, retry mechanisms, and parallel execution
 - **Secure Execution**: Credential management, Windows/SQL authentication, and elevation control
 

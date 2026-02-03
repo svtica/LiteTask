@@ -31,6 +31,18 @@ Namespace LiteTask
             End Try
         End Function
 
+        Public Function GetTranslation(key As String, defaultValue As String) As String
+            Try
+                If _translations.ContainsKey(key) Then
+                    Return _translations(key)
+                End If
+                Return defaultValue
+            Catch ex As Exception
+                _logger?.LogError($"Error getting translation for key '{key}': {ex.Message}")
+                Return defaultValue
+            End Try
+        End Function
+
         Public Shared Function Initialize(logger As Logger, xmlManager As XMLManager) As TranslationManager
             If _instance Is Nothing Then
                 _instance = New TranslationManager(logger, xmlManager)

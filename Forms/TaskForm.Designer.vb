@@ -52,6 +52,11 @@ Namespace LiteTask
         Private WithEvents _dailyTimePicker As DateTimePicker
         Private WithEvents _addTimeButton As Button
         Private WithEvents _removeTimeButton As Button
+        Private WithEvents _monthlyPanel As Panel
+        Private WithEvents _monthlyDayLabel As Label
+        Private WithEvents _monthlyDayNumeric As NumericUpDown
+        Private WithEvents _monthlyTimeLabel As Label
+        Private WithEvents _monthlyTimePicker As DateTimePicker
         Private _dailyTimesList As ListBox
         Private _recurringCheckBox As CheckBox
         Private _scheduleDatePicker As DateTimePicker
@@ -104,6 +109,11 @@ Namespace LiteTask
                 _dailyTimePicker = New DateTimePicker()
                 _addTimeButton = New Button()
                 _removeTimeButton = New Button()
+                _monthlyPanel = New Panel()
+                _monthlyDayLabel = New Label()
+                _monthlyDayNumeric = New NumericUpDown()
+                _monthlyTimeLabel = New Label()
+                _monthlyTimePicker = New DateTimePicker()
 
                 ' Actions tab controls
                 _actionsGrid = New DataGridView()
@@ -265,6 +275,40 @@ Namespace LiteTask
                 _dailyPanel.Controls.Add(_addTimeButton)
                 _dailyPanel.Controls.Add(_removeTimeButton)
 
+                ' Configure Monthly Panel
+                _monthlyPanel.Location = New Point(120, 110)
+                _monthlyPanel.Size = New Size(400, 60)
+                _monthlyPanel.Visible = False
+                _monthlyPanel.Name = "_monthlyPanel"
+
+                _monthlyDayLabel.Location = New Point(0, 3)
+                _monthlyDayLabel.Size = New Size(70, 23)
+                _monthlyDayLabel.Text = "Day of month:"
+                _monthlyDayLabel.Name = "_monthlyDayLabel"
+
+                _monthlyDayNumeric.Location = New Point(75, 0)
+                _monthlyDayNumeric.Size = New Size(60, 23)
+                _monthlyDayNumeric.Minimum = 1
+                _monthlyDayNumeric.Maximum = 31
+                _monthlyDayNumeric.Value = 1
+                _monthlyDayNumeric.Name = "_monthlyDayNumeric"
+
+                _monthlyTimeLabel.Location = New Point(150, 3)
+                _monthlyTimeLabel.Size = New Size(40, 23)
+                _monthlyTimeLabel.Text = "Time:"
+                _monthlyTimeLabel.Name = "_monthlyTimeLabel"
+
+                _monthlyTimePicker.Location = New Point(195, 0)
+                _monthlyTimePicker.Size = New Size(100, 23)
+                _monthlyTimePicker.Format = DateTimePickerFormat.Time
+                _monthlyTimePicker.ShowUpDown = True
+                _monthlyTimePicker.Name = "_monthlyTimePicker"
+
+                _monthlyPanel.Controls.Add(_monthlyDayLabel)
+                _monthlyPanel.Controls.Add(_monthlyDayNumeric)
+                _monthlyPanel.Controls.Add(_monthlyTimeLabel)
+                _monthlyPanel.Controls.Add(_monthlyTimePicker)
+
                 ' Add Schedule Controls to Schedule Tab
                 _scheduleTab.Controls.Add(_scheduleDatePicker)
                 _scheduleTab.Controls.Add(_scheduleTimePicker)
@@ -272,6 +316,7 @@ Namespace LiteTask
                 _scheduleTab.Controls.Add(_recurrenceTypeCombo)
                 _scheduleTab.Controls.Add(_intervalPanel)
                 _scheduleTab.Controls.Add(_dailyPanel)
+                _scheduleTab.Controls.Add(_monthlyPanel)
 
                 ' Configure Actions Grid
                 _actionsGrid = New DataGridView() With {

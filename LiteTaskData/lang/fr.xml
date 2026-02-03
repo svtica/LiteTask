@@ -98,7 +98,10 @@
 	<translation key="_recurrenceTypeLabel">Type de récurrence :</translation>
 	<translation key="Daily">Quotidien</translation>
 	<translation key="Interval">Intervalle</translation>
+	<translation key="Monthly">Mensuel</translation>
 	<translation key="_intervalLabel.text">Intervalle (minutes) :</translation>
+	<translation key="_monthlyDayLabel.Text">Jour du mois :</translation>
+	<translation key="_monthlyTimeLabel.Text">Heure :</translation>
 	<translation key="_addTimeButton.Text">Ajouter</translation>
 	<translation key="_removeTimeButton.Text">Supprimer</translation>
 
@@ -154,6 +157,14 @@
 	<translation key="Completed">Terminé</translation>
 	<translation key="Pending">En attente</translation>
 	<translation key="Due">À échéance</translation>
+
+	<!-- Status Bar Messages -->
+	<translation key="Status.RunningTask">Exécution de la tâche : {0}</translation>
+	<translation key="Status.TaskCompleted">Tâche terminée : {0}</translation>
+	<translation key="Status.ErrorRunningTask">Erreur lors de l'exécution de la tâche</translation>
+	<translation key="Status.Ready">Prêt - {0} tâche(s) en attente, {1} tâche(s) à échéance</translation>
+	<translation key="Status.ServiceActive">service actif</translation>
+	<translation key="Status.ErrorUpdating">Erreur de mise à jour du statut</translation>
 
 	<!-- Error Messages -->
 	<translation key="Error">Erreur</translation>
