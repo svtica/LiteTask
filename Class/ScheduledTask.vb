@@ -12,6 +12,7 @@ Namespace LiteTask
             OneTime
             Interval
             Daily
+            Monthly
         End Enum
 
         Public Enum TaskExecutionMode
@@ -32,6 +33,8 @@ Namespace LiteTask
         Public Property Schedule As RecurrenceType
         Public Property Interval As TimeSpan
         Public Property DailyTimes As List(Of TimeSpan)
+        Public Property MonthlyDay As Integer
+        Public Property MonthlyTime As TimeSpan
         Public Property NextRunTime As DateTime
 
         ' Credential properties
@@ -120,6 +123,17 @@ Namespace LiteTask
                         Return nextTime
                     End If
 
+                Case RecurrenceType.Monthly
+                    Dim day = Math.Min(MonthlyDay, DateTime.DaysInMonth(now.Year, now.Month))
+                    Dim candidate = New DateTime(now.Year, now.Month, day).Add(MonthlyTime)
+                    If candidate > now Then
+                        Return candidate
+                    End If
+                    ' Move to next month
+                    Dim nextMonth = now.AddMonths(1)
+                    day = Math.Min(MonthlyDay, DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month))
+                    Return New DateTime(nextMonth.Year, nextMonth.Month, day).Add(MonthlyTime)
+
                 Case Else
                     Throw New NotImplementedException("Unsupported recurrence type")
             End Select
@@ -133,6 +147,8 @@ Namespace LiteTask
         .Schedule = Me.Schedule,
         .Interval = Me.Interval,
         .DailyTimes = New List(Of TimeSpan)(Me.DailyTimes),
+        .MonthlyDay = Me.MonthlyDay,
+        .MonthlyTime = Me.MonthlyTime,
         .CredentialTarget = Me.CredentialTarget,
         .AccountType = Me.AccountType,
         .RequiresElevation = Me.RequiresElevation,
@@ -154,6 +170,9 @@ Namespace LiteTask
                     End While
 
                 Case RecurrenceType.Daily
+                    NextRunTime = CalculateNextRunTime()
+
+                Case RecurrenceType.Monthly
                     NextRunTime = CalculateNextRunTime()
             End Select
         End Sub
