@@ -244,8 +244,12 @@ Namespace LiteTask
             Dim pathString = String.Join([Char].ToString(Path.PathSeparator), allPaths)
 
             ' This script will be prepended to all PowerShell executions
+            ' IMPORTANT: Set PSModulePath to an exact value (not appending) to prevent
+            ' unbounded growth of the environment variable across repeated executions,
+            ' which can exceed the Windows 32,767 character limit and cause
+            ' "Environment variable name or value is too long" errors.
             Return $"
-                $env:PSModulePath = '{pathString}' + [System.IO.Path]::PathSeparator + $env:PSModulePath
+                $env:PSModulePath = '{pathString}'
                 $ErrorActionPreference = 'Stop'
                 Import-Module PowerShellGet -Force -ErrorAction SilentlyContinue
             "

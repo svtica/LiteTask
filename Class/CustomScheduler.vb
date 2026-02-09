@@ -581,6 +581,17 @@ Namespace LiteTask
                 taskState.IsRunning = False
                 taskState.LastError = ex.Message
 
+                ' CRITICAL: Always advance the task schedule on failure to prevent
+                ' the task from re-executing every 60 seconds and flooding emails.
+                ' Without this, NextRunTime stays in the past and CheckAndExecuteTasks
+                ' will keep triggering the same failing task indefinitely.
+                Try
+                    _task.UpdateNextRunTime()
+                    SaveTasks()
+                Catch schedEx As Exception
+                    _logger.LogError($"Failed to update next run time for {_task.Name}: {schedEx.Message}")
+                End Try
+
                 ' Send email notification for fatal errors
                 Try
                     Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
