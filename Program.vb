@@ -13,6 +13,9 @@ Namespace LiteTask
         <STAThread()>
         Public Sub Main(args As String())
             Try
+                ' Register legacy codepage encodings (e.g. 863) required by process output redirection
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
+
                 ' Ensure log directory exists
                 EnsureLogDirectory()
 
