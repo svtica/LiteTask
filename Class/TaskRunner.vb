@@ -12,7 +12,6 @@ Namespace LiteTask
 
         Private ReadOnly _logger As Logger
         Private ReadOnly _credentialManager As CredentialManager
-        Private ReadOnly _runspace As Runspace
         Private ReadOnly _liteRunConfig As LiteRunConfig
         Private ReadOnly _toolManager As ToolManager
         Private ReadOnly _xmlManager As XMLManager
@@ -67,20 +66,6 @@ Namespace LiteTask
 
             ' Initialize PowerShell environment
             _powerShellPathManager.EnsureModulePathExists()
-            Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
-            initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
-
-            ' Only import modules from the local LiteTask modules directory (safe, controlled)
-            ' System module paths are added to $env:PSModulePath via the initialization script
-            ' so PowerShell's auto-loading can find them on demand without forcing eager loading
-            Dim localModulePath = _powerShellPathManager.GetModulePath()
-            Dim localModuleDirs = If(Directory.Exists(localModulePath),
-                                     Directory.GetDirectories(localModulePath),
-                                     Array.Empty(Of String)())
-            If localModuleDirs.Length > 0 Then initialSessionState.ImportPSModule(localModuleDirs)
-
-            _runspace = RunspaceFactory.CreateRunspace(initialSessionState)
-            _runspace.Open()
 
             ' Finally load embedded PsExec
             GetEmbeddedPsExec()
@@ -120,9 +105,6 @@ Namespace LiteTask
         'End Function
 
         Public Sub Dispose()
-            If _runspace IsNot Nothing Then
-                _runspace.Dispose()
-            End If
         End Sub
 
         Private Function EscapeArgument(argument As String) As String
