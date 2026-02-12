@@ -432,42 +432,44 @@ Namespace LiteTask
 
         Private Sub ExecuteServiceCommand(command As String, operationType As String, logPath As String)
             Try
-                ' Create process to execute command
-                Dim process As New Process()
-                process.StartInfo.FileName = "cmd.exe"
-                process.StartInfo.Arguments = $"/c {command}"
-                process.StartInfo.UseShellExecute = False
-                process.StartInfo.RedirectStandardOutput = True
-                process.StartInfo.RedirectStandardError = True
-                process.StartInfo.CreateNoWindow = True
-
                 ' Log the command execution (with timestamp)
                 Dim logEntry As String = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {operationType}{Environment.NewLine}"
                 logEntry += $"Command: {command}{Environment.NewLine}"
                 File.AppendAllText(logPath, logEntry)
 
-                ' Execute the command
-                process.Start()
-                Dim output As String = process.StandardOutput.ReadToEnd()
-                Dim errors As String = process.StandardError.ReadToEnd()
-                process.WaitForExit()
+                ' Create and execute process with proper disposal
+                Using process As New Process() With {
+                    .StartInfo = New ProcessStartInfo With {
+                        .FileName = "cmd.exe",
+                        .Arguments = $"/c {command}",
+                        .UseShellExecute = False,
+                        .RedirectStandardOutput = True,
+                        .RedirectStandardError = True,
+                        .CreateNoWindow = True
+                    }
+                }
+                    process.Start()
+                    Dim output As String = process.StandardOutput.ReadToEnd()
+                    Dim errors As String = process.StandardError.ReadToEnd()
+                    process.WaitForExit()
 
-                ' Log the results
-                logEntry = $"Output: {output}{Environment.NewLine}"
-                If Not String.IsNullOrEmpty(errors) Then
-                    logEntry += $"Errors: {errors}{Environment.NewLine}"
-                End If
-                logEntry += $"Exit Code: {process.ExitCode}{Environment.NewLine}"
-                logEntry += New String("-", 50) & Environment.NewLine
+                    ' Log the results
+                    logEntry = $"Output: {output}{Environment.NewLine}"
+                    If Not String.IsNullOrEmpty(errors) Then
+                        logEntry += $"Errors: {errors}{Environment.NewLine}"
+                    End If
+                    logEntry += $"Exit Code: {process.ExitCode}{Environment.NewLine}"
+                    logEntry += New String("-", 50) & Environment.NewLine
 
-                File.AppendAllText(logPath, logEntry)
+                    File.AppendAllText(logPath, logEntry)
 
-                If process.ExitCode <> 0 Then
-                    Throw New Exception($"Command failed with exit code {process.ExitCode}. Error: {errors}")
-                End If
+                    If process.ExitCode <> 0 Then
+                        Throw New Exception($"Command failed with exit code {process.ExitCode}. Error: {errors}")
+                    End If
 
-                _logger.LogInfo($"Service command executed successfully: {command}")
-                _logger.LogInfo($"Command output: {output}")
+                    _logger.LogInfo($"Service command executed successfully: {command}")
+                    _logger.LogInfo($"Command output: {output}")
+                End Using
             Catch ex As Exception
                 _logger.LogError($"Error executing service command: {ex.Message}")
                 Throw
@@ -1317,28 +1319,34 @@ Namespace LiteTask
         End Sub
 
         Private Sub InstallModulesMenuItem_Click(sender As Object, e As EventArgs)
-            Dim scriptPath As String = Path.Combine(Application.StartupPath, "LiteTaskData", "InstallModules.ps1")
-            Dim startInfo As New ProcessStartInfo()
-            startInfo.FileName = "powershell.exe"
-            startInfo.Arguments = $"-NoProfile -ExecutionPolicy Bypass -File ""{scriptPath}"""
-            startInfo.UseShellExecute = False
-            startInfo.RedirectStandardOutput = True
-            startInfo.RedirectStandardError = True
-            startInfo.CreateNoWindow = True
+            Try
+                Dim scriptPath As String = Path.Combine(Application.StartupPath, "LiteTaskData", "InstallModules.ps1")
+                Dim startInfo As New ProcessStartInfo() With {
+                    .FileName = "powershell.exe",
+                    .Arguments = $"-NoProfile -ExecutionPolicy Bypass -File ""{scriptPath}""",
+                    .UseShellExecute = False,
+                    .RedirectStandardOutput = True,
+                    .RedirectStandardError = True,
+                    .CreateNoWindow = True
+                }
 
-            Dim process As New Process()
-            process.StartInfo = startInfo
-            process.Start()
+                Using process As New Process() With {.StartInfo = startInfo}
+                    process.Start()
 
-            Dim output As String = process.StandardOutput.ReadToEnd()
-            Dim [error] As String = process.StandardError.ReadToEnd()
-            process.WaitForExit()
+                    Dim output As String = process.StandardOutput.ReadToEnd()
+                    Dim [error] As String = process.StandardError.ReadToEnd()
+                    process.WaitForExit()
 
-            If process.ExitCode = 0 Then
-                MessageBox.Show("Modules installés avec succès.", "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            Else
-                MessageBox.Show($"Erreur lors de l'installation des modules : {[error]}", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error)
-            End If
+                    If process.ExitCode = 0 Then
+                        MessageBox.Show("Modules installés avec succès.", "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Else
+                        MessageBox.Show($"Erreur lors de l'installation des modules : {[error]}", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    End If
+                End Using
+            Catch ex As Exception
+                _logger.LogError($"Error installing modules: {ex.Message}")
+                MessageBox.Show($"Error installing modules: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
         End Sub
 
         Private Function IsElevated() As Boolean
