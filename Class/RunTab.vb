@@ -13,7 +13,6 @@ Namespace LiteTask
         Private ReadOnly _powerShellPathManager As PowerShellPathManager
         Private ReadOnly _translationManager As TranslationManager
         Private _targetBrowseDialog As OpenFileDialog
-        Private _runspace As Runspace
         Private _scriptTextBox As TextBox
         Private _outputTextBox As TextBox
         Private _runButton As Button
@@ -307,12 +306,6 @@ Namespace LiteTask
                     ' Clean up managed resources
                     RemoveHandler _taskrunner.OutputReceived, AddressOf HandleOutput
                     RemoveHandler _taskrunner.ErrorReceived, AddressOf HandleError
-
-                    ' Dispose other managed resources if any
-                    If _runspace IsNot Nothing Then
-                        _runspace.Dispose()
-                        _runspace = Nothing
-                    End If
 
                     If _targetBrowseDialog IsNot Nothing Then
                         _targetBrowseDialog.Dispose()
