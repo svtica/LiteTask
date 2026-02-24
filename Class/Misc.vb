@@ -370,7 +370,15 @@ Namespace LiteTask
             Return modules.ToList()
         End Function
 
+        ''' <summary>
+        ''' Creates a new PowerShell instance with an explicitly managed Runspace.
+        ''' IMPORTANT: The caller MUST dispose both the PowerShell instance AND its
+        ''' Runspace (via powerShell.Runspace.Close() / .Dispose()) after use.
+        ''' PowerShell.Dispose() alone does NOT reliably dispose the internal Runspace,
+        ''' which causes memory to leak across repeated executions.
+        ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
+            Dim runspace As Runspaces.Runspace = Nothing
             Try
                 ' Explicitly declare the type
                 Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
@@ -384,10 +392,26 @@ Namespace LiteTask
                                          Array.Empty(Of String)())
                 If localModuleDirs.Length > 0 Then initialSessionState.ImportPSModule(localModuleDirs)
 
-                Dim ps = PowerShell.Create(initialSessionState)
+                ' Explicitly create the Runspace so its lifecycle is visible to callers.
+                ' When PowerShell.Create(initialSessionState) is used, it creates an internal
+                ' Runspace that is NOT disposed by PowerShell.Dispose(), leading to memory leaks.
+                runspace = Runspaces.RunspaceFactory.CreateRunspace(initialSessionState)
+                runspace.Open()
+
+                Dim ps = PowerShell.Create()
+                ps.Runspace = runspace
                 ps.AddScript(CreateInitializationScript())
                 Return ps
             Catch ex As Exception
+                ' If PowerShell creation fails after Runspace was opened, clean up the Runspace
+                If runspace IsNot Nothing Then
+                    Try
+                        runspace.Close()
+                        runspace.Dispose()
+                    Catch
+                        ' Suppress cleanup errors during error handling
+                    End Try
+                End If
                 _logger.LogError($"Error creating PowerShell instance: {ex.Message}")
                 Throw
             End Try
