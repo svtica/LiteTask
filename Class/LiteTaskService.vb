@@ -325,7 +325,9 @@ Namespace LiteTask
                                 sc.WaitForStatus(ServiceControllerStatus.Stopped)
                             End Using
                         End If
-                        Process.Start("sc.exe", "delete LiteTaskService").WaitForExit()
+                        Using proc = Process.Start("sc.exe", "delete LiteTaskService")
+                            proc.WaitForExit()
+                        End Using
                         MessageBox.Show("Service uninstalled successfully.", "Service Operation", MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                 End Select
@@ -476,7 +478,9 @@ Namespace LiteTask
                 End Using
 
                 Try
-                    Process.Start("sc.exe", $"delete LiteTaskService").WaitForExit()
+                    Using proc = Process.Start("sc.exe", $"delete LiteTaskService")
+                        proc.WaitForExit()
+                    End Using
                     Thread.Sleep(1000)
                 Catch
                 End Try
@@ -486,15 +490,21 @@ Namespace LiteTask
                                 $"obj= {accountName} " &
                                 $"DisplayName= ""LiteTask Scheduler Service"""
 
-                Process.Start("sc.exe", createArgs).WaitForExit()
-                Process.Start("sc.exe", "description LiteTaskService ""Task scheduling and automation service""").WaitForExit()
+                Using proc = Process.Start("sc.exe", createArgs)
+                    proc.WaitForExit()
+                End Using
+                Using proc = Process.Start("sc.exe", "description LiteTaskService ""Task scheduling and automation service""")
+                    proc.WaitForExit()
+                End Using
 
                 Dim sid = GetServiceSid("LiteTaskService")
                 GrantServiceLogonRight(accountName)
                 GrantSeImpersonatePrivilege(sid)
                 GrantSeServiceLogonRight(sid)
 
-                Process.Start("sc.exe", "failure LiteTaskService reset= 86400 actions= restart/60000/restart/60000/restart/60000").WaitForExit()
+                Using proc = Process.Start("sc.exe", "failure LiteTaskService reset= 86400 actions= restart/60000/restart/60000/restart/60000")
+                    proc.WaitForExit()
+                End Using
 
                 MessageBox.Show("Service registered successfully.", "Service Installation",
                                MessageBoxButtons.OK, MessageBoxIcon.Information)
@@ -526,15 +536,21 @@ Namespace LiteTask
             Dim startInfo As New ProcessStartInfo("ntrights.exe", $"+r SeServiceLogonRight -u ""{account}""") With {
                 .UseShellExecute = False
             }
-            Process.Start(startInfo).WaitForExit()
+            Using proc = Process.Start(startInfo)
+                proc.WaitForExit()
+            End Using
         End Sub
 
         Private Sub GrantSeImpersonatePrivilege(sid As String)
-            Process.Start("subinacl.exe", $"/service LiteTaskService /grant={sid}=TO").WaitForExit()
+            Using proc = Process.Start("subinacl.exe", $"/service LiteTaskService /grant={sid}=TO")
+                proc.WaitForExit()
+            End Using
         End Sub
 
         Private Sub GrantSeServiceLogonRight(sid As String)
-            Process.Start("subinacl.exe", $"/service LiteTaskService /grant={sid}=R").WaitForExit()
+            Using proc = Process.Start("subinacl.exe", $"/service LiteTaskService /grant={sid}=R")
+                proc.WaitForExit()
+            End Using
         End Sub
 
         Private Sub RunAsService()

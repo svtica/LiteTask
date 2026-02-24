@@ -628,45 +628,74 @@ Namespace LiteTask
                     End If
                 End If
 
+                ' Create the PowerShell instance - we must explicitly track and dispose the
+                ' Runspace because PowerShell.Dispose() does NOT reliably dispose its internal
+                ' Runspace, causing memory to accumulate across repeated executions.
                 Using powerShell As PowerShell = _powerShellPathManager.CreatePowerShellInstance()
-                    powerShell.AddScript(scriptContent)
+                    Dim runspace = powerShell.Runspace
 
-                    If credential IsNot Nothing Then
-                        _logger.LogInfo("Adding credential parameters to PowerShell script")
-                        powerShell.AddParameter("username", credential.Username)
-                        ' Create new SecureString from password to avoid disposed object
-                        Dim securePass = New NetworkCredential("", credential.Password).SecurePassword
-                        powerShell.AddParameter("password", New NetworkCredential("", securePass).Password)
-                    End If
+                    Try
+                        powerShell.AddScript(scriptContent)
 
-                    If Not String.IsNullOrEmpty(taskAction.Parameters) Then
-                        _logger.LogInfo($"Adding parameters: {taskAction.Parameters}")
-                        For Each param In ParseParameters(taskAction.Parameters)
-                            powerShell.AddParameter(param.Key, param.Value)
+                        If credential IsNot Nothing Then
+                            _logger.LogInfo("Adding credential parameters to PowerShell script")
+                            powerShell.AddParameter("username", credential.Username)
+                            ' Create new SecureString from password to avoid disposed object
+                            Dim securePass = New NetworkCredential("", credential.Password).SecurePassword
+                            powerShell.AddParameter("password", New NetworkCredential("", securePass).Password)
+                        End If
+
+                        If Not String.IsNullOrEmpty(taskAction.Parameters) Then
+                            _logger.LogInfo($"Adding parameters: {taskAction.Parameters}")
+                            For Each param In ParseParameters(taskAction.Parameters)
+                                powerShell.AddParameter(param.Key, param.Value)
+                            Next
+                        End If
+
+                        Dim result = Await powerShell.InvokeAsync()
+                        _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
+
+                        ' Log all output and errors
+                        For Each item In result
+                            _logger.LogInfo($"PowerShell output: {item}")
                         Next
-                    End If
 
-                    Dim result = Await powerShell.InvokeAsync()
-                    _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
-
-                    ' Log all output and errors
-                    For Each item In result
-                        _logger.LogInfo($"PowerShell output: {item}")
-                    Next
-
-                    For Each info In powerShell.Streams.Information
-                        _logger.LogInfo($"PowerShell information: {info}")
-                    Next
-
-                    If powerShell.Streams.Error.Count > 0 Then
-                        For Each err As ErrorRecord In powerShell.Streams.Error
-                            _logger.LogError($"PowerShell error: {err.Exception.Message}")
-                            _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                        For Each info In powerShell.Streams.Information
+                            _logger.LogInfo($"PowerShell information: {info}")
                         Next
-                        Return False
-                    End If
 
-                    Return True  ' If no errors, consider it successful
+                        If powerShell.Streams.Error.Count > 0 Then
+                            For Each err As ErrorRecord In powerShell.Streams.Error
+                                _logger.LogError($"PowerShell error: {err.Exception.Message}")
+                                _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                            Next
+                            Return False
+                        End If
+
+                        Return True  ' If no errors, consider it successful
+
+                    Finally
+                        ' Clear all streams to release object references held by the pipeline
+                        Try
+                            powerShell.Streams.ClearStreams()
+                        Catch ex As Exception
+                            _logger.LogWarning($"Error clearing PowerShell streams: {ex.Message}")
+                        End Try
+
+                        ' Explicitly close and dispose the Runspace to prevent memory leak.
+                        ' PowerShell.Dispose() does NOT reliably clean up the internal Runspace,
+                        ' which retains loaded modules, assemblies, and session state in memory.
+                        If runspace IsNot Nothing Then
+                            Try
+                                If runspace.RunspaceStateInfo.State <> Runspaces.RunspaceState.Closed Then
+                                    runspace.Close()
+                                End If
+                                runspace.Dispose()
+                            Catch ex As Exception
+                                _logger.LogWarning($"Error disposing PowerShell runspace: {ex.Message}")
+                            End Try
+                        End If
+                    End Try
                 End Using
 
             Catch ex As Exception
