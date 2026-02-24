@@ -243,15 +243,23 @@ Namespace LiteTask
             Dim allPaths = GetSystemModulePaths()
             Dim pathString = String.Join([Char].ToString(Path.PathSeparator), allPaths)
 
-            ' This script will be prepended to all PowerShell executions
+            ' This script will be prepended to all PowerShell executions.
             ' IMPORTANT: Set PSModulePath to an exact value (not appending) to prevent
             ' unbounded growth of the environment variable across repeated executions,
             ' which can exceed the Windows 32,767 character limit and cause
             ' "Environment variable name or value is too long" errors.
+            '
+            ' Do NOT eagerly Import-Module here.  Each call to CreatePowerShellInstance()
+            ' creates a brand-new Runspace, so any module imported here must be loaded from
+            ' disk every single time regardless of the -Force flag.  For tasks that run every
+            ' 30 minutes (e.g. ImportExcel on a 2748-row file) this means the module's
+            ' assemblies are mapped into the process on every run and never fully released
+            ' until a GC + finalizer cycle, which contributes to progressive virtual memory
+            ' growth.  Modules that are actually needed will be auto-loaded on demand via the
+            ' PSModulePath we set above.
             Return $"
                 $env:PSModulePath = '{pathString}'
                 $ErrorActionPreference = 'Stop'
-                Import-Module PowerShellGet -Force -ErrorAction SilentlyContinue
             "
         End Function
 

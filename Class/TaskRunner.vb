@@ -610,6 +610,11 @@ Namespace LiteTask
             End Try
         End Function
 
+        ' Maximum time a single PowerShell task is allowed to run before being forcibly stopped.
+        ' Prevents hung scripts (e.g. waiting on a mutex, network share, or interactive prompt)
+        ' from blocking the scheduler indefinitely and holding the task mutex forever.
+        Private Const PS_TASK_TIMEOUT_HOURS As Integer = 4
+
         Public Async Function ExecutePowerShellTask(taskAction As TaskAction, credential As CredentialInfo) As Task(Of Boolean)
             Try
                 _logger.LogInfo($"Starting PowerShell task execution: {taskAction.Name}")
@@ -627,6 +632,8 @@ Namespace LiteTask
                         _logger.LogWarning($"Missing PowerShell modules: {String.Join(", ", missingModules)}. Script may fail if these modules cannot be auto-loaded. Install them via the Modules Manager or run: Install-Module {String.Join(", ", missingModules)}")
                     End If
                 End If
+
+                Dim hasErrors = False
 
                 Using powerShell As PowerShell = _powerShellPathManager.CreatePowerShellInstance()
                     powerShell.AddScript(scriptContent)
@@ -646,28 +653,71 @@ Namespace LiteTask
                         Next
                     End If
 
-                    Dim result = Await powerShell.InvokeAsync()
-                    _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
+                    ' result holds all PSObject output from the script (can be very large for
+                    ' scripts that process thousands of rows, e.g. ImportExcel on a 2748-row file).
+                    ' It must be explicitly disposed after use to release those objects immediately
+                    ' rather than waiting for GC, which may not run before the next scheduled
+                    ' execution (every 30 min) leading to progressive virtual memory exhaustion.
+                    Dim result As PSDataCollection(Of PSObject) = Nothing
+                    Try
+                        ' Enforce a hard timeout so that a hung script (e.g. waiting on a mutex,
+                        ' stuck network call, or interactive prompt) cannot hold the task mutex
+                        ' forever and cause the scheduler to retry in an infinite loop.
+                        Dim invokeTask = powerShell.InvokeAsync()
+                        Dim timeoutTask = Task.Delay(TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
 
-                    ' Log all output and errors
-                    For Each item In result
-                        _logger.LogInfo($"PowerShell output: {item}")
-                    Next
+                        If Await Task.WhenAny(invokeTask, timeoutTask) Is timeoutTask Then
+                            _logger.LogError($"PowerShell task '{taskAction.Name}' exceeded {PS_TASK_TIMEOUT_HOURS}h timeout. Stopping forcibly.")
+                            powerShell.Stop()
+                            Return False
+                        End If
 
-                    For Each info In powerShell.Streams.Information
-                        _logger.LogInfo($"PowerShell information: {info}")
-                    Next
+                        result = Await invokeTask
+                        _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
 
-                    If powerShell.Streams.Error.Count > 0 Then
-                        For Each err As ErrorRecord In powerShell.Streams.Error
-                            _logger.LogError($"PowerShell error: {err.Exception.Message}")
-                            _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                        ' Log all output and errors
+                        If result IsNot Nothing Then
+                            For Each item In result
+                                _logger.LogInfo($"PowerShell output: {item}")
+                            Next
+                        End If
+
+                        For Each info In powerShell.Streams.Information
+                            _logger.LogInfo($"PowerShell information: {info}")
                         Next
-                        Return False
-                    End If
 
-                    Return True  ' If no errors, consider it successful
+                        If powerShell.Streams.Error.Count > 0 Then
+                            For Each err As ErrorRecord In powerShell.Streams.Error
+                                _logger.LogError($"PowerShell error: {err.Exception.Message}")
+                                _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                            Next
+                            hasErrors = True
+                        End If
+
+                    Finally
+                        ' Dispose the output collection immediately to free memory from large
+                        ' script outputs (e.g. thousands of PSObject rows from ImportExcel).
+                        ' Without this the collection stays on the heap until GC decides to
+                        ' collect it, which can take many cycles on a long-running service.
+                        result?.Dispose()
+
+                        ' Clear all stream buffers (ErrorRecord, WarningRecord, InformationRecord,
+                        ' VerboseRecord) so they do not retain references to exception objects
+                        ' and other data between repeated executions of the same task.
+                        powerShell.Streams.ClearStreams()
+                    End Try
                 End Using
+
+                ' After disposing the PowerShell runspace and its output collection, nudge the
+                ' GC to reclaim the released memory promptly.  This is intentional here because:
+                '  - Tasks run on a fixed schedule (e.g. every 30 min) with no other GC pressure
+                '    in between, so the runtime may defer collection for a long time.
+                '  - Scripts like ImportExcel can allocate hundreds of MB per run; without an
+                '    explicit collect, successive runs accumulate until the paging file is exhausted.
+                GC.Collect(2, GCCollectionMode.Forced, True)
+                GC.WaitForPendingFinalizers()
+
+                Return Not hasErrors
 
             Catch ex As Exception
                 _logger.LogError($"Error in ExecutePowerShellTask: {ex.Message}")
