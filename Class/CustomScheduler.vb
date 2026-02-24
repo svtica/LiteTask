@@ -30,7 +30,15 @@ Namespace LiteTask
         Private ReadOnly _staleTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
         Private _lastStaleCleanupTime As DateTime = DateTime.MinValue
         Private Const STALE_CLEANUP_INTERVAL_SECONDS As Integer = 300
-        
+
+        ' Memory monitoring properties
+        Private Const MEMORY_CHECK_INTERVAL_SECONDS As Integer = 300  ' Check every 5 minutes
+        Private Const MEMORY_WARNING_THRESHOLD_MB As Long = 1024      ' Warn at 1 GB
+        Private Const MEMORY_CRITICAL_THRESHOLD_MB As Long = 2048     ' Critical at 2 GB
+        Private _lastMemoryCheckTime As DateTime = DateTime.MinValue
+        Private _lastMemoryAlertTime As DateTime = DateTime.MinValue
+        Private Const MEMORY_ALERT_COOLDOWN_MINUTES As Integer = 30   ' Avoid alert spam
+
         ' Enhanced mutex management properties
         Private Const MUTEX_TIMEOUT_SECONDS As Integer = 30  ' Increased from 1 second
         Private Const MAX_CLEANUP_RETRIES As Integer = 3
@@ -242,6 +250,9 @@ Namespace LiteTask
                     CleanupStaleTasks()
                 End If
 
+                ' Periodic memory usage monitoring
+                CheckMemoryUsage(now)
+
                 For Each task In _tasks.Values
                     Try
                         If task.NextRunTime <= now Then
@@ -258,6 +269,73 @@ Namespace LiteTask
                 Next
             Catch ex As Exception
                 _logger.LogError($"Error in CheckAndExecuteTasks: {ex.Message}")
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Lightweight memory monitoring that logs usage every 5 minutes and sends
+        ''' email alerts when thresholds are exceeded. Designed to detect progressive
+        ''' memory leaks before they crash the server.
+        ''' </summary>
+        Private Sub CheckMemoryUsage(now As DateTime)
+            Try
+                If (now - _lastMemoryCheckTime).TotalSeconds < MEMORY_CHECK_INTERVAL_SECONDS Then
+                    Return
+                End If
+                _lastMemoryCheckTime = now
+
+                Using currentProcess = Diagnostics.Process.GetCurrentProcess()
+                    Dim workingSetMB = currentProcess.WorkingSet64 \ (1024L * 1024L)
+                    Dim privateMemoryMB = currentProcess.PrivateMemorySize64 \ (1024L * 1024L)
+
+                    _logger.LogInfo($"[MemoryMonitor] Working Set: {workingSetMB} MB, Private Bytes: {privateMemoryMB} MB, GC Total: {GC.GetTotalMemory(False) \ (1024L * 1024L)} MB")
+
+                    ' Only send alerts with a cooldown to avoid flooding
+                    If (now - _lastMemoryAlertTime).TotalMinutes < MEMORY_ALERT_COOLDOWN_MINUTES Then
+                        Return
+                    End If
+
+                    Dim level As String = Nothing
+                    If privateMemoryMB > MEMORY_CRITICAL_THRESHOLD_MB Then
+                        level = "CRITICAL"
+                        _logger.LogError($"[MemoryMonitor] CRITICAL: Private Bytes {privateMemoryMB} MB exceeds {MEMORY_CRITICAL_THRESHOLD_MB} MB threshold")
+                    ElseIf privateMemoryMB > MEMORY_WARNING_THRESHOLD_MB Then
+                        level = "WARNING"
+                        _logger.LogWarning($"[MemoryMonitor] WARNING: Private Bytes {privateMemoryMB} MB exceeds {MEMORY_WARNING_THRESHOLD_MB} MB threshold")
+                    End If
+
+                    If level IsNot Nothing Then
+                        _lastMemoryAlertTime = now
+                        Try
+                            Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                            If notificationManager IsNot Nothing Then
+                                Dim body As New StringBuilder()
+                                body.AppendLine($"LiteTask memory usage has exceeded the {level} threshold:")
+                                body.AppendLine()
+                                body.AppendLine($"  Working Set:  {workingSetMB} MB")
+                                body.AppendLine($"  Private Bytes: {privateMemoryMB} MB")
+                                body.AppendLine($"  GC Heap:       {GC.GetTotalMemory(False) \ (1024L * 1024L)} MB")
+                                body.AppendLine($"  Threshold:     {If(level = "CRITICAL", MEMORY_CRITICAL_THRESHOLD_MB, MEMORY_WARNING_THRESHOLD_MB)} MB")
+                                body.AppendLine()
+                                body.AppendLine($"  Time: {now:yyyy-MM-dd HH:mm:ss}")
+                                body.AppendLine($"  Running tasks: {_taskStates.Count(Function(ts) ts.Value.IsRunning)}")
+                                body.AppendLine()
+                                body.AppendLine("Action recommended: Investigate running tasks and consider restarting the service.")
+
+                                notificationManager.QueueNotification(
+                                    $"LiteTask {level}: Memory usage at {privateMemoryMB} MB",
+                                    body.ToString(),
+                                    If(level = "CRITICAL",
+                                       NotificationManager.NotificationPriority.High,
+                                       NotificationManager.NotificationPriority.Normal))
+                            End If
+                        Catch notifyEx As Exception
+                            _logger.LogError($"[MemoryMonitor] Failed to send memory alert: {notifyEx.Message}")
+                        End Try
+                    End If
+                End Using
+            Catch ex As Exception
+                _logger.LogError($"[MemoryMonitor] Error checking memory: {ex.Message}")
             End Try
         End Sub
 
