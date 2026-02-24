@@ -318,7 +318,8 @@ Namespace LiteTask
                                 body.AppendLine($"  Threshold:     {If(level = "CRITICAL", MEMORY_CRITICAL_THRESHOLD_MB, MEMORY_WARNING_THRESHOLD_MB)} MB")
                                 body.AppendLine()
                                 body.AppendLine($"  Time: {now:yyyy-MM-dd HH:mm:ss}")
-                                body.AppendLine($"  Running tasks: {_taskStates.Values.Where(Function(ts) ts.IsRunning).Count()}")
+                                Dim runningTaskCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
+                                body.AppendLine($"  Running tasks: {runningTaskCount}")
                                 body.AppendLine()
                                 body.AppendLine("Action recommended: Investigate running tasks and consider restarting the service.")
 
