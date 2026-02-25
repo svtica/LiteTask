@@ -446,6 +446,23 @@ Namespace LiteTask
                         TryCleanupAbandonedMutex(taskName)
                     Next
                     _activeMutexes.Clear()
+
+                    ' Dispose all SemaphoreSlim objects in _taskLocks
+                    For Each kvp In _taskLocks
+                        If TypeOf kvp.Value Is SemaphoreSlim Then
+                            DirectCast(kvp.Value, SemaphoreSlim).Dispose()
+                        End If
+                    Next
+                    _taskLocks.Clear()
+
+                    ' Clear remaining tracking dictionaries
+                    _taskStates.Clear()
+                    _taskRunning.Clear()
+                    _staleTaskAlerts.Clear()
+
+                    ' Release the processing semaphores
+                    _schedulerLock.Dispose()
+                    _processingLock.Dispose()
                 End If
 
                 ' Clean up unmanaged resources
@@ -857,6 +874,21 @@ Namespace LiteTask
                 Else
                     _logger?.LogWarning($"Task {taskName} not found in scheduler cache")
                 End If
+
+                ' Clean up all associated dictionary entries to prevent memory accumulation
+                _taskStates.TryRemove(taskName, Nothing)
+                _taskRunning.TryRemove(taskName, Nothing)
+                _staleTaskAlerts.TryRemove(taskName, Nothing)
+                _activeMutexes.TryRemove(taskName, Nothing)
+
+                Dim removedLock As Object = Nothing
+                If _taskLocks.TryRemove(taskName, removedLock) Then
+                    ' Dispose the SemaphoreSlim if it was used as the lock object
+                    If TypeOf removedLock Is SemaphoreSlim Then
+                        DirectCast(removedLock, SemaphoreSlim).Dispose()
+                    End If
+                End If
+
                 ' Try to remove from XML storage
                 Try
                     _xmlManager.DeleteTask(taskName)

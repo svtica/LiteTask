@@ -656,6 +656,7 @@ Namespace LiteTask
                         _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
 
                         ' Log all output and errors
+                        Dim hasErrors = False
                         For Each item In result
                             _logger.LogInfo($"PowerShell output: {item}")
                         Next
@@ -669,12 +670,25 @@ Namespace LiteTask
                                 _logger.LogError($"PowerShell error: {err.Exception.Message}")
                                 _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
                             Next
-                            Return False
+                            hasErrors = True
                         End If
 
-                        Return True  ' If no errors, consider it successful
+                        ' Clear the result collection immediately to release PSObject references.
+                        ' These objects can hold references to runspace internals and loaded modules.
+                        If result IsNot Nothing Then
+                            result.Clear()
+                        End If
+
+                        Return Not hasErrors
 
                     Finally
+                        ' Clear the pipeline commands to release script references
+                        Try
+                            powerShell.Commands.Clear()
+                        Catch ex As Exception
+                            _logger.LogWarning($"Error clearing PowerShell commands: {ex.Message}")
+                        End Try
+
                         ' Clear all streams to release object references held by the pipeline
                         Try
                             powerShell.Streams.ClearStreams()

@@ -71,6 +71,9 @@ Namespace LiteTask
                             _smtpClient = Nothing
                         End If
 
+                        ' Clear active notification batches to release held EmailMessage lists
+                        _activeBatches.Clear()
+
                         ' Clear email queue
                         While _messageQueue.TryDequeue(Nothing)
                             ' Just empty the queue
