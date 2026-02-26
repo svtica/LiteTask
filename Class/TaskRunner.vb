@@ -628,6 +628,11 @@ Namespace LiteTask
             End Try
         End Function
 
+        ' Maximum time a single PowerShell task is allowed to run before being forcibly stopped.
+        ' Prevents hung scripts (e.g. waiting on a mutex, network share, or interactive prompt)
+        ' from blocking the scheduler indefinitely and holding the task lock forever.
+        Private Const PS_TASK_TIMEOUT_HOURS As Integer = 4
+
         Public Async Function ExecutePowerShellTask(taskAction As TaskAction, credential As CredentialInfo) As Task(Of Boolean)
             Try
                 _logger.LogInfo($"Starting PowerShell task execution: {taskAction.Name}")
@@ -670,32 +675,49 @@ Namespace LiteTask
                             Next
                         End If
 
-                        Dim result = Await powerShell.InvokeAsync()
-                        _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
-
-                        ' Log all output and errors
+                        ' Enforce a hard timeout so that a hung script (e.g. waiting on a mutex,
+                        ' stuck network call, or interactive prompt) cannot hold the task lock
+                        ' forever and cause the scheduler to retry in an infinite loop.
                         Dim hasErrors = False
-                        For Each item In result
-                            _logger.LogInfo($"PowerShell output: {item}")
-                        Next
+                        Dim result As PSDataCollection(Of PSObject) = Nothing
+                        Try
+                            Dim invokeTask = powerShell.InvokeAsync()
+                            Dim timeoutTask = Task.Delay(TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
 
-                        For Each info In powerShell.Streams.Information
-                            _logger.LogInfo($"PowerShell information: {info}")
-                        Next
+                            If Await Task.WhenAny(invokeTask, timeoutTask) Is timeoutTask Then
+                                _logger.LogError($"PowerShell task '{taskAction.Name}' exceeded {PS_TASK_TIMEOUT_HOURS}h timeout. Stopping forcibly.")
+                                powerShell.Stop()
+                                Return False
+                            End If
 
-                        If powerShell.Streams.Error.Count > 0 Then
-                            For Each err As ErrorRecord In powerShell.Streams.Error
-                                _logger.LogError($"PowerShell error: {err.Exception.Message}")
-                                _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                            result = Await invokeTask
+                            _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
+
+                            ' Log all output and errors
+                            If result IsNot Nothing Then
+                                For Each item In result
+                                    _logger.LogInfo($"PowerShell output: {item}")
+                                Next
+                            End If
+
+                            For Each info In powerShell.Streams.Information
+                                _logger.LogInfo($"PowerShell information: {info}")
                             Next
-                            hasErrors = True
-                        End If
 
-                        ' Clear the result collection immediately to release PSObject references.
-                        ' These objects can hold references to runspace internals and loaded modules.
-                        If result IsNot Nothing Then
-                            result.Clear()
-                        End If
+                            If powerShell.Streams.Error.Count > 0 Then
+                                For Each err As ErrorRecord In powerShell.Streams.Error
+                                    _logger.LogError($"PowerShell error: {err.Exception.Message}")
+                                    _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                                Next
+                                hasErrors = True
+                            End If
+                        Finally
+                            ' Dispose the output collection immediately to free memory from large
+                            ' script outputs (e.g. thousands of PSObject rows from ImportExcel).
+                            ' Dispose() is more thorough than Clear() as it releases internal
+                            ' references the collection holds to runspace state.
+                            result?.Dispose()
+                        End Try
 
                         Return Not hasErrors
 
