@@ -67,8 +67,8 @@ Namespace LiteTask
             ' Initialize PowerShell environment
             _powerShellPathManager.EnsureModulePathExists()
 
-            ' Finally load embedded PsExec
-            GetEmbeddedPsExec()
+            ' Load embedded PsExec once and cache it
+            _embeddedPsExec = GetEmbeddedPsExec()
 
             ' Clean up any old temporary files from previous runs
             CleanupOldTempFiles()
@@ -378,8 +378,8 @@ Namespace LiteTask
 
             Dim envPassVar = $"PSEXEC_PASS_{Guid.NewGuid().ToString("N")}"
             Try
-                ' Load PsExec from embedded resource
-                Dim psExecBytes = GetEmbeddedPsExec()
+                ' Use cached PsExec bytes
+                Dim psExecBytes = _embeddedPsExec
 
                 ' Set up credentials if provided
                 If credential IsNot Nothing Then
