@@ -248,10 +248,13 @@ Namespace LiteTask
             ' unbounded growth of the environment variable across repeated executions,
             ' which can exceed the Windows 32,767 character limit and cause
             ' "Environment variable name or value is too long" errors.
+            ' NOTE: Do NOT import PowerShellGet here. It is a heavy module (~10 MB) that loads
+            ' assemblies into the AppDomain on every execution. Scripts that need it should
+            ' import it themselves. Loading it here caused cumulative memory growth because
+            ' assemblies loaded into an AppDomain cannot be unloaded in .NET Framework.
             Return $"
                 $env:PSModulePath = '{pathString}'
                 $ErrorActionPreference = 'Stop'
-                Import-Module PowerShellGet -Force -ErrorAction SilentlyContinue
             "
         End Function
 
@@ -379,9 +382,9 @@ Namespace LiteTask
         ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing
+            Dim initialSessionState As InitialSessionState = Nothing
             Try
-                ' Explicitly declare the type
-                Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
+                initialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
                 ' Only import modules from the local LiteTask modules directory (safe, controlled)
@@ -398,6 +401,12 @@ Namespace LiteTask
                 runspace = Runspaces.RunspaceFactory.CreateRunspace(initialSessionState)
                 runspace.Open()
 
+                ' Dispose the InitialSessionState now that the Runspace has been created from it.
+                ' ISS holds references to module info, providers, and cmdlet entries that are no
+                ' longer needed once the Runspace is open, and not disposing it leaks memory.
+                initialSessionState.Dispose()
+                initialSessionState = Nothing
+
                 Dim ps = PowerShell.Create()
                 ps.Runspace = runspace
                 ps.AddScript(CreateInitializationScript())
@@ -408,6 +417,13 @@ Namespace LiteTask
                     Try
                         runspace.Close()
                         runspace.Dispose()
+                    Catch
+                        ' Suppress cleanup errors during error handling
+                    End Try
+                End If
+                If initialSessionState IsNot Nothing Then
+                    Try
+                        initialSessionState.Dispose()
                     Catch
                         ' Suppress cleanup errors during error handling
                     End Try

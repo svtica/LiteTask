@@ -802,9 +802,12 @@ Namespace LiteTask
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
 
-                    ' Hint GC to collect objects from the completed task (process handles,
-                    ' StringBuilders, credential wrappers, etc.) to reduce memory pressure.
-                    GC.Collect(1, GCCollectionMode.Optimized)
+                    ' Force a full GC collection to reclaim memory from completed tasks.
+                    ' Gen 1 collection is insufficient because PowerShell runspaces, loaded
+                    ' assemblies, and process handles survive to Gen 2. Without a Gen 2
+                    ' collection, the baseline memory grows ~40-60 MB per execution.
+                    GC.Collect(2, GCCollectionMode.Forced, blocking:=False)
+                    GC.WaitForPendingFinalizers()
                 End Try
             End Try
         End Function
