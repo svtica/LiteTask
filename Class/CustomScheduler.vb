@@ -100,7 +100,7 @@ Namespace LiteTask
                 Dim taskNames = _xmlManager.GetAllTaskNames()
 
                 For Each taskName In taskNames
-                    If TryCleanupAbandonedLock(taskName) Then
+                    If TryCleanupAbandonedLock(taskName, forceRelease:=True) Then
                         cleanedCount += 1
                     End If
                 Next
@@ -116,8 +116,11 @@ Namespace LiteTask
             End Try
         End Sub
 
-        ''' Attempts to cleanup a specific abandoned lock
-        Private Function TryCleanupAbandonedLock(taskName As String) As Boolean
+        ''' Attempts to cleanup a specific abandoned lock.
+        ''' forceRelease should only be True at startup or periodic cleanup (stale > 15 min),
+        ''' NOT during the retry loop in ExecuteTaskAsync, to avoid breaking exclusion
+        ''' for a legitimately running task.
+        Private Function TryCleanupAbandonedLock(taskName As String, Optional forceRelease As Boolean = False) As Boolean
             Dim semaphoreName = _mutexBasePath & taskName
             Dim semaphore As Semaphore = Nothing
 
@@ -130,14 +133,41 @@ Namespace LiteTask
                     semaphore.Release()
                     Return False
                 Else
-                    ' Semaphore appears to be held - force release to recover from abandoned state
-                    ' (e.g. a previous process crashed while holding it)
+                    If Not forceRelease Then
+                        ' Without force-release, retry with a slightly longer timeout
+                        ' in case the holder is in the process of releasing
+                        semaphore?.Dispose()
+                        semaphore = Nothing
+
+                        semaphore = New Semaphore(1, 1, semaphoreName)
+                        If semaphore.WaitOne(500) Then
+                            semaphore.Release()
+                            _logger.LogWarning($"Successfully cleaned up lock for task '{taskName}'")
+                            Return True
+                        End If
+
+                        ' Still held - don't force-release, task is legitimately running
+                        Return False
+                    End If
+
+                    ' Force-release path: only used at startup or for stale tasks.
+                    ' Verify the task is not legitimately running in our process first.
+                    Dim isRunningInProcess As Boolean = False
+                    _taskRunning.TryGetValue(taskName, isRunningInProcess)
+
+                    If isRunningInProcess Then
+                        ' Task is actively running in our process - don't force-release
+                        Return False
+                    End If
+
+                    ' Task is NOT running in our process but semaphore is held.
+                    ' This means it was abandoned by a crashed process or previous session.
                     Try
                         semaphore.Release()
-                        _logger.LogWarning($"Successfully released abandoned lock for task '{taskName}'")
+                        _logger.LogWarning($"Force-released abandoned lock for task '{taskName}'")
                         Return True
                     Catch ex As SemaphoreFullException
-                        ' Semaphore is actually at max count - not held, nothing to clean
+                        ' Semaphore is at max count - not actually held
                         Return False
                     End Try
                 End If
@@ -169,7 +199,7 @@ Namespace LiteTask
                 For Each taskName In abandonedLocks
                     _logger.LogWarning($"Attempting to cleanup potentially abandoned lock for task: {taskName}")
 
-                    If TryCleanupAbandonedLock(taskName) Then
+                    If TryCleanupAbandonedLock(taskName, forceRelease:=True) Then
                         _activeMutexes.TryRemove(taskName, Nothing)
                         ' Also reset the task state
                         If _taskStates.TryGetValue(taskName, Nothing) Then
@@ -439,7 +469,7 @@ Namespace LiteTask
                     _tasks.Clear()
                     ' Cleanup any remaining locks
                     For Each taskName In _activeMutexes.Keys
-                        TryCleanupAbandonedLock(taskName)
+                        TryCleanupAbandonedLock(taskName, forceRelease:=True)
                     Next
                     _activeMutexes.Clear()
 
