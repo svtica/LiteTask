@@ -335,42 +335,51 @@ Namespace LiteTask
             process.StartInfo.StandardOutputEncoding = Encoding.UTF8
             process.StartInfo.StandardErrorEncoding = Encoding.UTF8
 
-            AddHandler process.OutputDataReceived, Sub(sender, e)
-                                                       If e.Data IsNot Nothing Then
-                                                           output.AppendLine(e.Data)
-                                                           If verboseMode Then
-                                                               _logger.LogInfo($"Process output: {e.Data}")
-                                                           End If
-                                                       End If
-                                                   End Sub
+            ' Use named handlers so they can be removed after execution to prevent memory leaks.
+            Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
+                                                                If e.Data IsNot Nothing Then
+                                                                    output.AppendLine(e.Data)
+                                                                    If verboseMode Then
+                                                                        _logger.LogInfo($"Process output: {e.Data}")
+                                                                    End If
+                                                                End If
+                                                            End Sub
 
-            AddHandler process.ErrorDataReceived, Sub(sender, e)
-                                                      If e.Data IsNot Nothing Then
-                                                          If e.Data.Contains("Connecting") OrElse e.Data.Contains("Starting") OrElse
+            Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
+                                                               If e.Data IsNot Nothing Then
+                                                                   If e.Data.Contains("Connecting") OrElse e.Data.Contains("Starting") OrElse
                e.Data.Contains("Copying") OrElse e.Data.Contains("exited") Then
-                                                              _logger.LogInfo($"Process status: {e.Data}")
-                                                          ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
-                                                              err.AppendLine(e.Data)
-                                                              If verboseMode Then
-                                                                  _logger.LogWarning($"Process error: {e.Data}")
-                                                              End If
-                                                          End If
-                                                      End If
-                                                  End Sub
+                                                                       _logger.LogInfo($"Process status: {e.Data}")
+                                                                   ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
+                                                                       err.AppendLine(e.Data)
+                                                                       If verboseMode Then
+                                                                           _logger.LogWarning($"Process error: {e.Data}")
+                                                                       End If
+                                                                   End If
+                                                               End If
+                                                           End Sub
 
-            process.Start()
-            process.BeginOutputReadLine()
-            process.BeginErrorReadLine()
-            Await process.WaitForExitAsync()
+            Try
+                AddHandler process.OutputDataReceived, outputHandler
+                AddHandler process.ErrorDataReceived, errorHandler
 
-            If process.ExitCode <> 0 Then
-                Dim errorMessage = err.ToString()
-                Return If(String.IsNullOrWhiteSpace(errorMessage),
-            $"Error: Process exited with code {process.ExitCode}",
-            $"Error: {errorMessage}")
-            End If
+                process.Start()
+                process.BeginOutputReadLine()
+                process.BeginErrorReadLine()
+                Await process.WaitForExitAsync()
 
-            Return output.ToString()
+                If process.ExitCode <> 0 Then
+                    Dim errorMessage = err.ToString()
+                    Return If(String.IsNullOrWhiteSpace(errorMessage),
+                $"Error: Process exited with code {process.ExitCode}",
+                $"Error: {errorMessage}")
+                End If
+
+                Return output.ToString()
+            Finally
+                RemoveHandler process.OutputDataReceived, outputHandler
+                RemoveHandler process.ErrorDataReceived, errorHandler
+            End Try
         End Function
 
         Private Async Function ExecuteSecureProcess(command As String, credential As CredentialInfo,
@@ -421,41 +430,50 @@ Namespace LiteTask
                         Dim output As New StringBuilder()
                         Dim err As New StringBuilder()
 
-                        AddHandler process.OutputDataReceived, Sub(sender, e)
-                                                                   If e.Data IsNot Nothing Then
-                                                                       output.AppendLine(e.Data)
-                                                                       If verboseMode Then
-                                                                           _logger.LogInfo($"Process output: {e.Data}")
-                                                                       End If
-                                                                   End If
-                                                               End Sub
+                        ' Use named handlers so they can be removed after execution to prevent memory leaks.
+                        Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
+                                                                            If e.Data IsNot Nothing Then
+                                                                                output.AppendLine(e.Data)
+                                                                                If verboseMode Then
+                                                                                    _logger.LogInfo($"Process output: {e.Data}")
+                                                                                End If
+                                                                            End If
+                                                                        End Sub
 
-                        AddHandler process.ErrorDataReceived, Sub(sender, e)
-                                                                  If e.Data IsNot Nothing Then
-                                                                      If e.Data.Contains("Connecting") OrElse
+                        Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
+                                                                           If e.Data IsNot Nothing Then
+                                                                               If e.Data.Contains("Connecting") OrElse
                            e.Data.Contains("Starting") OrElse
                            e.Data.Contains("Copying") OrElse
                            e.Data.Contains("exited") Then
-                                                                          _logger.LogInfo($"Process status: {e.Data}")
-                                                                      ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
-                                                                          err.AppendLine(e.Data)
-                                                                          If verboseMode Then
-                                                                              _logger.LogWarning($"Process error: {e.Data}")
-                                                                          End If
-                                                                      End If
-                                                                  End If
-                                                              End Sub
+                                                                                   _logger.LogInfo($"Process status: {e.Data}")
+                                                                               ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
+                                                                                   err.AppendLine(e.Data)
+                                                                                   If verboseMode Then
+                                                                                       _logger.LogWarning($"Process error: {e.Data}")
+                                                                                   End If
+                                                                               End If
+                                                                           End If
+                                                                       End Sub
 
-                        process.Start()
-                        process.BeginOutputReadLine()
-                        process.BeginErrorReadLine()
-                        Await process.WaitForExitAsync()
+                        Try
+                            AddHandler process.OutputDataReceived, outputHandler
+                            AddHandler process.ErrorDataReceived, errorHandler
 
-                        Return New ProcessResult With {
-                    .ExitCode = process.ExitCode,
-                    .Output = output.ToString(),
-                    .GotError = err.ToString()
-                }
+                            process.Start()
+                            process.BeginOutputReadLine()
+                            process.BeginErrorReadLine()
+                            Await process.WaitForExitAsync()
+
+                            Return New ProcessResult With {
+                        .ExitCode = process.ExitCode,
+                        .Output = output.ToString(),
+                        .GotError = err.ToString()
+                    }
+                        Finally
+                            RemoveHandler process.OutputDataReceived, outputHandler
+                            RemoveHandler process.ErrorDataReceived, errorHandler
+                        End Try
                     End Using
                 End Using
 
@@ -809,20 +827,26 @@ Namespace LiteTask
             Dim output As New StringBuilder()
             Dim errors As New StringBuilder()
 
-            Try
-                AddHandler process.OutputDataReceived, Sub(sender, e)
-                                                           If e.Data IsNot Nothing Then
-                                                               output.AppendLine(e.Data)
-                                                               _logger.LogInfo($"Process output: {e.Data}")
-                                                           End If
-                                                       End Sub
+            ' Use named handlers so they can be removed after execution to prevent memory leaks.
+            ' Anonymous lambdas attached via AddHandler are never garbage-collected while the
+            ' publisher (Process) is reachable, causing handles and closures to accumulate.
+            Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
+                                                                If e.Data IsNot Nothing Then
+                                                                    output.AppendLine(e.Data)
+                                                                    _logger.LogInfo($"Process output: {e.Data}")
+                                                                End If
+                                                            End Sub
 
-                AddHandler process.ErrorDataReceived, Sub(sender, e)
-                                                          If e.Data IsNot Nothing Then
-                                                              errors.AppendLine(e.Data)
-                                                              _logger.LogWarning($"Process error: {e.Data}")
-                                                          End If
-                                                      End Sub
+            Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
+                                                               If e.Data IsNot Nothing Then
+                                                                   errors.AppendLine(e.Data)
+                                                                   _logger.LogWarning($"Process error: {e.Data}")
+                                                               End If
+                                                           End Sub
+
+            Try
+                AddHandler process.OutputDataReceived, outputHandler
+                AddHandler process.ErrorDataReceived, errorHandler
 
                 process.Start()
                 process.BeginOutputReadLine()
@@ -840,6 +864,9 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error running process: {ex.Message}")
                 Return False
+            Finally
+                RemoveHandler process.OutputDataReceived, outputHandler
+                RemoveHandler process.ErrorDataReceived, errorHandler
             End Try
         End Function
 
