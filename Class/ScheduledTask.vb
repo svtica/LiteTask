@@ -27,6 +27,7 @@ Namespace LiteTask
         ' Basic properties
         Public Property Name As String
         Public Property Description As String
+        Public Property Enabled As Boolean = True
 
         ' Scheduling properties
         Public Property StartTime As DateTime
@@ -143,6 +144,7 @@ Namespace LiteTask
             Return New ScheduledTask With {
         .Name = Me.Name,
         .Description = Me.Description,
+        .Enabled = Me.Enabled,
         .StartTime = Me.StartTime,
         .Schedule = Me.Schedule,
         .Interval = Me.Interval,

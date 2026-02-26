@@ -59,6 +59,12 @@ Namespace LiteTask
         Private WithEvents _commandTimeoutNumeric As NumericUpDown
         Private WithEvents _maxBatchSizeNumeric As NumericUpDown
 
+        ' Monitoring Tab Controls
+        Private WithEvents _monitoringTab As TabPage
+        Private WithEvents _enableMemoryMonitorCheckBox As CheckBox
+        Private WithEvents _memoryCheckIntervalLabel As Label
+        Private WithEvents _memoryCheckIntervalNumeric As NumericUpDown
+
         ' Button Panel Controls
         Private WithEvents _buttonPanel As Panel
         Private WithEvents _okButton As Button
@@ -113,6 +119,12 @@ Namespace LiteTask
             Me._sqlPanel = New TableLayoutPanel()
             Me._commandTimeoutNumeric = New NumericUpDown()
             Me._maxBatchSizeNumeric = New NumericUpDown()
+
+            ' Initialize Monitoring Tab Controls
+            Me._monitoringTab = New TabPage()
+            Me._enableMemoryMonitorCheckBox = New CheckBox()
+            Me._memoryCheckIntervalLabel = New Label()
+            Me._memoryCheckIntervalNumeric = New NumericUpDown()
 
             ' Initialize Buttons
             Me._okButton = New Button()

@@ -66,6 +66,7 @@ Namespace LiteTask
         Private WithEvents _editSelectedMenuItem As ToolStripMenuItem
         Private WithEvents _deleteSelectedMenuItem As ToolStripMenuItem
         Private WithEvents _exportSelectedMenuItem As ToolStripMenuItem
+        Private WithEvents _toggleEnableMenuItem As ToolStripMenuItem
         Private WithEvents _checkUpdatesMenuItem As ToolStripMenuItem
         Private WithEvents _tabControl As TabControl
         Private WithEvents _createTaskButton As Button
@@ -142,6 +143,7 @@ Namespace LiteTask
             AddHandler _editSelectedMenuItem.Click, AddressOf EditSelectedTasks_Click
             AddHandler _deleteSelectedMenuItem.Click, AddressOf DeleteSelectedTask_Click
             AddHandler _exportSelectedMenuItem.Click, AddressOf ExportSelectedTasks_Click
+            AddHandler _toggleEnableMenuItem.Click, AddressOf ToggleEnableSelectedTasks_Click
             AddHandler _exportMenuItem.Click, AddressOf ExportSelectedTasks_Click
             AddHandler _exportAllMenuItem.Click, AddressOf ExportAllTasks_Click
             AddHandler _credentialManagerMenuItem.Click, AddressOf OpenCredentialManager
@@ -565,6 +567,31 @@ Namespace LiteTask
             End Try
         End Sub
 
+        Private Sub ToggleEnableSelectedTasks_Click(sender As Object, e As EventArgs)
+            Try
+                Dim selectedTaskNames = GetSelectedTasks()
+                If selectedTaskNames Is Nothing OrElse selectedTaskNames.Count = 0 Then
+                    Return
+                End If
+
+                For Each taskName In selectedTaskNames
+                    Dim task = _customScheduler.GetTask(taskName)
+                    If task IsNot Nothing Then
+                        task.Enabled = Not task.Enabled
+                        _xmlManager.SaveTask(task)
+                        _logger.LogInfo($"Task '{taskName}' {If(task.Enabled, "enabled", "disabled")}")
+                    End If
+                Next
+
+                RefreshTaskList()
+            Catch ex As Exception
+                _logger.LogError($"Error toggling task enabled state: {ex.Message}")
+                MessageBox.Show($"Error toggling task state: {ex.Message}",
+                    TranslationManager.Instance.GetTranslation("Error", "Error"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End Sub
+
         Public Function GetAllTasks() As List(Of String)
             Return _customScheduler.GetAllTasks().Select(Function(t) t.Name).ToList()
         End Function
@@ -582,14 +609,16 @@ Namespace LiteTask
         End Function
 
         Private Function GetTaskStatus(task As ScheduledTask) As String
-            If task.Actions.Any(Function(a) a.Status = TaskActionStatus.Running) Then
-                Return "Running"
+            If Not task.Enabled Then
+                Return TranslationManager.Instance.GetTranslation("Disabled", "Disabled")
+            ElseIf task.Actions.Any(Function(a) a.Status = TaskActionStatus.Running) Then
+                Return TranslationManager.Instance.GetTranslation("Running", "Running")
             ElseIf task.Actions.Any(Function(a) a.Status = TaskActionStatus.Failed) Then
-                Return "Failed"
+                Return TranslationManager.Instance.GetTranslation("Failed", "Failed")
             ElseIf task.Actions.All(Function(a) a.Status = TaskActionStatus.Completed) Then
-                Return "Completed"
+                Return TranslationManager.Instance.GetTranslation("Completed", "Completed")
             Else
-                Return "Pending"
+                Return TranslationManager.Instance.GetTranslation("Pending", "Pending")
             End If
         End Function
 
@@ -720,6 +749,7 @@ Namespace LiteTask
             _editSelectedMenuItem = New ToolStripMenuItem()
             _deleteSelectedMenuItem = New ToolStripMenuItem()
             _exportSelectedMenuItem = New ToolStripMenuItem()
+            _toggleEnableMenuItem = New ToolStripMenuItem()
             _buttonPanel = New FlowLayoutPanel()
             _runTaskButton = New Button()
             _createTaskButton = New Button()
@@ -820,9 +850,9 @@ Namespace LiteTask
             ' _contextMenuStrip
             ' 
             _contextMenuStrip.ImageScalingSize = New Size(20, 20)
-            _contextMenuStrip.Items.AddRange(New ToolStripItem() {_runSelectedMenuItem, _editSelectedMenuItem, _deleteSelectedMenuItem, _exportSelectedMenuItem})
+            _contextMenuStrip.Items.AddRange(New ToolStripItem() {_runSelectedMenuItem, _editSelectedMenuItem, _deleteSelectedMenuItem, _exportSelectedMenuItem, New ToolStripSeparator(), _toggleEnableMenuItem})
             _contextMenuStrip.Name = "_contextMenuStrip"
-            _contextMenuStrip.Size = New Size(194, 92)
+            _contextMenuStrip.Size = New Size(194, 114)
             ' 
             ' _runSelectedMenuItem
             ' 
@@ -847,7 +877,13 @@ Namespace LiteTask
             _exportSelectedMenuItem.Name = "_exportSelectedMenuItem"
             _exportSelectedMenuItem.Size = New Size(193, 22)
             _exportSelectedMenuItem.Text = "Export Selected Task(s)"
-            ' 
+            '
+            ' _toggleEnableMenuItem
+            '
+            _toggleEnableMenuItem.Name = "_toggleEnableMenuItem"
+            _toggleEnableMenuItem.Size = New Size(193, 22)
+            _toggleEnableMenuItem.Text = "Enable/Disable Task(s)"
+            '
             ' _buttonPanel
             ' 
             _buttonPanel.AutoSize = True
@@ -1671,6 +1707,9 @@ Namespace LiteTask
             Dim alertLevel As String = _xmlManager.ReadValue("Alerts", "AlertLevel", "Error")
             Dim alertEmail As String = _xmlManager.ReadValue("Alerts", "AlertEmail", "")
             UpdateAlertSettings(alertLevel, alertEmail)
+
+            ' Reload memory monitor settings in the scheduler
+            _customScheduler.LoadMemoryMonitorSettings()
         End Sub
 
         Private Sub TaskListView_MouseClick(sender As Object, e As MouseEventArgs) Handles _taskListView.MouseClick
@@ -1688,6 +1727,20 @@ Namespace LiteTask
                     _editSelectedMenuItem.Enabled = singleSelection
                     _deleteSelectedMenuItem.Enabled = hasSelection
                     _exportSelectedMenuItem.Enabled = hasSelection
+                    _toggleEnableMenuItem.Enabled = hasSelection
+
+                    ' Update toggle text based on selected task state
+                    If singleSelection Then
+                        Dim taskName = _taskListView.SelectedItems(0).Text
+                        Dim task = _customScheduler.GetTask(taskName)
+                        If task IsNot Nothing Then
+                            _toggleEnableMenuItem.Text = If(task.Enabled,
+                                TranslationManager.Instance.GetTranslation("_disableTaskMenuItem", "Disable Task"),
+                                TranslationManager.Instance.GetTranslation("_enableTaskMenuItem", "Enable Task"))
+                        End If
+                    Else
+                        _toggleEnableMenuItem.Text = TranslationManager.Instance.GetTranslation("_toggleEnableMenuItem", "Enable/Disable Task(s)")
+                    End If
 
                     ' Update menu item text to reflect selection count
                     If hasSelection AndAlso _taskListView.SelectedItems.Count > 1 Then
@@ -1718,11 +1771,17 @@ Namespace LiteTask
                         }
                         item.SubItems.Add(If(String.IsNullOrEmpty(task.Description), "-", task.Description))
                         item.SubItems.Add(If(task.NextRunTime = DateTime.MaxValue,
-                                    "One-time (Completed)",
+                                    TranslationManager.Instance.GetTranslation("OneTimeCompleted", "One-time (Completed)"),
                                     task.NextRunTime.ToString("g")))
                         item.SubItems.Add(task.Schedule.ToString())
                         item.SubItems.Add($"{task.Actions.Count} action(s)")
                         item.SubItems.Add(GetTaskStatus(task))
+
+                        ' Gray out disabled tasks
+                        If Not task.Enabled Then
+                            item.ForeColor = Color.Gray
+                        End If
+
                         _taskListView.Items.Add(item)
                     End If
                 Next

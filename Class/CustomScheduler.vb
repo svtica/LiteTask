@@ -31,8 +31,9 @@ Namespace LiteTask
         Private _lastStaleCleanupTime As DateTime = DateTime.MinValue
         Private Const STALE_CLEANUP_INTERVAL_SECONDS As Integer = 300
 
-        ' Memory monitoring properties
-        Private Const MEMORY_CHECK_INTERVAL_SECONDS As Integer = 300  ' Check every 5 minutes
+        ' Memory monitoring properties (configurable via Options > Monitoring)
+        Private _memoryMonitorEnabled As Boolean = True
+        Private _memoryCheckIntervalSeconds As Integer = 300          ' Default: 5 minutes
         Private Const MEMORY_WARNING_THRESHOLD_MB As Long = 1024      ' Warn at 1 GB
         Private Const MEMORY_CRITICAL_THRESHOLD_MB As Long = 2048     ' Critical at 2 GB
         Private _lastMemoryCheckTime As DateTime = DateTime.MinValue
@@ -80,6 +81,9 @@ Namespace LiteTask
             _errorNotifier = New ErrorNotifier(xmlManager, logger)
             _dependencyManager = New TaskDependencyManager(logger, xmlManager, Me)
             _powerShellPathManager = ApplicationContainer.GetService(Of PowerShellPathManager)()
+
+            ' Load memory monitoring settings
+            LoadMemoryMonitorSettings()
 
             ' Initialize mutex cleanup timer (run every 5 minutes)
             _mutexCleanupTimer = New Threading.Timer(AddressOf CleanupAbandonedMutexes, Nothing,
@@ -215,6 +219,23 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Reloads memory monitor settings from XML. Called on construction
+        ''' and can be called again after the user changes Options.
+        ''' </summary>
+        Public Sub LoadMemoryMonitorSettings()
+            Try
+                Dim settings = _xmlManager.GetMemoryMonitorSettings()
+                _memoryMonitorEnabled = Boolean.Parse(If(settings.ContainsKey("MemoryMonitorEnabled"), settings("MemoryMonitorEnabled"), "True"))
+                _memoryCheckIntervalSeconds = Integer.Parse(If(settings.ContainsKey("MemoryCheckIntervalSeconds"), settings("MemoryCheckIntervalSeconds"), "300"))
+                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s")
+            Catch ex As Exception
+                _logger.LogWarning($"Error loading memory monitor settings, using defaults: {ex.Message}")
+                _memoryMonitorEnabled = True
+                _memoryCheckIntervalSeconds = 300
+            End Try
+        End Sub
+
         Public Sub AddTask(task As ScheduledTask)
             Try
                 If task Is Nothing Then
@@ -281,6 +302,9 @@ Namespace LiteTask
 
                 For Each task In _tasks.Values
                     Try
+                        ' Skip disabled tasks
+                        If Not task.Enabled Then Continue For
+
                         If task.NextRunTime <= now Then
                             Dim taskState = _taskStates.GetOrAdd(task.Name, New TaskState())
 
@@ -305,7 +329,9 @@ Namespace LiteTask
         ''' </summary>
         Private Sub CheckMemoryUsage(now As DateTime)
             Try
-                If (now - _lastMemoryCheckTime).TotalSeconds < MEMORY_CHECK_INTERVAL_SECONDS Then
+                If Not _memoryMonitorEnabled Then Return
+
+                If (now - _lastMemoryCheckTime).TotalSeconds < _memoryCheckIntervalSeconds Then
                     Return
                 End If
                 _lastMemoryCheckTime = now
