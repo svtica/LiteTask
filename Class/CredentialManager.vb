@@ -356,20 +356,22 @@ Namespace LiteTask
 
         Private Function GetCurrentUserCredential(target As String) As CredentialInfo
             Try
-                Dim regKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials")
-                Dim value = TryCast(regKey?.GetValue(target), String)
-                If value IsNot Nothing Then
-                    Dim parts = value.Split("|"c)
-                    If parts.Length = 2 Then
-                        Return New CredentialInfo() With {
-                            .Target = target,
-                            .Username = parts(0),
-                            .Password = DecryptString(parts(1)),
-                            .AccountType = "Current User",
-                            .SecurePassword = New NetworkCredential("", DecryptString(parts(1))).SecurePassword
-                        }
+                Using regKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials")
+                    Dim value = TryCast(regKey?.GetValue(target), String)
+                    If value IsNot Nothing Then
+                        Dim parts = value.Split("|"c)
+                        If parts.Length = 2 Then
+                            Dim decrypted = DecryptString(parts(1))
+                            Return New CredentialInfo() With {
+                                .Target = target,
+                                .Username = parts(0),
+                                .Password = decrypted,
+                                .AccountType = "Current User",
+                                .SecurePassword = New NetworkCredential("", decrypted).SecurePassword
+                            }
+                        End If
                     End If
-                End If
+                End Using
                 Return Nothing
             Catch ex As Exception
                 _logger.LogError($"Error getting current user credential: {ex.Message}")
@@ -508,7 +510,8 @@ Namespace LiteTask
         End Sub
 
         Private Sub SaveToWindowsVault(credInfo As CredentialInfo, password As SecureString)
-            Dim credentialPtr As IntPtr = IntPtr.Zero
+            Dim bstr As IntPtr = IntPtr.Zero
+            Dim credBlobPtr As IntPtr = IntPtr.Zero
             Try
                 ValidateCredentialInfo(credInfo)
 
@@ -520,17 +523,17 @@ Namespace LiteTask
                 .Persist = CRED_PERSIST_LOCAL_MACHINE
             }
 
-                ' Convert SecureString to encrypted bytes
-                Dim bstr As IntPtr = Marshal.SecureStringToBSTR(password)
+                ' Convert SecureString to bytes via BSTR
+                bstr = Marshal.SecureStringToBSTR(password)
                 Dim passwordStr = Marshal.PtrToStringBSTR(bstr)
                 Dim passwordBytes = Encoding.Unicode.GetBytes(passwordStr)
                 cred.CredentialBlobSize = CUInt(passwordBytes.Length)
-                cred.CredentialBlob = Marshal.AllocHGlobal(passwordBytes.Length)
+                credBlobPtr = Marshal.AllocHGlobal(passwordBytes.Length)
+                cred.CredentialBlob = credBlobPtr
                 Marshal.Copy(passwordBytes, 0, cred.CredentialBlob, passwordBytes.Length)
 
-                ' Clear sensitive data
+                ' Clear sensitive data from managed array
                 Array.Clear(passwordBytes, 0, passwordBytes.Length)
-
 
                 ' Write to vault
                 If Not CredWrite(cred, 0) Then
@@ -538,10 +541,14 @@ Namespace LiteTask
                 End If
 
             Finally
-                If credentialPtr <> IntPtr.Zero Then
-                    Marshal.FreeHGlobal(credentialPtr)
+                ' Free the BSTR (unmanaged memory from SecureStringToBSTR)
+                If bstr <> IntPtr.Zero Then
+                    Marshal.ZeroFreeBSTR(bstr)
                 End If
-                GC.Collect()
+                ' Free the credential blob native buffer
+                If credBlobPtr <> IntPtr.Zero Then
+                    Marshal.FreeHGlobal(credBlobPtr)
+                End If
             End Try
         End Sub
 
