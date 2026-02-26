@@ -175,7 +175,8 @@ Namespace LiteTask
             .UseShellExecute = True
         }
 
-            Process.Start(startInfo)
+            Dim proc = Process.Start(startInfo)
+            proc?.Dispose()
         End Sub
 
         Private Sub LoadToolSetting()
