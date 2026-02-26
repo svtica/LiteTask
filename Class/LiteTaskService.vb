@@ -88,6 +88,10 @@ Namespace LiteTask
         Private Shared Function CloseHandle(hObject As IntPtr) As Boolean
         End Function
 
+        <DllImport("advapi32.dll", SetLastError:=True)>
+        Private Shared Function CloseServiceHandle(hSCObject As IntPtr) As Boolean
+        End Function
+
         <StructLayout(LayoutKind.Sequential)>
         Private Structure SERVICE_STATUS_PROCESS
             Public dwServiceType As Integer
@@ -125,14 +129,19 @@ Namespace LiteTask
             Const SE_PRIVILEGE_ENABLED As Integer = &H2
             Const SE_IMPERSONATE_NAME As String = "SeImpersonatePrivilege"
 
+            Dim scManager As IntPtr = IntPtr.Zero
+            Dim service As IntPtr = IntPtr.Zero
+            Dim processHandle As IntPtr = IntPtr.Zero
+            Dim tokenHandle As IntPtr = IntPtr.Zero
+
             Try
                 ' Open the service
-                Dim scManager = OpenSCManager(Nothing, Nothing, SC_MANAGER_ALL_ACCESS)
+                scManager = OpenSCManager(Nothing, Nothing, SC_MANAGER_ALL_ACCESS)
                 If scManager = IntPtr.Zero Then
                     Throw New ComponentModel.Win32Exception(Marshal.GetLastWin32Error())
                 End If
 
-                Dim service = OpenService(scManager, serviceName, SERVICE_ALL_ACCESS)
+                service = OpenService(scManager, serviceName, SERVICE_ALL_ACCESS)
                 If service = IntPtr.Zero Then
                     Throw New ComponentModel.Win32Exception(Marshal.GetLastWin32Error())
                 End If
@@ -145,13 +154,12 @@ Namespace LiteTask
                 End If
 
                 ' Open the service process
-                Dim processHandle = OpenProcess(PROCESS_ALL_ACCESS, False, serviceStatus.dwProcessId)
+                processHandle = OpenProcess(PROCESS_ALL_ACCESS, False, serviceStatus.dwProcessId)
                 If processHandle = IntPtr.Zero Then
                     Throw New ComponentModel.Win32Exception(Marshal.GetLastWin32Error())
                 End If
 
                 ' Get the process token
-                Dim tokenHandle As IntPtr
                 If Not OpenProcessToken(processHandle, TOKEN_ADJUST_PRIVILEGES Or TOKEN_QUERY, tokenHandle) Then
                     Throw New System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error())
                 End If
@@ -180,6 +188,11 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Failed to grant SeImpersonatePrivilege to service {serviceName}: {ex.Message}")
                 Throw
+            Finally
+                If tokenHandle <> IntPtr.Zero Then CloseHandle(tokenHandle)
+                If processHandle <> IntPtr.Zero Then CloseHandle(processHandle)
+                If service <> IntPtr.Zero Then CloseServiceHandle(service)
+                If scManager <> IntPtr.Zero Then CloseServiceHandle(scManager)
             End Try
         End Sub
 
