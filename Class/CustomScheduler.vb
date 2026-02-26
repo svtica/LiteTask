@@ -552,7 +552,8 @@ Namespace LiteTask
         End Function
 
         ''' Enhanced internal execution method with improved mutex handling
-        Public Async Function ExecuteTaskAsync(_task As ScheduledTask) As Task
+        ''' Returns True if the task actually executed, False if it was skipped (e.g. lock not acquired).
+        Public Async Function ExecuteTaskAsync(_task As ScheduledTask) As Task(Of Boolean)
             Dim semaphoreName = _mutexBasePath & _task.Name
             Dim semaphore As Semaphore = Nothing
             Dim hasLock As Boolean = False
@@ -601,7 +602,7 @@ Namespace LiteTask
                 If Not hasLock Then
                     _logger.LogInfo($"Could not acquire lock for task {_task.Name} after {retryCount} retries. Will retry later.")
                     _activeMutexes.TryRemove(_task.Name, Nothing)
-                    Return
+                    Return False
                 End If
 
                 ' Update task state and tracking
@@ -694,6 +695,12 @@ Namespace LiteTask
                         ' Clear any stale task alert tracking when task completes normally
                         _staleTaskAlerts.TryRemove(_task.Name, Nothing)
                     End Try
+
+                    Return True
+                Else
+                    ' Task is already tracked as running in-process (secondary guard)
+                    _logger.LogWarning($"Task {_task.Name} is already running in-process, skipping.")
+                    Return False
                 End If
 
             Catch ex As Exception
@@ -938,7 +945,12 @@ Namespace LiteTask
 
             Try
                 _logger.LogInfo($"Starting execution of task: {task.Name}")
-                Await ExecuteTaskAsync(task)
+                Dim executed = Await ExecuteTaskAsync(task)
+
+                If Not executed Then
+                    _logger.LogWarning($"Task {task.Name} was not executed (already running or lock unavailable)")
+                    Return
+                End If
 
                 ' Handle chained tasks
                 If task.NextTaskId.HasValue AndAlso task.NextTaskId.Value > 0 Then
