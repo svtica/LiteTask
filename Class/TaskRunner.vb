@@ -716,7 +716,7 @@ Namespace LiteTask
                             ' script outputs (e.g. thousands of PSObject rows from ImportExcel).
                             ' Dispose() is more thorough than Clear() as it releases internal
                             ' references the collection holds to runspace state.
-                            result?.Dispose()
+                            If result IsNot Nothing Then result.Dispose()
                         End Try
 
                         Return Not hasErrors
