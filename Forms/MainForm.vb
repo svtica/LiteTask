@@ -1416,6 +1416,16 @@ Namespace LiteTask
                     _schedulerTimer.Dispose()
                 End If
 
+                If _autoRefreshTimer IsNot Nothing Then
+                    _autoRefreshTimer.Stop()
+                    RemoveHandler _autoRefreshTimer.Tick, AddressOf AutoRefreshTimer_Tick
+                    _autoRefreshTimer.Dispose()
+                End If
+
+                If _customScheduler IsNot Nothing Then
+                    RemoveHandler _customScheduler.TaskCompleted, AddressOf CustomScheduler_TaskCompleted
+                End If
+
                 'If _logger IsNot Nothing Then
                 '    RemoveHandler _logger.LogEntryAdded, AddressOf OnLogEntryAdded
                 'End If
