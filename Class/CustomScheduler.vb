@@ -88,71 +88,67 @@ Namespace LiteTask
             ' Cleanup any abandoned mutexes from previous application runs
             CleanupAllAbandonedMutexes()
 
-            _logger.LogInfo($"CustomScheduler initialized with enhanced mutex management")
+            _logger.LogInfo($"CustomScheduler initialized with enhanced lock management")
         End Sub
 
-        ''' Cleanup all abandoned mutexes on application startup
+        ''' Cleanup all abandoned locks on application startup
         Private Sub CleanupAllAbandonedMutexes()
             Try
-                _logger.LogInfo("Starting cleanup of abandoned mutexes from previous runs")
-                
+                _logger.LogInfo("Starting cleanup of abandoned locks from previous runs")
+
                 Dim cleanedCount = 0
                 Dim taskNames = _xmlManager.GetAllTaskNames()
-                
+
                 For Each taskName In taskNames
-                    If TryCleanupAbandonedMutex(taskName) Then
+                    If TryCleanupAbandonedLock(taskName) Then
                         cleanedCount += 1
                     End If
                 Next
-                
+
                 If cleanedCount > 0 Then
-                    _logger.LogWarning($"Cleaned up {cleanedCount} abandoned mutexes from previous runs")
+                    _logger.LogWarning($"Cleaned up {cleanedCount} abandoned locks from previous runs")
                 Else
-                    _logger.LogInfo("No abandoned mutexes found during startup")
+                    _logger.LogInfo("No abandoned locks found during startup")
                 End If
-                
+
             Catch ex As Exception
-                _logger.LogError($"Error during startup mutex cleanup: {ex.Message}")
+                _logger.LogError($"Error during startup lock cleanup: {ex.Message}")
             End Try
         End Sub
 
-        ''' Attempts to cleanup a specific abandoned mutex
-        Private Function TryCleanupAbandonedMutex(taskName As String) As Boolean
-            Dim mutexName = _mutexBasePath & taskName
-            Dim mutex As Mutex = Nothing
-            
+        ''' Attempts to cleanup a specific abandoned lock
+        Private Function TryCleanupAbandonedLock(taskName As String) As Boolean
+            Dim semaphoreName = _mutexBasePath & taskName
+            Dim semaphore As Semaphore = Nothing
+
             Try
-                mutex = New Mutex(False, mutexName)
-                
-                ' Try to acquire mutex with very short timeout to check if it's abandoned
-                If mutex.WaitOne(100) Then
-                    ' Got the mutex immediately - it wasn't actually in use
-                    mutex.ReleaseMutex()
+                semaphore = New Semaphore(1, 1, semaphoreName)
+
+                ' Try to acquire with very short timeout to check if it's abandoned
+                If semaphore.WaitOne(100) Then
+                    ' Got the semaphore immediately - it wasn't actually in use
+                    semaphore.Release()
                     Return False
                 Else
-                    ' Mutex appears to be held - try more aggressive cleanup
-                    mutex.Dispose()
-                    mutex = Nothing
-                    
-                    ' Create a new mutex to try to force cleanup
-                    mutex = New Mutex(False, mutexName)
-                    If mutex.WaitOne(500) Then
-                        mutex.ReleaseMutex()
-                        _logger.LogWarning($"Successfully cleaned abandoned mutex for task '{taskName}'")
+                    ' Semaphore appears to be held - force release to recover from abandoned state
+                    ' (e.g. a previous process crashed while holding it)
+                    Try
+                        semaphore.Release()
+                        _logger.LogWarning($"Successfully released abandoned lock for task '{taskName}'")
                         Return True
-                    End If
+                    Catch ex As SemaphoreFullException
+                        ' Semaphore is actually at max count - not held, nothing to clean
+                        Return False
+                    End Try
                 End If
-                
-            Catch ex As AbandonedMutexException
-                _logger.LogWarning($"Found and cleaned abandoned mutex for task '{taskName}'")
-                Return True
+
             Catch ex As Exception
-                _logger.LogError($"Error cleaning mutex for task '{taskName}': {ex.Message}")
+                _logger.LogError($"Error cleaning lock for task '{taskName}': {ex.Message}")
                 Return False
             Finally
-                mutex?.Dispose()
+                semaphore?.Dispose()
             End Try
-            
+
             Return False
         End Function
 
@@ -160,32 +156,32 @@ Namespace LiteTask
         Private Sub CleanupAbandonedMutexes(state As Object)
             Try
                 Dim now = DateTime.Now
-                Dim abandonedMutexes = New List(Of String)()
-                
-                ' Check for mutexes that have been active too long
+                Dim abandonedLocks = New List(Of String)()
+
+                ' Check for locks that have been active too long
                 For Each kvp In _activeMutexes
                     If (now - kvp.Value).TotalMinutes > STALE_TIMEOUT_MINUTES Then
-                        abandonedMutexes.Add(kvp.Key)
+                        abandonedLocks.Add(kvp.Key)
                     End If
                 Next
-                
-                ' Attempt to cleanup abandoned mutexes
-                For Each taskName In abandonedMutexes
-                    _logger.LogWarning($"Attempting to cleanup potentially abandoned mutex for task: {taskName}")
-                    
-                    If TryCleanupAbandonedMutex(taskName) Then
+
+                ' Attempt to cleanup abandoned locks
+                For Each taskName In abandonedLocks
+                    _logger.LogWarning($"Attempting to cleanup potentially abandoned lock for task: {taskName}")
+
+                    If TryCleanupAbandonedLock(taskName) Then
                         _activeMutexes.TryRemove(taskName, Nothing)
                         ' Also reset the task state
                         If _taskStates.TryGetValue(taskName, Nothing) Then
                             Dim taskState = _taskStates(taskName)
                             taskState.IsRunning = False
-                            taskState.LastError = "Mutex cleanup - task may have crashed"
+                            taskState.LastError = "Lock cleanup - task may have crashed"
                         End If
                     End If
                 Next
-                
+
             Catch ex As Exception
-                _logger.LogError($"Error during periodic mutex cleanup: {ex.Message}")
+                _logger.LogError($"Error during periodic lock cleanup: {ex.Message}")
             End Try
         End Sub
 
@@ -441,9 +437,9 @@ Namespace LiteTask
                         End If
                     Next
                     _tasks.Clear()
-                    ' Cleanup any remaining mutexes
+                    ' Cleanup any remaining locks
                     For Each taskName In _activeMutexes.Keys
-                        TryCleanupAbandonedMutex(taskName)
+                        TryCleanupAbandonedLock(taskName)
                     Next
                     _activeMutexes.Clear()
 
@@ -527,32 +523,34 @@ Namespace LiteTask
 
         ''' Enhanced internal execution method with improved mutex handling
         Public Async Function ExecuteTaskAsync(_task As ScheduledTask) As Task
-            Dim mutexName = _mutexBasePath & _task.Name
-            Dim mutex As Mutex = Nothing
+            Dim semaphoreName = _mutexBasePath & _task.Name
+            Dim semaphore As Semaphore = Nothing
             Dim hasLock As Boolean = False
             Dim retryCount As Integer = 0
             Dim taskState = _taskStates.GetOrAdd(_task.Name, New TaskState())
 
             Try
-                ' Record mutex acquisition attempt
+                ' Record acquisition attempt
                 _activeMutexes.TryAdd(_task.Name, DateTime.Now)
-                
-                ' Try to acquire mutex with retries for abandoned mutex scenarios
+
+                ' Try to acquire semaphore with retries for abandoned scenarios
+                ' Using Semaphore instead of Mutex because Mutex has thread affinity:
+                ' in async code, the thread that releases may differ from the one that acquired.
                 Do While retryCount < MAX_CLEANUP_RETRIES
                     Try
-                        mutex = New Mutex(False, mutexName)
-                        hasLock = mutex.WaitOne(TimeSpan.FromSeconds(MUTEX_TIMEOUT_SECONDS))
-                        
+                        semaphore = New Semaphore(1, 1, semaphoreName)
+                        hasLock = semaphore.WaitOne(TimeSpan.FromSeconds(MUTEX_TIMEOUT_SECONDS))
+
                         If hasLock Then
-                            Exit Do ' Successfully acquired mutex
+                            Exit Do ' Successfully acquired
                         Else
-                            _logger.LogWarning($"Task {_task.Name} mutex timeout (attempt {retryCount + 1}). Trying cleanup...")
-                            mutex?.Dispose()
-                            mutex = Nothing
-                            
-                            ' Attempt to cleanup potentially abandoned mutex
-                            If TryCleanupAbandonedMutex(_task.Name) Then
-                                _logger.LogInfo($"Cleaned up abandoned mutex for {_task.Name}, retrying...")
+                            _logger.LogWarning($"Task {_task.Name} lock timeout (attempt {retryCount + 1}). Trying cleanup...")
+                            semaphore?.Dispose()
+                            semaphore = Nothing
+
+                            ' Attempt to cleanup potentially abandoned lock
+                            If TryCleanupAbandonedLock(_task.Name) Then
+                                _logger.LogInfo($"Cleaned up abandoned lock for {_task.Name}, retrying...")
                                 retryCount += 1
                                 Await Task.Delay(1000) ' Brief delay before retry
                             Else
@@ -561,31 +559,27 @@ Namespace LiteTask
                                 Exit Do
                             End If
                         End If
-                        
-                    Catch ex As AbandonedMutexException
-                        _logger.LogWarning($"Recovered from abandoned mutex for task: {_task.Name}")
-                        hasLock = True
-                        Exit Do
+
                     Catch ex As Exception
-                        _logger.LogError($"Error acquiring mutex for task {_task.Name}: {ex.Message}")
-                        mutex?.Dispose()
-                        mutex = Nothing
+                        _logger.LogError($"Error acquiring lock for task {_task.Name}: {ex.Message}")
+                        semaphore?.Dispose()
+                        semaphore = Nothing
                         Exit Do
                     End Try
                 Loop
 
                 If Not hasLock Then
-                    _logger.LogInfo($"Could not acquire mutex for task {_task.Name} after {retryCount} retries. Will retry later.")
+                    _logger.LogInfo($"Could not acquire lock for task {_task.Name} after {retryCount} retries. Will retry later.")
                     _activeMutexes.TryRemove(_task.Name, Nothing)
                     Return
                 End If
 
-                ' Update task state and mutex tracking
+                ' Update task state and tracking
                 taskState.IsRunning = True
                 taskState.LastStartTime = DateTime.Now
                 taskState.StatusMessage = "Starting execution"
                 _activeMutexes(_task.Name) = DateTime.Now
-                _logger.LogInfo($"Mutex acquired for task: {_task.Name}")
+                _logger.LogInfo($"Lock acquired for task: {_task.Name}")
                 If _taskRunning.TryAdd(_task.Name, True) Then
                     Try
                         ' Get credential if needed
@@ -713,28 +707,28 @@ Namespace LiteTask
 
                 Throw
             Finally
-                ' Enhanced cleanup in Finally block
+                ' Cleanup in Finally block
                 Try
-                    If hasLock AndAlso mutex IsNot Nothing Then
+                    If hasLock AndAlso semaphore IsNot Nothing Then
                         Try
-                            mutex.ReleaseMutex()
-                            _logger.LogInfo($"Released mutex for task: {_task.Name}")
-                        Catch mutexEx As ApplicationException
-                            ' Mutex was not owned by the current thread or already released
-                            _logger.LogWarning($"Mutex already released or not owned for task: {_task.Name}")
-                        Catch mutexEx As ObjectDisposedException
-                            ' Mutex was already disposed
-                            _logger.LogWarning($"Mutex already disposed for task: {_task.Name}")
+                            semaphore.Release()
+                            _logger.LogInfo($"Released lock for task: {_task.Name}")
+                        Catch semEx As SemaphoreFullException
+                            ' Semaphore was already released
+                            _logger.LogWarning($"Lock already released for task: {_task.Name}")
+                        Catch semEx As ObjectDisposedException
+                            ' Semaphore was already disposed
+                            _logger.LogWarning($"Lock already disposed for task: {_task.Name}")
                         End Try
                     End If
                 Catch ex As Exception
-                    _logger.LogError($"Error during mutex cleanup for {_task.Name}: {ex.Message}")
+                    _logger.LogError($"Error during lock cleanup for {_task.Name}: {ex.Message}")
                 Finally
-                    ' Dispose mutex safely
+                    ' Dispose semaphore safely
                     Try
-                        mutex?.Dispose()
+                        semaphore?.Dispose()
                     Catch disposeEx As Exception
-                        _logger.LogWarning($"Error disposing mutex for {_task.Name}: {disposeEx.Message}")
+                        _logger.LogWarning($"Error disposing lock for {_task.Name}: {disposeEx.Message}")
                     End Try
 
                     _activeMutexes.TryRemove(_task.Name, Nothing)
