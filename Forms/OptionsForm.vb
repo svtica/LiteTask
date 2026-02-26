@@ -26,6 +26,7 @@ Namespace LiteTask
                 InitializeLoggingTab()
                 InitializeEmailTab()
                 InitializeSqlTab()
+                InitializeMonitoringTab()
 
                 ' Apply translations and load settings
                 ApplyTranslations()
@@ -81,6 +82,11 @@ Namespace LiteTask
                 _defaultDatabaseLabel.Text = TranslationManager.Instance.GetTranslation("_defaultDatabaseLabel")
                 _commandTimeoutLabel.Text = TranslationManager.Instance.GetTranslation("_commandTimeoutLabel")
                 _maxBatchSizeLabel.Text = TranslationManager.Instance.GetTranslation("_maxBatchSizeLabel")
+
+                ' Monitoring tab controls
+                _monitoringTab.Text = TranslationManager.Instance.GetTranslation("_monitoringTab", "Monitoring")
+                _enableMemoryMonitorCheckBox.Text = TranslationManager.Instance.GetTranslation("_enableMemoryMonitorCheckBox", "Enable Memory Monitoring")
+                _memoryCheckIntervalLabel.Text = TranslationManager.Instance.GetTranslation("_memoryCheckIntervalLabel", "Check Interval (seconds):")
 
                 ' Buttons
                 _okButton.Text = TranslationManager.Instance.GetTranslation("_okButton")
@@ -434,6 +440,56 @@ Namespace LiteTask
             _tabControl.TabPages.Add(_sqlTab)
         End Sub
 
+        Private Sub InitializeMonitoringTab()
+            _monitoringTab = New TabPage(TranslationManager.Instance.GetTranslation("_monitoringTab", "Monitoring"))
+            Dim layout As New TableLayoutPanel With {
+                .Dock = DockStyle.Fill,
+                .Padding = New Padding(10),
+                .ColumnCount = 2,
+                .RowCount = 3
+            }
+
+            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 40))
+            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 60))
+
+            _enableMemoryMonitorCheckBox = New CheckBox With {
+                .Text = TranslationManager.Instance.GetTranslation("_enableMemoryMonitorCheckBox", "Enable Memory Monitoring"),
+                .Dock = DockStyle.Fill
+            }
+
+            _memoryCheckIntervalLabel = New Label With {
+                .Text = TranslationManager.Instance.GetTranslation("_memoryCheckIntervalLabel", "Check Interval (seconds):"),
+                .Dock = DockStyle.Fill
+            }
+
+            _memoryCheckIntervalNumeric = New NumericUpDown With {
+                .Minimum = 60,
+                .Maximum = 3600,
+                .Value = 300,
+                .Increment = 60,
+                .Dock = DockStyle.Fill
+            }
+
+            ' Enable/disable interval control based on checkbox
+            AddHandler _enableMemoryMonitorCheckBox.CheckedChanged, Sub(sender, e)
+                                                                        _memoryCheckIntervalNumeric.Enabled = _enableMemoryMonitorCheckBox.Checked
+                                                                        _memoryCheckIntervalLabel.Enabled = _enableMemoryMonitorCheckBox.Checked
+                                                                    End Sub
+
+            ' Add controls to layout
+            layout.Controls.Add(_enableMemoryMonitorCheckBox, 0, 0)
+            layout.SetColumnSpan(_enableMemoryMonitorCheckBox, 2)
+            layout.Controls.Add(_memoryCheckIntervalLabel, 0, 1)
+            layout.Controls.Add(_memoryCheckIntervalNumeric, 1, 1)
+
+            ' Add tooltip
+            Dim toolTip As New ToolTip()
+            toolTip.SetToolTip(_memoryCheckIntervalNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MemoryInterval", "How often to check memory usage (in seconds)"))
+
+            _monitoringTab.Controls.Add(layout)
+            _tabControl.TabPages.Add(_monitoringTab)
+        End Sub
+
         Private Function IsValidEmail(email As String) As Boolean
             Try
                 Dim addr = New System.Net.Mail.MailAddress(email)
@@ -482,6 +538,13 @@ Namespace LiteTask
                 _defaultDatabaseTextBox.Text = GetSettingValue(sqlConfig, "DefaultDatabase", "")
                 _commandTimeoutNumeric.Value = Integer.Parse(GetSettingValue(sqlConfig, "CommandTimeout", "300"))
                 _maxBatchSizeNumeric.Value = Integer.Parse(GetSettingValue(sqlConfig, "MaxBatchSize", "1000"))
+
+                ' Load monitoring settings
+                Dim monitorSettings = _xmlManager.GetMemoryMonitorSettings()
+                _enableMemoryMonitorCheckBox.Checked = Boolean.Parse(GetSettingValue(monitorSettings, "MemoryMonitorEnabled", "True"))
+                _memoryCheckIntervalNumeric.Value = Integer.Parse(GetSettingValue(monitorSettings, "MemoryCheckIntervalSeconds", "300"))
+                _memoryCheckIntervalNumeric.Enabled = _enableMemoryMonitorCheckBox.Checked
+                _memoryCheckIntervalLabel.Enabled = _enableMemoryMonitorCheckBox.Checked
 
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
@@ -534,6 +597,11 @@ Namespace LiteTask
                 _xmlManager.WriteValue("SqlConfiguration", "DefaultDatabase", _defaultDatabaseTextBox.Text)
                 _xmlManager.WriteValue("SqlConfiguration", "CommandTimeout", _commandTimeoutNumeric.Value.ToString())
                 _xmlManager.WriteValue("SqlConfiguration", "MaxBatchSize", _maxBatchSizeNumeric.Value.ToString())
+
+                ' Save monitoring settings
+                _xmlManager.SaveMemoryMonitorSettings(
+                    _enableMemoryMonitorCheckBox.Checked,
+                    CInt(_memoryCheckIntervalNumeric.Value))
 
                 DialogResult = DialogResult.OK
                 _logger.LogInfo("Settings saved successfully")

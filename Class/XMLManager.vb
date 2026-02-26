@@ -128,6 +128,7 @@ Namespace LiteTask
                 taskElement.SetAttribute("Name", SecurityElement.Escape(task.Name))
 
                 AddElement(xmlDoc, taskElement, "Description", task.Description)
+                AddElement(xmlDoc, taskElement, "Enabled", task.Enabled.ToString())
                 AddElement(xmlDoc, taskElement, "StartTime", task.StartTime.ToString("o"))
                 AddElement(xmlDoc, taskElement, "RecurrenceType", CType(task.Schedule, Integer).ToString())
                 AddElement(xmlDoc, taskElement, "Interval", task.Interval.TotalMinutes.ToString())
@@ -550,6 +551,7 @@ Namespace LiteTask
             Dim task As New ScheduledTask With {
             .Name = taskNode.Attributes("Name")?.Value,
             .Description = GetElementValue(taskNode, "Description"),
+            .Enabled = Boolean.Parse(GetElementValue(taskNode, "Enabled", "True")),
             .StartTime = DateTime.Parse(GetElementValue(taskNode, "StartTime", DateTime.Now.ToString("o"))),
             .Schedule = CType(Integer.Parse(GetElementValue(taskNode, "RecurrenceType", "0")), RecurrenceType),
             .Interval = TimeSpan.FromMinutes(Double.Parse(GetElementValue(taskNode, "Interval", "0"))),
@@ -844,6 +846,31 @@ Namespace LiteTask
                 Return False
             End Try
         End Function
+
+        Public Function GetMemoryMonitorSettings() As Dictionary(Of String, String)
+            Try
+                Dim settings As New Dictionary(Of String, String)
+                settings("MemoryMonitorEnabled") = ReadValue("MemoryMonitor", "Enabled", "True")
+                settings("MemoryCheckIntervalSeconds") = ReadValue("MemoryMonitor", "CheckIntervalSeconds", "300")
+                Return settings
+            Catch ex As Exception
+                _logger?.LogError($"Error reading memory monitor settings: {ex.Message}")
+                Return New Dictionary(Of String, String) From {
+                    {"MemoryMonitorEnabled", "True"},
+                    {"MemoryCheckIntervalSeconds", "300"}
+                }
+            End Try
+        End Function
+
+        Public Sub SaveMemoryMonitorSettings(enabled As Boolean, intervalSeconds As Integer)
+            Try
+                WriteValue("MemoryMonitor", "Enabled", enabled.ToString())
+                WriteValue("MemoryMonitor", "CheckIntervalSeconds", intervalSeconds.ToString())
+            Catch ex As Exception
+                _logger?.LogError($"Error saving memory monitor settings: {ex.Message}")
+                Throw
+            End Try
+        End Sub
 
         Public Sub WriteValue(section As String, key As String, value As String)
             Try
