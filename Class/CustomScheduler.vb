@@ -314,7 +314,9 @@ Namespace LiteTask
                     Dim workingSetMB = currentProcess.WorkingSet64 \ (1024L * 1024L)
                     Dim privateMemoryMB = currentProcess.PrivateMemorySize64 \ (1024L * 1024L)
 
-                    _logger.LogInfo($"[MemoryMonitor] Working Set: {workingSetMB} MB, Private Bytes: {privateMemoryMB} MB, GC Total: {GC.GetTotalMemory(False) \ (1024L * 1024L)} MB")
+                    Dim handleCount = currentProcess.HandleCount
+                    Dim gcTotalMB = GC.GetTotalMemory(False) \ (1024L * 1024L)
+                    _logger.LogInfo($"[MemoryMonitor] Working Set: {workingSetMB} MB, Private Bytes: {privateMemoryMB} MB, GC Total: {gcTotalMB} MB, Handles: {handleCount}")
 
                     ' Only send alerts with a cooldown to avoid flooding
                     If (now - _lastMemoryAlertTime).TotalMinutes < MEMORY_ALERT_COOLDOWN_MINUTES Then
@@ -773,6 +775,10 @@ Namespace LiteTask
                         taskState.IsRunning = False
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
+
+                    ' Hint GC to collect objects from the completed task (process handles,
+                    ' StringBuilders, credential wrappers, etc.) to reduce memory pressure.
+                    GC.Collect(1, GCCollectionMode.Optimized)
                 End Try
             End Try
         End Function
