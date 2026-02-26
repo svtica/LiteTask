@@ -330,4 +330,17 @@
 	<translation key="SQLTab.QueryType.View">Vue</translation>
 	<translation key="SQLTab.QueryType.StoredProcedure">Procédure stockée</translation>
 	<translation key="SQLTab.QueryType.SQLFile">Fichier SQL</translation>
+
+	<!-- Task Enable/Disable -->
+	<translation key="Disabled">Désactivé</translation>
+	<translation key="_toggleEnableMenuItem">Activer/Désactiver la tâche</translation>
+	<translation key="_enableTaskMenuItem">Activer la tâche</translation>
+	<translation key="_disableTaskMenuItem">Désactiver la tâche</translation>
+	<translation key="OneTimeCompleted">Ponctuelle (Terminée)</translation>
+
+	<!-- Monitoring Tab -->
+	<translation key="_monitoringTab">Surveillance</translation>
+	<translation key="_enableMemoryMonitorCheckBox">Activer la surveillance mémoire</translation>
+	<translation key="_memoryCheckIntervalLabel">Intervalle de vérification (secondes) :</translation>
+	<translation key="Options.Tooltip.MemoryInterval">Fréquence de vérification de l'utilisation mémoire (en secondes)</translation>
 </translations>
