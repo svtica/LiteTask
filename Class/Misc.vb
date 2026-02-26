@@ -382,9 +382,8 @@ Namespace LiteTask
         ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing
-            Dim initialSessionState As InitialSessionState = Nothing
             Try
-                initialSessionState = InitialSessionState.CreateDefault2()
+                Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
                 ' Only import modules from the local LiteTask modules directory (safe, controlled)
@@ -401,12 +400,6 @@ Namespace LiteTask
                 runspace = Runspaces.RunspaceFactory.CreateRunspace(initialSessionState)
                 runspace.Open()
 
-                ' Dispose the InitialSessionState now that the Runspace has been created from it.
-                ' ISS holds references to module info, providers, and cmdlet entries that are no
-                ' longer needed once the Runspace is open, and not disposing it leaks memory.
-                initialSessionState.Dispose()
-                initialSessionState = Nothing
-
                 Dim ps = PowerShell.Create()
                 ps.Runspace = runspace
                 ps.AddScript(CreateInitializationScript())
@@ -417,13 +410,6 @@ Namespace LiteTask
                     Try
                         runspace.Close()
                         runspace.Dispose()
-                    Catch
-                        ' Suppress cleanup errors during error handling
-                    End Try
-                End If
-                If initialSessionState IsNot Nothing Then
-                    Try
-                        initialSessionState.Dispose()
                     Catch
                         ' Suppress cleanup errors during error handling
                     End Try
