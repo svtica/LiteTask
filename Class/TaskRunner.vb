@@ -702,7 +702,7 @@ Namespace LiteTask
 
                         If taskAction.RequiresElevation Then
                             ' Use PsExec64 for elevated execution under credential identity
-                            Return Await ExecutePowerShellElevated(psExePath, psArgs.ToString(), credential, envPassVar)
+                            Return Await ExecutePowerShellElevated(psExePath, taskAction, credential, envPassVar)
                         Else
                             ' Non-elevated: build a temp wrapper script that reads the
                             ' password from the environment variable and passes it to the
@@ -808,44 +808,89 @@ Namespace LiteTask
 
         ''' <summary>
         ''' Executes a PowerShell script with elevated privileges via PsExec64.
+        ''' Uses a wrapper script (same approach as ExecutePowerShellWithCredentials)
+        ''' because PsExec64 launches the child process under a different user whose
+        ''' environment does NOT inherit the parent's env vars.
+        ''' Credentials are embedded in the wrapper script which is deleted after execution.
+        ''' This matches the existing security posture of PsExec64 receiving -p on its command line.
         ''' </summary>
         Private Async Function ExecutePowerShellElevated(
             psExePath As String,
-            psArgs As String,
+            taskAction As TaskAction,
             credential As CredentialInfo,
             envPassVar As String) As Task(Of Boolean)
 
-            ' Build PsExec64 arguments with credential identity
-            Dim baseArgs = "-accepteula -nobanner -h"
-            If credential.Username.Contains("\") Then
-                Dim parts = credential.Username.Split("\"c)
-                baseArgs &= $" -u {parts(0)}\{parts(1)}"
-            Else
-                baseArgs &= $" -u {credential.Username}"
-            End If
-            baseArgs &= $" -p ""%{envPassVar}%"""
+            Dim wrapperPath As String = Nothing
+            Try
+                ' Build a wrapper script that calls the target with credentials.
+                ' The wrapper embeds credentials as literals because the child process
+                ' launched by PsExec64 runs under a different user and does NOT inherit
+                ' the parent's environment variables.
+                Dim wrapper As New StringBuilder()
+                wrapper.AppendLine("$ErrorActionPreference = 'Stop'")
+                wrapper.AppendLine($"$__cred_pass = '{credential.Password.Replace("'", "''")}'")
+                wrapper.AppendLine($"$__cred_user = '{credential.Username.Replace("'", "''")}'")
+                wrapper.Append($"& '{taskAction.Target.Replace("'", "''")}' ")
+                wrapper.Append("-username $__cred_user ")
+                wrapper.Append("-password $__cred_pass ")
 
-            ' Append credential parameters to the PowerShell arguments
-            psArgs &= $" -username {EscapeArgument(credential.Username)}"
-            psArgs &= $" -password ""%{envPassVar}%"""
+                If Not String.IsNullOrEmpty(taskAction.Parameters) Then
+                    For Each param In ParseParameters(taskAction.Parameters)
+                        wrapper.Append($"-{param.Key} '{param.Value.Replace("'", "''")}' ")
+                    Next
+                End If
 
-            Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
-            Dim fullArgs = $"{baseArgs} ""{psExePath}"" {psArgs}"
+                wrapper.AppendLine()
+                wrapper.AppendLine("$__cred_pass = $null")
+                wrapper.AppendLine("$__cred_user = $null")
+                wrapper.AppendLine("exit $LASTEXITCODE")
 
-            _logger.LogInfo("Executing PowerShell with elevated privileges via PsExec64")
-            Using process As New Process()
-                process.StartInfo = New ProcessStartInfo With {
-                    .FileName = psExecPath,
-                    .Arguments = fullArgs,
-                    .UseShellExecute = False,
-                    .RedirectStandardOutput = True,
-                    .RedirectStandardError = True,
-                    .CreateNoWindow = True,
-                    .StandardOutputEncoding = Encoding.UTF8,
-                    .StandardErrorEncoding = Encoding.UTF8
-                }
-                Return Await RunProcessWithTimeout(process, TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
-            End Using
+                Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
+                Directory.CreateDirectory(tempDir)
+                wrapperPath = Path.Combine(tempDir, $"ps_elev_{Guid.NewGuid().ToString("N")}.ps1")
+                Await File.WriteAllTextAsync(wrapperPath, wrapper.ToString())
+
+                ' Build PsExec64 arguments: run under credential identity with elevation (-h)
+                Dim baseArgs = "-accepteula -nobanner -h"
+                If credential.Username.Contains("\") Then
+                    Dim parts = credential.Username.Split("\"c)
+                    baseArgs &= $" -u {parts(0)}\{parts(1)}"
+                Else
+                    baseArgs &= $" -u {credential.Username}"
+                End If
+                ' PsExec64 inherits our env vars and expands %VAR% in its arguments
+                baseArgs &= $" -p ""%{envPassVar}%"""
+
+                Dim wrapperArgs = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{wrapperPath}"""
+                Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
+                Dim fullArgs = $"{baseArgs} ""{psExePath}"" {wrapperArgs}"
+
+                _logger.LogInfo("Executing PowerShell with elevated privileges via PsExec64")
+                Using process As New Process()
+                    process.StartInfo = New ProcessStartInfo With {
+                        .FileName = psExecPath,
+                        .Arguments = fullArgs,
+                        .UseShellExecute = False,
+                        .RedirectStandardOutput = True,
+                        .RedirectStandardError = True,
+                        .CreateNoWindow = True,
+                        .StandardOutputEncoding = Encoding.UTF8,
+                        .StandardErrorEncoding = Encoding.UTF8
+                    }
+                    Return Await RunProcessWithTimeout(process, TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
+                End Using
+
+            Finally
+                ' Clean up the temporary wrapper script (contains embedded credentials)
+                If wrapperPath IsNot Nothing AndAlso File.Exists(wrapperPath) Then
+                    Try
+                        File.Delete(wrapperPath)
+                        _logger.LogInfo($"Deleted elevated wrapper script: {wrapperPath}")
+                    Catch ex As Exception
+                        _logger.LogWarning($"Failed to delete elevated wrapper {wrapperPath}: {ex.Message}")
+                    End Try
+                End If
+            End Try
         End Function
 
         ''' <summary>
