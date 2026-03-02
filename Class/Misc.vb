@@ -374,11 +374,50 @@ Namespace LiteTask
         End Function
 
         ''' <summary>
+        ''' Finds the best available PowerShell executable on the system.
+        ''' Prefers PowerShell 7+ (pwsh.exe) for better module compatibility,
+        ''' falls back to Windows PowerShell 5.1 (powershell.exe).
+        ''' </summary>
+        Public Shared Function FindPowerShellExecutable() As String
+            ' Check for PowerShell 7+ in common install locations
+            Dim programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+            Dim pwshCandidates = {
+                Path.Combine(programFiles, "PowerShell", "7", "pwsh.exe"),
+                Path.Combine(programFiles, "PowerShell", "7-preview", "pwsh.exe")
+            }
+
+            For Each candidate In pwshCandidates
+                If File.Exists(candidate) Then Return candidate
+            Next
+
+            ' Check if pwsh.exe is in PATH
+            Try
+                Dim pathDirs = Environment.GetEnvironmentVariable("PATH")
+                If pathDirs IsNot Nothing Then
+                    For Each dir In pathDirs.Split(Path.PathSeparator)
+                        Dim pwshPath = Path.Combine(dir.Trim(), "pwsh.exe")
+                        If File.Exists(pwshPath) Then Return pwshPath
+                    Next
+                End If
+            Catch
+                ' Continue to fallback
+            End Try
+
+            ' Fallback to Windows PowerShell 5.1 (guaranteed on Windows)
+            Return "powershell.exe"
+        End Function
+
+        ''' <summary>
         ''' Creates a new PowerShell instance with an explicitly managed Runspace.
         ''' IMPORTANT: The caller MUST dispose both the PowerShell instance AND its
         ''' Runspace (via powerShell.Runspace.Close() / .Dispose()) after use.
         ''' PowerShell.Dispose() alone does NOT reliably dispose the internal Runspace,
         ''' which causes memory to leak across repeated executions.
+        '''
+        ''' NOTE: This method is retained for scenarios that require in-process PowerShell
+        ''' execution (e.g. interactive debugging). For scheduled tasks, prefer out-of-process
+        ''' execution via ExecutePowerShellTask() to avoid cumulative memory growth from
+        ''' module assemblies that cannot be unloaded from the default AssemblyLoadContext.
         ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing
@@ -386,13 +425,12 @@ Namespace LiteTask
                 Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
-                ' Only import modules from the local LiteTask modules directory (safe, controlled)
-                ' System module paths are added to $env:PSModulePath via the initialization script
-                ' so PowerShell's auto-loading can find them on demand without forcing eager loading
-                Dim localModuleDirs = If(Directory.Exists(_modulesPath),
-                                         Directory.GetDirectories(_modulesPath),
-                                         Array.Empty(Of String)())
-                If localModuleDirs.Length > 0 Then initialSessionState.ImportPSModule(localModuleDirs)
+                ' NOTE: Do NOT call initialSessionState.ImportPSModule() here.
+                ' Eagerly importing modules forces their assemblies into the default
+                ' AssemblyLoadContext, where they can NEVER be unloaded in .NET 8.
+                ' Instead, rely on $env:PSModulePath (set by the initialization script)
+                ' so PowerShell's auto-loading can find modules on demand. This avoids
+                ' cumulative memory growth from assembly loading across repeated executions.
 
                 ' Explicitly create the Runspace so its lifecycle is visible to callers.
                 ' When PowerShell.Create(initialSessionState) is used, it creates an internal
