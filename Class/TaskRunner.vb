@@ -776,7 +776,7 @@ Namespace LiteTask
                         ' functions, variables, and format/type data from session state.
                         Try
                             powerShell.Commands.Clear()
-                            powerShell.AddScript("Get-Module | Remove-Module -Force -ErrorAction SilentlyContinue")
+                            powerShell.AddScript("Get-Module | Where-Object { $_.Name -notlike 'Microsoft.PowerShell.*' } | Remove-Module -Force -ErrorAction SilentlyContinue")
                             powerShell.Invoke()
                         Catch ex As Exception
                             _logger.LogWarning($"Error unloading PowerShell modules: {ex.Message}")
