@@ -531,7 +531,11 @@ Namespace LiteTask
 
 
         Public Async Function ExecuteTask(task As ScheduledTask) As Task
-            Dim taskLock = _taskLocks.GetOrAdd(task.Name, New SemaphoreSlim(1, 1))
+            ' Use a factory lambda to avoid creating a SemaphoreSlim on every call.
+            ' The value overload evaluates the argument eagerly, so a new SemaphoreSlim
+            ' was created and silently discarded (without Dispose) on every execution
+            ' when the key already existed - leaking unmanaged resources each time.
+            Dim taskLock = DirectCast(_taskLocks.GetOrAdd(task.Name, Function(key) New SemaphoreSlim(1, 1)), SemaphoreSlim)
 
             Try
                 Await taskLock.WaitAsync()
@@ -802,12 +806,15 @@ Namespace LiteTask
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
 
-                    ' Force a full GC collection to reclaim memory from completed tasks.
-                    ' Gen 1 collection is insufficient because PowerShell runspaces, loaded
-                    ' assemblies, and process handles survive to Gen 2. Without a Gen 2
-                    ' collection, the baseline memory grows ~40-60 MB per execution.
-                    GC.Collect(2, GCCollectionMode.Forced, blocking:=False)
+                    ' Force a full blocking GC collection with compaction to reclaim memory
+                    ' from completed tasks. Non-blocking collection (the previous approach)
+                    ' does NOT guarantee compaction, leaving fragmented Gen 2 segments
+                    ' committed to the OS. On Workstation GC this runs quickly (<50ms)
+                    ' because the heap is small between task executions.
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking:=True, compacting:=True)
                     GC.WaitForPendingFinalizers()
+                    ' Second collection to free objects that had finalizers
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=True, compacting:=True)
                 End Try
             End Try
         End Function
