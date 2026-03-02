@@ -394,8 +394,8 @@ Namespace LiteTask
             Try
                 Dim pathDirs = Environment.GetEnvironmentVariable("PATH")
                 If pathDirs IsNot Nothing Then
-                    For Each dir In pathDirs.Split(Path.PathSeparator)
-                        Dim pwshPath = Path.Combine(dir.Trim(), "pwsh.exe")
+                    For Each pathDir In pathDirs.Split(Path.PathSeparator)
+                        Dim pwshPath = Path.Combine(pathDir.Trim(), "pwsh.exe")
                         If File.Exists(pwshPath) Then Return pwshPath
                     Next
                 End If
@@ -414,10 +414,9 @@ Namespace LiteTask
         ''' PowerShell.Dispose() alone does NOT reliably dispose the internal Runspace,
         ''' which causes memory to leak across repeated executions.
         '''
-        ''' NOTE: This method is retained for scenarios that require in-process PowerShell
-        ''' execution (e.g. interactive debugging). For scheduled tasks, prefer out-of-process
-        ''' execution via ExecutePowerShellTask() to avoid cumulative memory growth from
-        ''' module assemblies that cannot be unloaded from the default AssemblyLoadContext.
+        ''' NOTE: Module assemblies loaded into the default AssemblyLoadContext cannot be
+        ''' unloaded in .NET 8. To mitigate cumulative memory growth, the caller should
+        ''' run Remove-Module before disposing, and the ISS does NOT eagerly import modules.
         ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing

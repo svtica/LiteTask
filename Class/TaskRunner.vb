@@ -633,106 +633,184 @@ Namespace LiteTask
         ' from blocking the scheduler indefinitely and holding the task lock forever.
         Private Const PS_TASK_TIMEOUT_HOURS As Integer = 4
 
-        ''' <summary>
-        ''' Executes a PowerShell script as a separate process (out-of-process).
-        '''
-        ''' IMPORTANT: This replaces the previous in-process PowerShell execution to fix
-        ''' a cumulative memory leak. In-process execution via System.Management.Automation
-        ''' loads module assemblies (e.g. ImportExcel/EPPlus) into the default
-        ''' AssemblyLoadContext, which cannot be unloaded in .NET 8. Even with explicit
-        ''' Runspace.Close()/Dispose(), the PowerShell SDK retains static caches (type
-        ''' converters, format data, module metadata) that grow with each execution.
-        '''
-        ''' Out-of-process execution ensures ALL memory (modules, assemblies, caches) is
-        ''' fully reclaimed when the child process exits. This eliminates the ~30-40 MB
-        ''' baseline growth per ImportExcel execution that caused the service to reach
-        ''' 1+ GB within a single business day.
-        ''' </summary>
         Public Async Function ExecutePowerShellTask(taskAction As TaskAction, credential As CredentialInfo) As Task(Of Boolean)
             Try
-                _logger.LogInfo($"Starting PowerShell task (out-of-process): {taskAction.Name}")
+                _logger.LogInfo($"Starting PowerShell task execution: {taskAction.Name}")
                 _logger.LogInfo($"Script path: {taskAction.Target}")
                 _logger.LogInfo($"Using credentials: {If(credential IsNot Nothing, credential.Username, "None")}")
 
-                ' Verify script exists
-                If Not String.IsNullOrEmpty(taskAction.Target) AndAlso Not File.Exists(taskAction.Target) Then
-                    _logger.LogError($"Script file not found: {taskAction.Target}")
-                    Return False
-                End If
+                Dim scriptContent = File.ReadAllText(taskAction.Target)
 
                 ' Detect and verify required modules before execution
-                If Not String.IsNullOrEmpty(taskAction.Target) Then
-                    Dim scriptContent = File.ReadAllText(taskAction.Target)
-                    Dim requiredModules = PowerShellPathManager.DetectRequiredModules(scriptContent)
-                    If requiredModules.Count > 0 Then
-                        _logger.LogInfo($"Detected required PowerShell modules: {String.Join(", ", requiredModules)}")
-                        Dim missingModules = _powerShellPathManager.VerifyModules(requiredModules)
-                        If missingModules.Count > 0 Then
-                            _logger.LogWarning($"Missing PowerShell modules: {String.Join(", ", missingModules)}. Script may fail if these modules cannot be auto-loaded. Install them via the Modules Manager or run: Install-Module {String.Join(", ", missingModules)}")
-                        End If
+                Dim requiredModules = PowerShellPathManager.DetectRequiredModules(scriptContent)
+                If requiredModules.Count > 0 Then
+                    _logger.LogInfo($"Detected required PowerShell modules: {String.Join(", ", requiredModules)}")
+                    Dim missingModules = _powerShellPathManager.VerifyModules(requiredModules)
+                    If missingModules.Count > 0 Then
+                        _logger.LogWarning($"Missing PowerShell modules: {String.Join(", ", missingModules)}. Script may fail if these modules cannot be auto-loaded. Install them via the Modules Manager or run: Install-Module {String.Join(", ", missingModules)}")
                     End If
                 End If
 
-                ' Find PowerShell executable (prefer pwsh.exe, fallback to powershell.exe)
-                Dim psExePath = PowerShellPathManager.FindPowerShellExecutable()
-                _logger.LogInfo($"Using PowerShell executable: {psExePath}")
+                ' Create the PowerShell instance - we must explicitly track and dispose the
+                ' Runspace because PowerShell.Dispose() does NOT reliably dispose its internal
+                ' Runspace, causing memory to accumulate across repeated executions.
+                Using powerShell As PowerShell = _powerShellPathManager.CreatePowerShellInstance()
+                    Dim runspace = powerShell.Runspace
 
-                ' Build base arguments for -File mode
-                Dim psArgs As New StringBuilder("-NoProfile -NonInteractive -ExecutionPolicy Bypass")
-                psArgs.Append($" -File ""{taskAction.Target}""")
+                    Try
+                        ' Run the initialization script (sets $env:PSModulePath, $ErrorActionPreference)
+                        ' separately, then clear commands before adding the task script.
+                        ' This prevents the init script from being re-invoked if the pipeline is
+                        ' re-used, and keeps AddScript/AddParameter targeting only the task script.
+                        powerShell.Invoke()
+                        powerShell.Commands.Clear()
 
-                ' Add task parameters
-                If Not String.IsNullOrEmpty(taskAction.Parameters) Then
-                    _logger.LogInfo($"Adding parameters: {taskAction.Parameters}")
-                    For Each param In ParseParameters(taskAction.Parameters)
-                        psArgs.Append($" -{param.Key} {EscapeArgument(param.Value)}")
-                    Next
-                End If
+                        powerShell.AddScript(scriptContent)
 
-                ' Handle credentials
-                Dim envPassVar As String = Nothing
-                Try
-                    If credential IsNot Nothing Then
-                        _logger.LogInfo($"Configuring credentials for user: {credential.Username}")
-                        envPassVar = $"LITETASK_PASS_{Guid.NewGuid().ToString("N")}"
-
-                        ' Store password in a process-scoped environment variable so it
-                        ' does not appear on the process command line.
-                        Environment.SetEnvironmentVariable(envPassVar, credential.Password, EnvironmentVariableTarget.Process)
-
-                        If taskAction.RequiresElevation Then
-                            ' Use PsExec64 for elevated execution under credential identity
-                            Return Await ExecutePowerShellElevated(psExePath, taskAction, credential, envPassVar)
-                        Else
-                            ' Non-elevated: build a temp wrapper script that reads the
-                            ' password from the environment variable and passes it to the
-                            ' target script, so the password never appears on the command line.
-                            Return Await ExecutePowerShellWithCredentials(psExePath, taskAction, credential, envPassVar)
+                        If credential IsNot Nothing Then
+                            _logger.LogInfo("Adding credential parameters to PowerShell script")
+                            powerShell.AddParameter("username", credential.Username)
+                            ' Pass the password directly - no SecureString round-trip needed.
+                            ' The old code did: NetworkCredential("", credential.Password).SecurePassword
+                            ' then NetworkCredential("", securePass).Password — a pointless round-trip
+                            ' that created an undisposed SecureString on every execution.
+                            powerShell.AddParameter("password", credential.Password)
                         End If
-                    Else
-                        ' No credentials - run directly
-                        Using process As New Process()
-                            process.StartInfo = New ProcessStartInfo With {
-                                .FileName = psExePath,
-                                .Arguments = psArgs.ToString(),
-                                .UseShellExecute = False,
-                                .RedirectStandardOutput = True,
-                                .RedirectStandardError = True,
-                                .CreateNoWindow = True,
-                                .StandardOutputEncoding = Encoding.UTF8,
-                                .StandardErrorEncoding = Encoding.UTF8
-                            }
-                            SetupModulePaths(process.StartInfo)
-                            Return Await RunProcessWithTimeout(process, TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
-                        End Using
-                    End If
 
-                Finally
-                    ' Always clean up the password environment variable
-                    If envPassVar IsNot Nothing Then
-                        Environment.SetEnvironmentVariable(envPassVar, Nothing, EnvironmentVariableTarget.Process)
-                    End If
-                End Try
+                        If Not String.IsNullOrEmpty(taskAction.Parameters) Then
+                            _logger.LogInfo($"Adding parameters: {taskAction.Parameters}")
+                            For Each param In ParseParameters(taskAction.Parameters)
+                                powerShell.AddParameter(param.Key, param.Value)
+                            Next
+                        End If
+
+                        ' Subscribe to streams for real-time event raising (OutputReceived/ErrorReceived)
+                        ' so RunTab and other listeners can display live output.
+                        Dim infoHandler As EventHandler(Of DataAddedEventArgs) = Sub(sender, e)
+                            Dim records = DirectCast(sender, PSDataCollection(Of InformationRecord))
+                            Dim record = records(e.Index)
+                            Dim message = record.MessageData?.ToString()
+                            If message IsNot Nothing Then
+                                _logger.LogInfo($"PowerShell information: {message}")
+                                RaiseEvent OutputReceived(Me, message)
+                            End If
+                        End Sub
+
+                        Dim warningHandler As EventHandler(Of DataAddedEventArgs) = Sub(sender, e)
+                            Dim records = DirectCast(sender, PSDataCollection(Of WarningRecord))
+                            Dim record = records(e.Index)
+                            Dim message = record.Message
+                            If message IsNot Nothing Then
+                                _logger.LogWarning($"PowerShell warning: {message}")
+                                RaiseEvent ErrorReceived(Me, $"Warning: {message}")
+                            End If
+                        End Sub
+
+                        Dim errorStreamHandler As EventHandler(Of DataAddedEventArgs) = Sub(sender, e)
+                            Dim records = DirectCast(sender, PSDataCollection(Of ErrorRecord))
+                            Dim record = records(e.Index)
+                            Dim message = record.Exception?.Message
+                            If message IsNot Nothing Then
+                                _logger.LogError($"PowerShell error: {message}")
+                                RaiseEvent ErrorReceived(Me, message)
+                            End If
+                        End Sub
+
+                        AddHandler powerShell.Streams.Information.DataAdded, infoHandler
+                        AddHandler powerShell.Streams.Warning.DataAdded, warningHandler
+                        AddHandler powerShell.Streams.Error.DataAdded, errorStreamHandler
+
+                        ' Enforce a hard timeout so that a hung script (e.g. waiting on a mutex,
+                        ' stuck network call, or interactive prompt) cannot hold the task lock
+                        ' forever and cause the scheduler to retry in an infinite loop.
+                        Dim hasErrors = False
+                        Dim result As PSDataCollection(Of PSObject) = Nothing
+                        Try
+                            Dim invokeTask = powerShell.InvokeAsync()
+                            Dim timeoutTask = Task.Delay(TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
+
+                            If Await Task.WhenAny(invokeTask, timeoutTask) Is timeoutTask Then
+                                _logger.LogError($"PowerShell task '{taskAction.Name}' exceeded {PS_TASK_TIMEOUT_HOURS}h timeout. Stopping forcibly.")
+                                powerShell.Stop()
+                                Return False
+                            End If
+
+                            result = Await invokeTask
+                            _logger.LogInfo($"PowerShell execution completed. Output count: {result?.Count}")
+
+                            ' Log pipeline output and raise events for RunTab display
+                            If result IsNot Nothing Then
+                                For Each item In result
+                                    Dim text = item?.ToString()
+                                    If text IsNot Nothing Then
+                                        _logger.LogInfo($"PowerShell output: {text}")
+                                        RaiseEvent OutputReceived(Me, text)
+                                    End If
+                                Next
+                            End If
+
+                            ' Log any remaining error details (script stack traces)
+                            If powerShell.Streams.Error.Count > 0 Then
+                                For Each err As ErrorRecord In powerShell.Streams.Error
+                                    _logger.LogError($"PowerShell error details: {err.ScriptStackTrace}")
+                                Next
+                                hasErrors = True
+                            End If
+                        Finally
+                            ' Remove stream handlers to prevent leaking closures
+                            RemoveHandler powerShell.Streams.Information.DataAdded, infoHandler
+                            RemoveHandler powerShell.Streams.Warning.DataAdded, warningHandler
+                            RemoveHandler powerShell.Streams.Error.DataAdded, errorStreamHandler
+
+                            ' Dispose the output collection immediately to free memory from large
+                            ' script outputs (e.g. thousands of PSObject rows from ImportExcel).
+                            If result IsNot Nothing Then result.Dispose()
+                        End Try
+
+                        Return Not hasErrors
+
+                    Finally
+                        ' Unload modules to release as much managed memory as possible.
+                        ' While assemblies loaded into the default AssemblyLoadContext cannot
+                        ' be unloaded, Remove-Module releases the module's script blocks,
+                        ' functions, variables, and format/type data from session state.
+                        Try
+                            powerShell.Commands.Clear()
+                            powerShell.AddScript("Get-Module | Remove-Module -Force -ErrorAction SilentlyContinue")
+                            powerShell.Invoke()
+                        Catch ex As Exception
+                            _logger.LogWarning($"Error unloading PowerShell modules: {ex.Message}")
+                        End Try
+
+                        ' Clear the pipeline commands to release script references
+                        Try
+                            powerShell.Commands.Clear()
+                        Catch ex As Exception
+                            _logger.LogWarning($"Error clearing PowerShell commands: {ex.Message}")
+                        End Try
+
+                        ' Clear all streams to release object references held by the pipeline
+                        Try
+                            powerShell.Streams.ClearStreams()
+                        Catch ex As Exception
+                            _logger.LogWarning($"Error clearing PowerShell streams: {ex.Message}")
+                        End Try
+
+                        ' Explicitly close and dispose the Runspace to prevent memory leak.
+                        ' PowerShell.Dispose() does NOT reliably clean up the internal Runspace,
+                        ' which retains loaded modules, assemblies, and session state in memory.
+                        If runspace IsNot Nothing Then
+                            Try
+                                If runspace.RunspaceStateInfo.State <> Runspaces.RunspaceState.Closed Then
+                                    runspace.Close()
+                                End If
+                                runspace.Dispose()
+                            Catch ex As Exception
+                                _logger.LogWarning($"Error disposing PowerShell runspace: {ex.Message}")
+                            End Try
+                        End If
+                    End Try
+                End Using
 
             Catch ex As Exception
                 _logger.LogError($"Error in ExecutePowerShellTask: {ex.Message}")
@@ -740,172 +818,6 @@ Namespace LiteTask
                 Return False
             End Try
         End Function
-
-        ''' <summary>
-        ''' Executes a PowerShell script with credentials passed via environment variable.
-        ''' Uses a temporary wrapper script to avoid exposing the password on the command line.
-        ''' </summary>
-        Private Async Function ExecutePowerShellWithCredentials(
-            psExePath As String,
-            taskAction As TaskAction,
-            credential As CredentialInfo,
-            envPassVar As String) As Task(Of Boolean)
-
-            Dim wrapperPath As String = Nothing
-            Try
-                ' Build a wrapper script that reads the password from the env var
-                ' and passes it (along with other parameters) to the target script.
-                Dim wrapper As New StringBuilder()
-                wrapper.AppendLine("$ErrorActionPreference = 'Stop'")
-                wrapper.AppendLine($"$__pass = $env:{envPassVar}")
-                wrapper.AppendLine($"Remove-Item Env:\{envPassVar} -ErrorAction SilentlyContinue")
-                wrapper.Append($"& '{taskAction.Target.Replace("'", "''")}' ")
-                wrapper.Append($"-username '{credential.Username.Replace("'", "''")}' ")
-                wrapper.Append("-password $__pass ")
-
-                If Not String.IsNullOrEmpty(taskAction.Parameters) Then
-                    For Each param In ParseParameters(taskAction.Parameters)
-                        wrapper.Append($"-{param.Key} '{param.Value.Replace("'", "''")}' ")
-                    Next
-                End If
-
-                wrapper.AppendLine()
-                wrapper.AppendLine("$__pass = $null")
-                wrapper.AppendLine("exit $LASTEXITCODE")
-
-                Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
-                Directory.CreateDirectory(tempDir)
-                wrapperPath = Path.Combine(tempDir, $"ps_cred_{Guid.NewGuid().ToString("N")}.ps1")
-                Await File.WriteAllTextAsync(wrapperPath, wrapper.ToString())
-
-                Using process As New Process()
-                    process.StartInfo = New ProcessStartInfo With {
-                        .FileName = psExePath,
-                        .Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{wrapperPath}""",
-                        .UseShellExecute = False,
-                        .RedirectStandardOutput = True,
-                        .RedirectStandardError = True,
-                        .CreateNoWindow = True,
-                        .StandardOutputEncoding = Encoding.UTF8,
-                        .StandardErrorEncoding = Encoding.UTF8
-                    }
-                    SetupModulePaths(process.StartInfo)
-                    Return Await RunProcessWithTimeout(process, TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
-                End Using
-
-            Finally
-                ' Clean up the temporary wrapper script
-                If wrapperPath IsNot Nothing AndAlso File.Exists(wrapperPath) Then
-                    Try
-                        File.Delete(wrapperPath)
-                        _logger.LogInfo($"Deleted temp wrapper script: {wrapperPath}")
-                    Catch ex As Exception
-                        _logger.LogWarning($"Failed to delete temp wrapper {wrapperPath}: {ex.Message}")
-                    End Try
-                End If
-            End Try
-        End Function
-
-        ''' <summary>
-        ''' Executes a PowerShell script with elevated privileges via PsExec64.
-        ''' Uses a wrapper script (same approach as ExecutePowerShellWithCredentials)
-        ''' because PsExec64 launches the child process under a different user whose
-        ''' environment does NOT inherit the parent's env vars.
-        ''' Credentials are embedded in the wrapper script which is deleted after execution.
-        ''' This matches the existing security posture of PsExec64 receiving -p on its command line.
-        ''' </summary>
-        Private Async Function ExecutePowerShellElevated(
-            psExePath As String,
-            taskAction As TaskAction,
-            credential As CredentialInfo,
-            envPassVar As String) As Task(Of Boolean)
-
-            Dim wrapperPath As String = Nothing
-            Try
-                ' Build a wrapper script that calls the target with credentials.
-                ' The wrapper embeds credentials as literals because the child process
-                ' launched by PsExec64 runs under a different user and does NOT inherit
-                ' the parent's environment variables.
-                Dim wrapper As New StringBuilder()
-                wrapper.AppendLine("$ErrorActionPreference = 'Stop'")
-                wrapper.AppendLine($"$__cred_pass = '{credential.Password.Replace("'", "''")}'")
-                wrapper.AppendLine($"$__cred_user = '{credential.Username.Replace("'", "''")}'")
-                wrapper.Append($"& '{taskAction.Target.Replace("'", "''")}' ")
-                wrapper.Append("-username $__cred_user ")
-                wrapper.Append("-password $__cred_pass ")
-
-                If Not String.IsNullOrEmpty(taskAction.Parameters) Then
-                    For Each param In ParseParameters(taskAction.Parameters)
-                        wrapper.Append($"-{param.Key} '{param.Value.Replace("'", "''")}' ")
-                    Next
-                End If
-
-                wrapper.AppendLine()
-                wrapper.AppendLine("$__cred_pass = $null")
-                wrapper.AppendLine("$__cred_user = $null")
-                wrapper.AppendLine("exit $LASTEXITCODE")
-
-                Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
-                Directory.CreateDirectory(tempDir)
-                wrapperPath = Path.Combine(tempDir, $"ps_elev_{Guid.NewGuid().ToString("N")}.ps1")
-                Await File.WriteAllTextAsync(wrapperPath, wrapper.ToString())
-
-                ' Build PsExec64 arguments: run under credential identity with elevation (-h)
-                Dim baseArgs = "-accepteula -nobanner -h"
-                If credential.Username.Contains("\") Then
-                    Dim parts = credential.Username.Split("\"c)
-                    baseArgs &= $" -u {parts(0)}\{parts(1)}"
-                Else
-                    baseArgs &= $" -u {credential.Username}"
-                End If
-                ' PsExec64 inherits our env vars and expands %VAR% in its arguments
-                baseArgs &= $" -p ""%{envPassVar}%"""
-
-                Dim wrapperArgs = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{wrapperPath}"""
-                Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
-                Dim fullArgs = $"{baseArgs} ""{psExePath}"" {wrapperArgs}"
-
-                _logger.LogInfo("Executing PowerShell with elevated privileges via PsExec64")
-                Using process As New Process()
-                    process.StartInfo = New ProcessStartInfo With {
-                        .FileName = psExecPath,
-                        .Arguments = fullArgs,
-                        .UseShellExecute = False,
-                        .RedirectStandardOutput = True,
-                        .RedirectStandardError = True,
-                        .CreateNoWindow = True,
-                        .StandardOutputEncoding = Encoding.UTF8,
-                        .StandardErrorEncoding = Encoding.UTF8
-                    }
-                    Return Await RunProcessWithTimeout(process, TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
-                End Using
-
-            Finally
-                ' Clean up the temporary wrapper script (contains embedded credentials)
-                If wrapperPath IsNot Nothing AndAlso File.Exists(wrapperPath) Then
-                    Try
-                        File.Delete(wrapperPath)
-                        _logger.LogInfo($"Deleted elevated wrapper script: {wrapperPath}")
-                    Catch ex As Exception
-                        _logger.LogWarning($"Failed to delete elevated wrapper {wrapperPath}: {ex.Message}")
-                    End Try
-                End If
-            End Try
-        End Function
-
-        ''' <summary>
-        ''' Sets PSModulePath on the child process so it can discover all required modules.
-        ''' </summary>
-        Private Sub SetupModulePaths(startInfo As ProcessStartInfo)
-            Try
-                Dim modulePaths = _powerShellPathManager.GetSystemModulePaths()
-                If modulePaths.Count > 0 Then
-                    startInfo.Environment("PSModulePath") = String.Join(Path.PathSeparator, modulePaths)
-                End If
-            Catch ex As Exception
-                _logger.LogWarning($"Error setting up module paths: {ex.Message}")
-            End Try
-        End Sub
 
 
 
