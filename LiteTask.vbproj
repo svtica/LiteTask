@@ -31,7 +31,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <EnableUnsafeUTF7Encoding>true</EnableUnsafeUTF7Encoding>
-	  <ServerGarbageCollection>true</ServerGarbageCollection>
+	  <ServerGarbageCollection>false</ServerGarbageCollection>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
