@@ -92,7 +92,7 @@ This software is released under [The Unlicense](LICENSE) - public domain.
 
 For detailed help and troubleshooting, see [help.md](help.md).
 
-## 🌟 Part of LiteSuite
+## Part of LiteSuite
 
 This tool is part of **LiteSuite** - a comprehensive collection of lightweight Windows administration tools.
 
