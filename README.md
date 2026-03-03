@@ -1,7 +1,6 @@
 # LiteTask
 
 [![GitHub release](https://img.shields.io/github/v/release/svtica/LiteTask)](https://github.com/svtica/LiteTask/releases/latest)
-[![Part of LiteSuite](https://img.shields.io/badge/part%20of-LiteSuite-blue)](https://github.com/svtica/LiteSuite)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-green.svg)](LICENSE)
 
 **Lightweight alternative to Windows Task Scheduler with advanced PowerShell integration and secure credential management.**
@@ -85,10 +84,6 @@ LiteTaskData/
 - **UI**: Windows Forms
 - **Dependencies**: PowerShell SDK, ServiceController
 
-## Known Issues
-
-⚠️ **Performance Note**: LiteTask can consume significant CPU resources during intensive task execution. Consider optimizing task scheduling intervals and monitoring system resources when running multiple concurrent tasks.
-
 ## Development Status
 
 This project is **not actively developed** but moderate contributions are accepted. The codebase is stable for production use but new features are not planned.
@@ -103,18 +98,11 @@ For detailed help and troubleshooting, see [help.md](help.md).
 
 ## 🌟 Part of LiteSuite
 
-This tool is part of **[LiteSuite](https://github.com/svtica/LiteSuite)** - a comprehensive collection of lightweight Windows administration tools.
+This tool is part of **LiteSuite** - a comprehensive collection of lightweight Windows administration tools.
 
 ### Other Tools in the Suite:
 - **[LiteTask](https://github.com/svtica/LiteTask)** - Advanced Task Scheduler Alternative  
 - **[LitePM](https://github.com/svtica/LitePM)** - Process Manager with System Monitoring
-- **[LiteDeploy](https://github.com/svtica/LiteDeploy)** - Network Deployment and Management
-- **[LiteRun](https://github.com/svtica/LiteRun)** - Remote Command Execution Utility
-- **[LiteSrv](https://github.com/svtica/LiteSrv)** - Windows Service Wrapper
-
-### 📦 Download the Complete Suite
-Get all tools in one package: **[LiteSuite Releases](https://github.com/svtica/LiteSuite/releases/latest)**
-
----
-
-*LiteSuite - Professional Windows administration tools for modern IT environments.*
+- **[LiteDeploy](https://github.com/svtica/LiteDeploy)** - Network Deployment and Management (archived)
+- **[LiteRun](https://github.com/svtica/LiteRun)** - Remote Command Execution Utility (archived)
+- **[LiteSrv](https://github.com/svtica/LiteSrv)** - Windows Service Wrapper (archived)
