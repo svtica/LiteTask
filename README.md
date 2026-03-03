@@ -84,10 +84,6 @@ LiteTaskData/
 - **UI**: Windows Forms
 - **Dependencies**: PowerShell SDK, ServiceController
 
-## Development Status
-
-This project is **not actively developed** but moderate contributions are accepted. The codebase is stable for production use but new features are not planned.
-
 ## License
 
 This software is released under [The Unlicense](LICENSE) - public domain.
