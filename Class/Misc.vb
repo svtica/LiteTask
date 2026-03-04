@@ -243,15 +243,8 @@ Namespace LiteTask
             Dim allPaths = GetSystemModulePaths()
             Dim pathString = String.Join([Char].ToString(Path.PathSeparator), allPaths)
 
-            ' This script will be prepended to all PowerShell executions
-            ' IMPORTANT: Set PSModulePath to an exact value (not appending) to prevent
-            ' unbounded growth of the environment variable across repeated executions,
-            ' which can exceed the Windows 32,767 character limit and cause
-            ' "Environment variable name or value is too long" errors.
-            ' NOTE: Do NOT import PowerShellGet here. It is a heavy module (~10 MB) that loads
-            ' assemblies into the AppDomain on every execution. Scripts that need it should
-            ' import it themselves. Loading it here caused cumulative memory growth because
-            ' assemblies loaded into an AppDomain cannot be unloaded in .NET Framework.
+            ' Set PSModulePath to an exact value (not appending) to avoid unbounded growth.
+            ' Do NOT import PowerShellGet here - it leaks memory via unloadable assemblies.
             Return $"
                 $env:PSModulePath = '{pathString}'
                 $ErrorActionPreference = 'Stop'
@@ -408,15 +401,9 @@ Namespace LiteTask
         End Function
 
         ''' <summary>
-        ''' Creates a new PowerShell instance with an explicitly managed Runspace.
-        ''' IMPORTANT: The caller MUST dispose both the PowerShell instance AND its
-        ''' Runspace (via powerShell.Runspace.Close() / .Dispose()) after use.
-        ''' PowerShell.Dispose() alone does NOT reliably dispose the internal Runspace,
-        ''' which causes memory to leak across repeated executions.
-        '''
-        ''' NOTE: Module assemblies loaded into the default AssemblyLoadContext cannot be
-        ''' unloaded in .NET 8. To mitigate cumulative memory growth, the caller should
-        ''' run Remove-Module before disposing, and the ISS does NOT eagerly import modules.
+        ''' Creates a PowerShell instance with an explicit Runspace. Caller MUST dispose
+        ''' both the PowerShell instance AND its Runspace after use (PS.Dispose() alone leaks it).
+        ''' Run Remove-Module before disposing to mitigate cumulative memory growth.
         ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing
@@ -424,16 +411,10 @@ Namespace LiteTask
                 Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
-                ' NOTE: Do NOT call initialSessionState.ImportPSModule() here.
-                ' Eagerly importing modules forces their assemblies into the default
-                ' AssemblyLoadContext, where they can NEVER be unloaded in .NET 8.
-                ' Instead, rely on $env:PSModulePath (set by the initialization script)
-                ' so PowerShell's auto-loading can find modules on demand. This avoids
-                ' cumulative memory growth from assembly loading across repeated executions.
+                ' Do NOT call ImportPSModule() - it loads assemblies that can never be unloaded.
+                ' Rely on PSModulePath auto-loading instead.
 
-                ' Explicitly create the Runspace so its lifecycle is visible to callers.
-                ' When PowerShell.Create(initialSessionState) is used, it creates an internal
-                ' Runspace that is NOT disposed by PowerShell.Dispose(), leading to memory leaks.
+                ' Create Runspace explicitly so callers control its lifecycle (PS.Dispose() leaks it)
                 runspace = Runspaces.RunspaceFactory.CreateRunspace(initialSessionState)
                 runspace.Open()
 
@@ -484,9 +465,7 @@ Namespace LiteTask
 
     '-------------------------------------------------------------------------------
 
-    ''' Safe wrapper for mutex operations
-    ''' Safe wrapper for a named Semaphore used as a task lock.
-    ''' Uses Semaphore instead of Mutex to avoid thread affinity issues in async code.
+    ''' Safe wrapper for a named Semaphore (uses Semaphore instead of Mutex for async compatibility)
     Public Class MutexHandle
         Implements IDisposable
 
