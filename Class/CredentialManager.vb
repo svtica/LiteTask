@@ -203,118 +203,6 @@ Namespace LiteTask
             Return target
         End Function
 
-        'Public Function GetCredential(target As String, accountType As String) As CredentialInfo
-        '    Try
-        '        ' Support both formats:
-        '        ' 1. Legacy format from XML: direct accountType
-        '        ' 2. Combined format: (accountType,target)
-        '        If Not target.StartsWith("(") Then
-        '            ' Handle legacy format where only AccountType is provided
-        '            Return GetCredentialByType(target, accountType)
-        '        Else
-        '            ' Handle combined format (accountType,target)
-        '            Dim parts = target.Trim("()".ToCharArray()).Split(",")
-        '            If parts.Length = 2 Then
-        '                accountType = parts(0).Trim()
-        '                target = parts(1).Trim()
-        '            End If
-        '            Return GetCredentialByType(target, accountType)
-        '        End If
-        '    Catch ex As Exception
-        '        _logger?.LogError($"Error getting credential: {ex.Message}")
-        '        Return Nothing
-        '    End Try
-        'End Function
-
-        'Private Function GetCredentialByType(target As String, accountType As String) As CredentialInfo
-        '    Select Case accountType.ToLower()
-        '        Case "current user"
-        '            Return GetCurrentUserCredential(target)
-        '        Case "windows vault"
-        '            Return GetFromWindowsVault(target)
-        '        Case "stored account"
-        '            Return GetStoredCredential(target)
-        '        Case "service account"
-        '            Return GetServiceAccountCredential(target)
-        '        Case Else
-        '            Return Nothing
-        '    End Select
-        'End Function
-
-        'Private Function GetCurrentUserCredential(target As String) As CredentialInfo
-        '    Try
-        '        ' Get credentials from registry
-        '        Using regKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials")
-        '            Dim value = TryCast(regKey?.GetValue(target), String)
-        '            If value IsNot Nothing Then
-        '                Dim parts = value.Split("|"c)
-        '                If parts.Length = 2 Then
-        '                    Dim decryptedPassword = DecryptString(parts(1))
-        '                    Return New CredentialInfo With {
-        '                .Target = target,
-        '                .Username = parts(0),
-        '                .Password = decryptedPassword,
-        '                .AccountType = "Current User",
-        '                .SecurePassword = New NetworkCredential("", decryptedPassword).SecurePassword
-        '            }
-        '                End If
-        '            End If
-        '            Return Nothing
-        '        End Using
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error getting current user credential: {ex.Message}")
-        '        Return Nothing
-        '    End Try
-        'End Function
-
-        'Private Function GetFromWindowsVault(target As String) As CredentialInfo
-        '    Dim credentialPtr As IntPtr = IntPtr.Zero
-        '    Try
-        '        ValidateTarget(target)
-
-        '        ' Format target for Windows Vault
-        '        Dim formattedTarget = FormatTargetName(target)
-        '        If Not CredRead(formattedTarget, CRED_TYPE_GENERIC, 0, credentialPtr) Then
-        '            Return Nothing
-        '        End If
-
-        '        Dim credential As CREDENTIAL = Marshal.PtrToStructure(Of CREDENTIAL)(credentialPtr)
-        '        If credential.CredentialBlobSize = 0 OrElse credential.CredentialBlob = IntPtr.Zero Then
-        '            Return Nothing
-        '        End If
-
-        '        ' Securely copy password
-        '        Dim passwordBytes(credential.CredentialBlobSize - 1) As Byte
-        '        Marshal.Copy(credential.CredentialBlob, passwordBytes, 0, credential.CredentialBlobSize)
-
-        '        ' Create secure string
-        '        Dim securePassword As New SecureString()
-        '        Dim password = Encoding.Unicode.GetString(passwordBytes)
-        '        For Each c In password
-        '            securePassword.AppendChar(c)
-        '        Next
-        '        securePassword.MakeReadOnly()
-
-        '        ' Clear sensitive data
-        '        Array.Clear(passwordBytes, 0, passwordBytes.Length)
-
-        '        Return New CredentialInfo With {
-        '        .Target = target,
-        '        .Username = credential.UserName,
-        '        .SecurePassword = securePassword,
-        '        .AccountType = "Windows Vault"
-        '    }
-
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error reading from Windows Vault: {ex.Message}")
-        '        Return Nothing
-        '    Finally
-        '        If credentialPtr <> IntPtr.Zero Then
-        '            CredFree(credentialPtr)
-        '        End If
-        '    End Try
-        'End Function
-
         Public Function GetCredential(target As String, accountType As String) As CredentialInfo
             Try
                 If target.StartsWith("(") AndAlso target.EndsWith(")") Then
@@ -462,7 +350,6 @@ Namespace LiteTask
                 Dim sid = CType(ntAccount.Translate(GetType(SecurityIdentifier)), SecurityIdentifier)
                 Return sid.Value
             Catch ex As Exception
-                '_logger?.LogError($"Error getting Sid: {ex.Message}") '
                 Return String.Empty
             End Try
         End Function

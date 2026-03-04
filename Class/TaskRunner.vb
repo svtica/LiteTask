@@ -7,8 +7,7 @@ Imports System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel
 Namespace LiteTask
     Public Class TaskRunner
 
-        ' TODO: Phase 2 Security Improvements
-        ' - Implement audit logging for all database operations
+        ' TODO: Phase 2 - Add audit logging for database operations
 
         Private ReadOnly _logger As Logger
         Private ReadOnly _credentialManager As CredentialManager
@@ -48,18 +47,11 @@ Namespace LiteTask
             _logPath = logPath
             _xmlManager = XMLManager
             _powerShellPathManager = New PowerShellPathManager(logger)
-            '_xmlManager = ApplicationContainer.GetService(Of XMLManager)()
             _sqlConfig = _xmlManager.GetSqlConfiguration()
 
             ' Ensure required directories exist
             Directory.CreateDirectory(_logPath)
             Directory.CreateDirectory(_toolManager._toolsPath)
-
-            ' Check if embedded resources are available
-            'Dim assembly = GetType(TaskRunner).Assembly
-            'For Each name In assembly.GetManifestResourceNames()
-            '    _logger.LogInfo($"Found resource: {name}")
-            'Next
 
             ' Verify required tools
             VerifyRequiredTools()
@@ -74,35 +66,6 @@ Namespace LiteTask
             CleanupOldTempFiles()
 
         End Sub
-
-        'Private Function DataTableToString(dt As DataTable) As String
-        '    ' TODO: Phase 2 Security Improvements
-        '    ' - Add data masking for sensitive columns
-        '    ' - Implement output size limits
-        '    ' - Add data type validation
-        '    ' - Remove potentially dangerous content from output
-
-        '    Try
-        '        Dim result As New StringBuilder()
-
-        '        ' Add headers with basic sanitization
-        '        result.AppendLine(String.Join(vbTab,
-        '        dt.Columns.Cast(Of DataColumn)().
-        '        Select(Function(c) _sanitizer.SanitizeColumnName(c.ColumnName))))
-
-        '        ' Add rows with basic sanitization
-        '        For Each row As DataRow In dt.Rows
-        '            result.AppendLine(String.Join(vbTab,
-        '            row.ItemArray.Select(Function(item) _sanitizer.SanitizeOutput(
-        '                        If(item Is Nothing OrElse item Is DBNull.Value, "[NULL]", item.ToString())))))
-        '        Next
-
-        '        Return result.ToString()
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error converting DataTable to string: {ex.Message}")
-        '        Return String.Empty
-        '    End Try
-        'End Function
 
         Public Sub Dispose()
         End Sub
@@ -335,7 +298,7 @@ Namespace LiteTask
             process.StartInfo.StandardOutputEncoding = Encoding.UTF8
             process.StartInfo.StandardErrorEncoding = Encoding.UTF8
 
-            ' Use named handlers so they can be removed after execution to prevent memory leaks.
+            ' Named handlers so they can be removed after execution (prevents closure leaks)
             Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                 If e.Data IsNot Nothing Then
                                                                     output.AppendLine(e.Data)
@@ -379,6 +342,15 @@ Namespace LiteTask
             Finally
                 RemoveHandler process.OutputDataReceived, outputHandler
                 RemoveHandler process.ErrorDataReceived, errorHandler
+
+                ' Kill the process if it's still running to prevent orphaned processes
+                Try
+                    If Not process.HasExited Then
+                        process.Kill(entireProcessTree:=True)
+                    End If
+                Catch
+                    ' Suppress errors during cleanup
+                End Try
             End Try
         End Function
 
@@ -430,7 +402,7 @@ Namespace LiteTask
                         Dim output As New StringBuilder()
                         Dim err As New StringBuilder()
 
-                        ' Use named handlers so they can be removed after execution to prevent memory leaks.
+                        ' Named handlers so they can be removed after execution (prevents closure leaks)
                         Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                             If e.Data IsNot Nothing Then
                                                                                 output.AppendLine(e.Data)
@@ -473,6 +445,15 @@ Namespace LiteTask
                         Finally
                             RemoveHandler process.OutputDataReceived, outputHandler
                             RemoveHandler process.ErrorDataReceived, errorHandler
+
+                            ' Kill the process if it's still running to prevent orphaned processes
+                            Try
+                                If Not process.HasExited Then
+                                    process.Kill(entireProcessTree:=True)
+                                End If
+                            Catch
+                                ' Suppress errors during cleanup
+                            End Try
                         End Try
                     End Using
                 End Using
@@ -628,9 +609,7 @@ Namespace LiteTask
             End Try
         End Function
 
-        ' Maximum time a single PowerShell task is allowed to run before being forcibly stopped.
-        ' Prevents hung scripts (e.g. waiting on a mutex, network share, or interactive prompt)
-        ' from blocking the scheduler indefinitely and holding the task lock forever.
+        ' Max PS task runtime before forced stop (prevents hung scripts from blocking the scheduler)
         Private Const PS_TASK_TIMEOUT_HOURS As Integer = 4
 
         Public Async Function ExecutePowerShellTask(taskAction As TaskAction, credential As CredentialInfo) As Task(Of Boolean)
@@ -651,17 +630,12 @@ Namespace LiteTask
                     End If
                 End If
 
-                ' Create the PowerShell instance - we must explicitly track and dispose the
-                ' Runspace because PowerShell.Dispose() does NOT reliably dispose its internal
-                ' Runspace, causing memory to accumulate across repeated executions.
+                ' Create PowerShell instance with explicit Runspace tracking (PS.Dispose() doesn't reliably dispose it)
                 Using powerShell As PowerShell = _powerShellPathManager.CreatePowerShellInstance()
                     Dim runspace = powerShell.Runspace
 
                     Try
-                        ' Run the initialization script (sets $env:PSModulePath, $ErrorActionPreference)
-                        ' separately, then clear commands before adding the task script.
-                        ' This prevents the init script from being re-invoked if the pipeline is
-                        ' re-used, and keeps AddScript/AddParameter targeting only the task script.
+                        ' Run init script separately, then clear so only the task script is in the pipeline
                         powerShell.Invoke()
                         powerShell.Commands.Clear()
 
@@ -670,10 +644,7 @@ Namespace LiteTask
                         If credential IsNot Nothing Then
                             _logger.LogInfo("Adding credential parameters to PowerShell script")
                             powerShell.AddParameter("username", credential.Username)
-                            ' Pass the password directly - no SecureString round-trip needed.
-                            ' The old code did: NetworkCredential("", credential.Password).SecurePassword
-                            ' then NetworkCredential("", securePass).Password — a pointless round-trip
-                            ' that created an undisposed SecureString on every execution.
+                            ' Pass password directly (avoids a pointless SecureString round-trip that leaked)
                             powerShell.AddParameter("password", credential.Password)
                         End If
 
@@ -684,8 +655,7 @@ Namespace LiteTask
                             Next
                         End If
 
-                        ' Subscribe to streams for real-time event raising (OutputReceived/ErrorReceived)
-                        ' so RunTab and other listeners can display live output.
+                        ' Subscribe to streams for real-time output to RunTab and other listeners
                         Dim infoHandler As EventHandler(Of DataAddedEventArgs) = Sub(sender, e)
                             Dim records = DirectCast(sender, PSDataCollection(Of InformationRecord))
                             Dim record = records(e.Index)
@@ -720,9 +690,7 @@ Namespace LiteTask
                         AddHandler powerShell.Streams.Warning.DataAdded, warningHandler
                         AddHandler powerShell.Streams.Error.DataAdded, errorStreamHandler
 
-                        ' Enforce a hard timeout so that a hung script (e.g. waiting on a mutex,
-                        ' stuck network call, or interactive prompt) cannot hold the task lock
-                        ' forever and cause the scheduler to retry in an infinite loop.
+                        ' Hard timeout to prevent hung scripts from holding the task lock forever
                         Dim hasErrors = False
                         Dim result As PSDataCollection(Of PSObject) = Nothing
                         Try
@@ -762,18 +730,14 @@ Namespace LiteTask
                             RemoveHandler powerShell.Streams.Warning.DataAdded, warningHandler
                             RemoveHandler powerShell.Streams.Error.DataAdded, errorStreamHandler
 
-                            ' Dispose the output collection immediately to free memory from large
-                            ' script outputs (e.g. thousands of PSObject rows from ImportExcel).
+                            ' Dispose output collection immediately to free memory from large results
                             If result IsNot Nothing Then result.Dispose()
                         End Try
 
                         Return Not hasErrors
 
                     Finally
-                        ' Unload modules to release as much managed memory as possible.
-                        ' While assemblies loaded into the default AssemblyLoadContext cannot
-                        ' be unloaded, Remove-Module releases the module's script blocks,
-                        ' functions, variables, and format/type data from session state.
+                        ' Unload modules to release session state (assemblies remain loaded per .NET limitation)
                         Try
                             powerShell.Commands.Clear()
                             powerShell.AddScript("Get-Module | Where-Object { $_.Name -notlike 'Microsoft.PowerShell.*' } | Remove-Module -Force -ErrorAction SilentlyContinue")
@@ -796,9 +760,7 @@ Namespace LiteTask
                             _logger.LogWarning($"Error clearing PowerShell streams: {ex.Message}")
                         End Try
 
-                        ' Explicitly close and dispose the Runspace to prevent memory leak.
-                        ' PowerShell.Dispose() does NOT reliably clean up the internal Runspace,
-                        ' which retains loaded modules, assemblies, and session state in memory.
+                        ' Explicitly close/dispose the Runspace (PS.Dispose() alone leaks it)
                         If runspace IsNot Nothing Then
                             Try
                                 If runspace.RunspaceStateInfo.State <> Runspaces.RunspaceState.Closed Then
@@ -909,9 +871,7 @@ Namespace LiteTask
             Dim output As New StringBuilder()
             Dim errors As New StringBuilder()
 
-            ' Use named handlers so they can be removed after execution to prevent memory leaks.
-            ' Anonymous lambdas attached via AddHandler are never garbage-collected while the
-            ' publisher (Process) is reachable, causing handles and closures to accumulate.
+            ' Named handlers so they can be removed after execution (prevents closure leaks)
             Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                 If e.Data IsNot Nothing Then
                                                                     output.AppendLine(e.Data)
@@ -951,6 +911,15 @@ Namespace LiteTask
             Finally
                 RemoveHandler process.OutputDataReceived, outputHandler
                 RemoveHandler process.ErrorDataReceived, errorHandler
+
+                ' Kill the process if it's still running to prevent orphaned processes
+                Try
+                    If Not process.HasExited Then
+                        process.Kill(entireProcessTree:=True)
+                    End If
+                Catch
+                    ' Suppress errors during cleanup
+                End Try
             End Try
         End Function
 
@@ -1015,6 +984,15 @@ Namespace LiteTask
             Finally
                 RemoveHandler process.OutputDataReceived, outputHandler
                 RemoveHandler process.ErrorDataReceived, errorHandler
+
+                ' Kill the process if it's still running to prevent orphaned processes
+                Try
+                    If Not process.HasExited Then
+                        process.Kill(entireProcessTree:=True)
+                    End If
+                Catch
+                    ' Suppress errors during cleanup
+                End Try
             End Try
         End Function
 

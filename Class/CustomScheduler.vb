@@ -120,10 +120,7 @@ Namespace LiteTask
             End Try
         End Sub
 
-        ''' Attempts to cleanup a specific abandoned lock.
-        ''' forceRelease should only be True at startup or periodic cleanup (stale > 15 min),
-        ''' NOT during the retry loop in ExecuteTaskAsync, to avoid breaking exclusion
-        ''' for a legitimately running task.
+        ''' Attempts to cleanup an abandoned lock. forceRelease=True only at startup or for stale tasks.
         Private Function TryCleanupAbandonedLock(taskName As String, Optional forceRelease As Boolean = False) As Boolean
             Dim semaphoreName = _mutexBasePath & taskName
             Dim semaphore As Semaphore = Nothing
@@ -323,9 +320,7 @@ Namespace LiteTask
         End Sub
 
         ''' <summary>
-        ''' Lightweight memory monitoring that logs usage every 5 minutes and sends
-        ''' email alerts when thresholds are exceeded. Designed to detect progressive
-        ''' memory leaks before they crash the server.
+        ''' Logs memory usage periodically and sends alerts when thresholds are exceeded.
         ''' </summary>
         Private Sub CheckMemoryUsage(now As DateTime)
             Try
@@ -531,10 +526,7 @@ Namespace LiteTask
 
 
         Public Async Function ExecuteTask(task As ScheduledTask) As Task
-            ' Use a factory lambda to avoid creating a SemaphoreSlim on every call.
-            ' The value overload evaluates the argument eagerly, so a new SemaphoreSlim
-            ' was created and silently discarded (without Dispose) on every execution
-            ' when the key already existed - leaking unmanaged resources each time.
+            ' Factory lambda prevents creating a new SemaphoreSlim on every call (avoids leak)
             Dim taskLock = DirectCast(_taskLocks.GetOrAdd(task.Name, Function(key) New SemaphoreSlim(1, 1)), SemaphoreSlim)
 
             Try
@@ -740,10 +732,7 @@ Namespace LiteTask
                 taskState.IsRunning = False
                 taskState.LastError = ex.Message
 
-                ' CRITICAL: Always advance the task schedule on failure to prevent
-                ' the task from re-executing every 60 seconds and flooding emails.
-                ' Without this, NextRunTime stays in the past and CheckAndExecuteTasks
-                ' will keep triggering the same failing task indefinitely.
+                ' Always advance the schedule on failure to prevent infinite re-execution
                 Try
                     _task.UpdateNextRunTime()
                     SaveTasks()
@@ -806,11 +795,7 @@ Namespace LiteTask
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
 
-                    ' Force a full blocking GC collection with compaction to reclaim memory
-                    ' from completed tasks. Non-blocking collection (the previous approach)
-                    ' does NOT guarantee compaction, leaving fragmented Gen 2 segments
-                    ' committed to the OS. On Workstation GC this runs quickly (<50ms)
-                    ' because the heap is small between task executions.
+                    ' Aggressive blocking GC with compaction to reclaim memory from completed tasks
                     GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking:=True, compacting:=True)
                     GC.WaitForPendingFinalizers()
                     ' Second collection to free objects that had finalizers

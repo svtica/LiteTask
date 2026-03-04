@@ -100,28 +100,6 @@ Namespace LiteTask
             Return element
         End Function
 
-        'Private Sub CreateLiteRunDefaultsSection()
-        '    Try
-        '        Dim xmlDoc As New XmlDocument()
-        '        xmlDoc.Load(_filePath)
-
-        '        Dim root = xmlDoc.SelectSingleNode("LiteTaskSettings")
-        '        If root Is Nothing Then
-        '            root = xmlDoc.CreateElement("LiteTaskSettings")
-        '            xmlDoc.AppendChild(root)
-        '        End If
-
-        '        Dim liteRunSection = xmlDoc.CreateElement("LiteRunDefaults")
-        '        liteRunSection.AppendChild(CreateElement(xmlDoc, "Timeout", "300"))
-        '        liteRunSection.AppendChild(CreateElement(xmlDoc, "LogOutputPath", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiteRunLogs")))
-
-        '        root.AppendChild(liteRunSection)
-        '        xmlDoc.Save(_filePath)
-        '    Catch ex As Exception
-        '        _logger?.LogError($"Error creating LiteRunDefaults section: {ex.Message}")
-        '    End Try
-        'End Sub
-
         Private Function CreateTaskElement(xmlDoc As XmlDocument, task As ScheduledTask) As XmlElement
             Try
                 Dim taskElement As XmlElement = xmlDoc.CreateElement("Task")
@@ -359,34 +337,6 @@ Namespace LiteTask
                 Return GetDefaultEmailSettings()
             End Try
         End Function
-
-        'Public Function GetLiteRunDefaults() As Dictionary(Of String, String)
-        '    Try
-        '        Dim defaults As New Dictionary(Of String, String)
-
-        '        ' Check if file exists and create it with default values if not
-        '        If Not File.Exists(_filePath) Then
-        '            CreateDefaultConfig()
-        '        End If
-
-        '        ' Set default values
-        '        defaults("Timeout") = ReadValue("LiteRunDefaults", "Timeout", "300")
-        '        defaults("LogOutputPath") = ReadValue("LiteRunDefaults", "LogOutputPath", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiteRunLogs"))
-
-        '        ' Ensure LiteRunDefaults section exists in XML
-        '        If Not SectionExists("LiteRunDefaults") Then
-        '            CreateLiteRunDefaultsSection()
-        '        End If
-
-        '        Return defaults
-        '    Catch ex As Exception
-        '        _logger?.LogError($"Error in GetLiteRunDefaults: {ex.Message}")
-        '        Return New Dictionary(Of String, String) From {
-        '    {"Timeout", "300"},
-        '    {"LogOutputPath", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiteRunLogs")}
-        '}
-        '    End Try
-        'End Function
 
         Public Function GetLogSettings() As Dictionary(Of String, String)
             Try
