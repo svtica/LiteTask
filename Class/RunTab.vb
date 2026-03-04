@@ -332,8 +332,6 @@ Namespace LiteTask
             _logger.LogInfo($"Executing {action.Type} action: {action.Name}")
             _outputTextBox.Clear()
 
-
-
             Try
                 Select Case action.Type
                     Case TaskType.SQL
@@ -348,7 +346,8 @@ Namespace LiteTask
                         Throw New NotSupportedException($"Task type {action.Type} is not supported")
                 End Select
             Finally
-
+                ' Reclaim memory after task execution to prevent accumulation across runs
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=False)
             End Try
         End Function
 

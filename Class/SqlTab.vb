@@ -63,7 +63,6 @@ Namespace LiteTask
             _xmlManager = xmlManager
             _logPath = logPath
             _emailUtils = New EmailUtils(logger, xmlManager)
-            '_liteRunConfig = New LiteRunConfig(xmlManager.GetLiteRunDefaults())
             _translationManager = TranslationManager.Initialize(logger, xmlManager)
         End Sub
 
