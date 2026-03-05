@@ -23,6 +23,7 @@ Namespace LiteTask
         Private _disposed As Boolean = False
         Private _xmlManager As XMLManager
         Private Shared _instance As Logger
+        Private Const MAX_QUEUE_SIZE As Integer = 10000
 
         Public Enum LogLevel
             [Debug] = 0
@@ -169,6 +170,7 @@ Namespace LiteTask
                         Debug.WriteLine($"Error waiting for log processor to complete: {ex.Message}")
                     End Try
                     _processorCancellation.Dispose()
+                    _rotationLock?.Dispose()
                 End If
                 _disposed = True
             End If
@@ -341,12 +343,15 @@ Namespace LiteTask
                     level = LogLevel.Info
                 End If
 
-                _logQueue.Enqueue(New LogEntry With {
-           .Level = level,
-           .Message = message,
-           .Exception = exception,
-           .Timestamp = DateTime.Now
-       })
+                ' Drop entries when queue is full to prevent unbounded memory growth
+                If _logQueue.Count < MAX_QUEUE_SIZE Then
+                    _logQueue.Enqueue(New LogEntry With {
+               .Level = level,
+               .Message = message,
+               .Exception = exception,
+               .Timestamp = DateTime.Now
+           })
+                End If
             End If
         End Sub
 
