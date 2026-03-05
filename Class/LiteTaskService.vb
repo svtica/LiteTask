@@ -6,7 +6,6 @@ Imports System.Timers
 Namespace LiteTask
     Public Class LiteTaskService
         Inherits ServiceBase
-        Private WithEvents _timer As Timer
         Private _customScheduler As CustomScheduler
         Private _credentialManager As CredentialManager
         Private _xmlManager As XMLManager

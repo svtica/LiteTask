@@ -7,7 +7,6 @@ Namespace LiteTask
         Private ReadOnly _storedCredentialsPath As String
         Private ReadOnly _entropy As Byte() = Encoding.UTF8.GetBytes("LiteTask_Secure_Storage_Key")
         Private ReadOnly _credentialLock As New Object()
-        Private _userToken As IntPtr = IntPtr.Zero
 
         ' Windows API structures and functions
         <StructLayout(LayoutKind.Sequential, CharSet:=CharSet.Unicode)>
