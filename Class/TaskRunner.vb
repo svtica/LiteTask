@@ -1082,10 +1082,16 @@ Namespace LiteTask
     End Class
 
     Public Class SqlExecutionResult
+        Implements IDisposable
         Public Property Success As Boolean
         Public Property Message As String
         Public Property Data As DataTable
         Public Property RowsAffected As Integer
+
+        Public Sub Dispose() Implements IDisposable.Dispose
+            Data?.Dispose()
+            Data = Nothing
+        End Sub
     End Class
 
     Public Class TempFile
