@@ -372,7 +372,9 @@ Namespace LiteTask
             .Verb = "runas"
         }
 
-                Process.Start(startInfo)
+                Using proc = Process.Start(startInfo)
+                    ' Dispose the process handle immediately; we don't need to track the child
+                End Using
                 Application.Exit()
             Catch ex As Exception
                 MessageBox.Show("Failed to restart with elevated privileges. Please run as administrator.",
@@ -406,9 +408,11 @@ Namespace LiteTask
         Private Function HasSeImpersonatePrivilege() As Boolean
             Dim tokenHandle As IntPtr = IntPtr.Zero
             Try
-                If Not OpenProcessToken(Process.GetCurrentProcess().Handle, TOKEN_QUERY, tokenHandle) Then
-                    Return False
-                End If
+                Using currentProcess = Process.GetCurrentProcess()
+                    If Not OpenProcessToken(currentProcess.Handle, TOKEN_QUERY, tokenHandle) Then
+                        Return False
+                    End If
+                End Using
 
                 Dim tp As New TOKEN_PRIVILEGES()
                 Dim luid As New LUID()
@@ -432,11 +436,13 @@ Namespace LiteTask
         Private Sub RequestSeImpersonatePrivilege()
             Dim tokenHandle As IntPtr = IntPtr.Zero
             Try
-                If Not OpenProcessToken(Process.GetCurrentProcess().Handle,
-                              TOKEN_ADJUST_PRIVILEGES Or TOKEN_QUERY,
-                              tokenHandle) Then
-                    Throw New Win32Exception(Marshal.GetLastWin32Error())
-                End If
+                Using currentProcess = Process.GetCurrentProcess()
+                    If Not OpenProcessToken(currentProcess.Handle,
+                                  TOKEN_ADJUST_PRIVILEGES Or TOKEN_QUERY,
+                                  tokenHandle) Then
+                        Throw New Win32Exception(Marshal.GetLastWin32Error())
+                    End If
+                End Using
 
                 Dim tp As New TOKEN_PRIVILEGES()
                 Dim luid As New LUID()
