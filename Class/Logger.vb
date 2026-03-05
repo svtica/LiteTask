@@ -11,6 +11,7 @@ Namespace LiteTask
         Private ReadOnly _logQueue As New ConcurrentQueue(Of LogEntry)
         Private ReadOnly _processorCancellation As New CancellationTokenSource()
         Private _processorTask As Task
+        Private _rotationTask As Task
         Public _logFile As String
         Public _logFolder As String
         Private _logLevel As LogLevel
@@ -153,6 +154,11 @@ Namespace LiteTask
                     Catch ex As Exception
                         Debug.WriteLine($"Error waiting for log processor to complete: {ex.Message}")
                     End Try
+                    Try
+                        _rotationTask?.Wait(TimeSpan.FromSeconds(5))
+                    Catch ex As Exception
+                        Debug.WriteLine($"Error waiting for log rotation to complete: {ex.Message}")
+                    End Try
                     _processorCancellation.Dispose()
                     _rotationLock?.Dispose()
                 End If
@@ -166,7 +172,7 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeLogRotation()
-            Task.Run(Async Function()
+            _rotationTask = Task.Run(Async Function()
                          While Not _processorCancellation.Token.IsCancellationRequested
                              Try
                                  Await RotateLogsAsync()
