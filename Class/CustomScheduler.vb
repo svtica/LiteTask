@@ -795,11 +795,8 @@ Namespace LiteTask
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
 
-                    ' Aggressive blocking GC with compaction to reclaim memory from completed tasks
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking:=True, compacting:=True)
-                    GC.WaitForPendingFinalizers()
-                    ' Second collection to free objects that had finalizers
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=True, compacting:=True)
+                    ' Non-blocking GC to reclaim memory from completed tasks without stalling the scheduler
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, blocking:=False)
                 End Try
             End Try
         End Function

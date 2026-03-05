@@ -155,7 +155,10 @@ Namespace LiteTask
                         _notifyIcon.Dispose()
                     End If
 
-                    ' Exit the application  
+                    ' Dispose the DI container so all singletons (Logger, Scheduler, etc.) are cleaned up
+                    ApplicationContainer.Dispose()
+
+                    ' Exit the application
                     Application.Exit()
                 End If
             Catch ex As Exception
@@ -192,6 +195,8 @@ Namespace LiteTask
                     If _notifyIcon IsNot Nothing Then
                         _notifyIcon.Dispose()
                     End If
+                    ' Dispose the DI container so all singletons (Logger, Scheduler, etc.) are cleaned up
+                    ApplicationContainer.Dispose()
                 End If
             Finally
                 MyBase.Dispose(disposing)
