@@ -213,8 +213,9 @@ Namespace LiteTask
                     Dim newBatch = New NotificationBatch(message)
                     _activeBatches.TryAdd(newBatch.BatchId, newBatch)
 
-                    ' Schedule batch processing
-                    Task.Delay(5000).ContinueWith(Sub(t)
+                    ' Schedule batch processing (respect cancellation, observe exceptions)
+                    Task.Delay(5000, _cancellationTokenSource.Token).ContinueWith(Sub(t)
+                                                      If t.IsCanceled Then Return
                                                       Dim batch As NotificationBatch = Nothing
                                                       If _activeBatches.TryRemove(newBatch.BatchId, batch) Then
                                                           Dim batchedMessage = New EmailMessage With {
@@ -225,7 +226,7 @@ Namespace LiteTask
                         }
                                                           _messageQueue.Enqueue(batchedMessage)
                                                       End If
-                                                  End Sub)
+                                                  End Sub, TaskContinuationOptions.OnlyOnRanToCompletion)
                 End If
 
                 _logger.LogInfo($"Email notification queued: {subject}")

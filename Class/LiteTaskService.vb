@@ -227,18 +227,16 @@ Namespace LiteTask
                                             End Try
                                         End Function, _cancellationTokenSource.Token)
 
-                Task.Run(Sub()
-                             Try
-                                 If IsUserAdministrator() Then
-                                     GrantServiceImpersonatePrivilege("LiteTaskService")
-                                     _logger.LogInfo("Successfully granted service impersonation privileges")
-                                 Else
-                                     _logger.LogWarning("Service not running with admin privileges")
-                                 End If
-                             Catch ex As Exception
-                                 _logger.LogWarning($"Could not grant privileges: {ex.Message}")
-                             End Try
-                         End Sub)
+                Try
+                    If IsUserAdministrator() Then
+                        GrantServiceImpersonatePrivilege("LiteTaskService")
+                        _logger.LogInfo("Successfully granted service impersonation privileges")
+                    Else
+                        _logger.LogWarning("Service not running with admin privileges")
+                    End If
+                Catch ex As Exception
+                    _logger.LogWarning($"Could not grant privileges: {ex.Message}")
+                End Try
 
                 _logger.LogInfo("LiteTaskService started successfully.")
 
