@@ -22,7 +22,6 @@ Namespace LiteTask
         Private ReadOnly _lock As New Object()
         Private _disposed As Boolean = False
         Private _xmlManager As XMLManager
-        Private Shared _instance As Logger
         Private Const MAX_QUEUE_SIZE As Integer = 10000
 
         Public Enum LogLevel
@@ -66,21 +65,6 @@ Namespace LiteTask
                 _rotationLock.ExitWriteLock()
             End Try
         End Function
-
-        Private Shared Sub CompressLog(logPath As String)
-            Try
-                Using originalFile As FileStream = File.OpenRead(logPath)
-                    Using compressedFile As FileStream = File.Create($"{logPath}.gz")
-                        Using gzipStream As New GZipStream(compressedFile, CompressionLevel.Optimal)
-                            originalFile.CopyTo(gzipStream)
-                        End Using
-                    End Using
-                End Using
-                File.Delete(logPath)
-            Catch ex As Exception
-                Debug.WriteLine($"Error compressing log: {ex.Message}")
-            End Try
-        End Sub
 
         Private Function CompressLogAsync(logPath As String) As Task(Of Boolean)
             Return Task.Run(Function()

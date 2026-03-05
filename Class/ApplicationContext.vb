@@ -11,17 +11,15 @@ Namespace LiteTask
         Private ReadOnly _xmlManager As XMLManager
         Private _isQuitting As Boolean = False
 
-        ' Define paths  
-        Dim appDataPath = Path.Combine(Application.StartupPath, "LiteTaskData")
-        Dim toolsPath = Path.Combine(appDataPath, "tools")
-        Dim tempPath = Path.Combine(appDataPath, "temp")
-        Dim logsPath = Path.Combine(appDataPath, "logs")
-        Dim settingsPath = Path.Combine(appDataPath, "settings.xml")
-        Dim defaultLogFilePath = Path.Combine(logsPath, "app_log.txt")
-
         Public Sub New()
             Try
-                ' Ensure directories exist  
+                ' Define paths (local scope - only needed for directory creation)
+                Dim appDataPath = Path.Combine(Application.StartupPath, "LiteTaskData")
+                Dim toolsPath = Path.Combine(appDataPath, "tools")
+                Dim tempPath = Path.Combine(appDataPath, "temp")
+                Dim logsPath = Path.Combine(appDataPath, "logs")
+
+                ' Ensure directories exist
                 Directory.CreateDirectory(appDataPath)
                 Directory.CreateDirectory(toolsPath)
                 Directory.CreateDirectory(tempPath)

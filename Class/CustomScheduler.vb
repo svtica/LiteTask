@@ -211,6 +211,17 @@ Namespace LiteTask
                     End If
                 Next
 
+                ' Evict stale alert entries for tasks that no longer exist or alerts older than 24 hours
+                Dim expiredAlerts = New List(Of String)()
+                For Each kvp In _staleTaskAlerts
+                    If (now - kvp.Value).TotalHours > 24 OrElse Not _tasks.ContainsKey(kvp.Key) Then
+                        expiredAlerts.Add(kvp.Key)
+                    End If
+                Next
+                For Each taskName In expiredAlerts
+                    _staleTaskAlerts.TryRemove(taskName, Nothing)
+                Next
+
             Catch ex As Exception
                 _logger.LogError($"Error during periodic lock cleanup: {ex.Message}")
             End Try
