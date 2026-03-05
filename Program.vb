@@ -394,7 +394,9 @@ Namespace LiteTask
                     startInfo.Arguments = arguments
                 End If
 
-                Process.Start(startInfo)
+                Using proc = Process.Start(startInfo)
+                    ' Dispose the process handle immediately; we don't need to track the child
+                End Using
                 Application.Exit()
             Catch ex As Exception
                 MessageBox.Show("This operation requires administrative privileges.",

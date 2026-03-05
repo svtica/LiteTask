@@ -99,28 +99,26 @@ Namespace LiteTask
         End Function
 
         Public Async Function DownloadAndInstallSqlcmdAsync() As Task(Of Boolean)
+            Dim zipPath As String = Nothing
+            Dim extractPath As String = Nothing
             Try
                 ' Ensure temp directory exists
                 Directory.CreateDirectory(_tempPath)
 
                 Dim zipFileName = "sqlcmd-windows-amd64.zip"
-                Dim zipPath = Path.Combine(_tempPath, zipFileName)
+                zipPath = Path.Combine(_tempPath, zipFileName)
 
                 ' Download the zip file
                 Await DownloadFileAsync(SqlcmdUrl, zipPath)
 
                 ' Extract the zip file
-                Dim extractPath = Path.Combine(_tempPath, "sqlcmd_extract")
+                extractPath = Path.Combine(_tempPath, "sqlcmd_extract")
                 ExtractZipFile(zipPath, extractPath)
 
                 ' Copy sqlcmd.exe to the tools folder
                 Dim sourceFile = Path.Combine(extractPath, "sqlcmd.exe")
                 Dim destFile = Path.Combine(_toolsPath, "sqlcmd.exe")
                 File.Copy(sourceFile, destFile, True)
-
-                ' Clean up
-                File.Delete(zipPath)
-                Directory.Delete(extractPath, True)
 
                 ' Add sqlcmd.exe to the tools dictionary
                 AddToolSafely("sqlcmd.exe", SqlcmdUrl)
@@ -130,6 +128,20 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger?.LogError($"Error installing sqlcmd.exe: {ex.Message}")
                 Return False
+            Finally
+                ' Always clean up temp files, even on error
+                Try
+                    If zipPath IsNot Nothing AndAlso File.Exists(zipPath) Then
+                        File.Delete(zipPath)
+                    End If
+                Catch
+                End Try
+                Try
+                    If extractPath IsNot Nothing AndAlso Directory.Exists(extractPath) Then
+                        Directory.Delete(extractPath, True)
+                    End If
+                Catch
+                End Try
             End Try
         End Function
 
