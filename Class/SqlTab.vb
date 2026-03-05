@@ -125,26 +125,35 @@ Namespace LiteTask
 
                 If result.Success Then
                     If result.Data IsNot Nothing AndAlso result.Data.Rows.Count > 0 Then
-                        Dim displayData As DataTable
+                        Dim displayData As DataTable = Nothing
+                        Dim ownsDisplayData As Boolean = False
 
-                        If lastEntry Then
-                            ' Create a new DataTable with just the last row
-                            displayData = result.Data.Clone()
-                            displayData.Rows.Add(result.Data.Rows(result.Data.Rows.Count - 1).ItemArray)
-                            _logger.LogInfo("Retrieved last entry successfully")
-                        Else
-                            displayData = result.Data
-                        End If
-
-                        _outputTextBox.Text = DataTableToString(displayData)
-                        _logger.LogInfo($"Query executed successfully. Rows returned: {displayData.Rows.Count}")
-
-                        If selectAll Then
-                            ' Offer to save as CSV
-                            If MessageBox.Show("Would you like to save the results as a CSV file?", "Save Results", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
-                                Await SaveResultsAsCsv(result.Data) ' Save all data, not just displayed data
+                        Try
+                            If lastEntry Then
+                                ' Create a new DataTable with just the last row
+                                displayData = result.Data.Clone()
+                                ownsDisplayData = True
+                                displayData.Rows.Add(result.Data.Rows(result.Data.Rows.Count - 1).ItemArray)
+                                _logger.LogInfo("Retrieved last entry successfully")
+                            Else
+                                displayData = result.Data
                             End If
-                        End If
+
+                            _outputTextBox.Text = DataTableToString(displayData)
+                            _logger.LogInfo($"Query executed successfully. Rows returned: {displayData.Rows.Count}")
+
+                            If selectAll Then
+                                ' Offer to save as CSV
+                                If MessageBox.Show("Would you like to save the results as a CSV file?", "Save Results", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
+                                    Await SaveResultsAsCsv(result.Data) ' Save all data, not just displayed data
+                                End If
+                            End If
+                        Finally
+                            ' Dispose the cloned DataTable if we created one
+                            If ownsDisplayData AndAlso displayData IsNot Nothing Then
+                                displayData.Dispose()
+                            End If
+                        End Try
                     Else
                         _outputTextBox.Text = "Query executed successfully with no output"
                         _logger.LogInfo("Query executed successfully with no output")
@@ -164,6 +173,9 @@ Namespace LiteTask
                         _logger.LogError($"Failed to send error notification: {notifyEx.Message}")
                     End Try
                 End If
+
+                ' Dispose the result DataTable after we're done with it
+                result.Data?.Dispose()
 
             Catch ex As Exception
                 _logger.LogError($"Error in ExecuteAndDisplayQuery: {ex.Message}")

@@ -91,12 +91,13 @@ Namespace LiteTask
             targets.Add("(Service Account, NT AUTHORITY\NETWORK SERVICE)")
 
             ' Get Current User credentials
-            Dim regKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials")
-            If regKey IsNot Nothing Then
-                For Each target In regKey.GetValueNames()
-                    targets.Add($"(Current User, {target})")
-                Next
-            End If
+            Using regKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials")
+                If regKey IsNot Nothing Then
+                    For Each target In regKey.GetValueNames()
+                        targets.Add($"(Current User, {target})")
+                    Next
+                End If
+            End Using
 
             ' Get Service Account credentials
             Dim serviceFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ServiceCredentials.dat")
@@ -161,8 +162,9 @@ Namespace LiteTask
         End Sub
 
         Private Sub DeleteCurrentUserCredential(target As String)
-            Dim regKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials", True)
-            regKey?.DeleteValue(target, False)
+            Using regKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\LiteTask\Credentials", True)
+                regKey?.DeleteValue(target, False)
+            End Using
         End Sub
         Private Sub DeleteFromWindowsVault(target As String)
             If Not CredDelete(target, CRED_TYPE_GENERIC, 0) Then
@@ -387,8 +389,9 @@ Namespace LiteTask
 
         Private Sub SaveCurrentUserCredential(credInfo As CredentialInfo, password As SecureString)
             Dim encryptedPassword = EncryptString(New NetworkCredential(String.Empty, password).Password)
-            Dim regKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("SOFTWARE\LiteTask\Credentials")
-            regKey.SetValue(credInfo.Target, $"{credInfo.Username}|{encryptedPassword}")
+            Using regKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("SOFTWARE\LiteTask\Credentials")
+                regKey.SetValue(credInfo.Target, $"{credInfo.Username}|{encryptedPassword}")
+            End Using
         End Sub
 
         Private Sub SaveStoredCredential(credInfo As CredentialInfo, password As SecureString)
