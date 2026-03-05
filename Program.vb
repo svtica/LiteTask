@@ -102,33 +102,6 @@ Namespace LiteTask
             End Try
         End Sub
 
-        Private Sub ExecuteServiceCommand(command As String, arguments As String)
-            Try
-                Using process As New Process()
-                    process.StartInfo = New ProcessStartInfo With {
-                    .FileName = "sc.exe",
-                    .Arguments = $"{command} {arguments}",
-                    .UseShellExecute = False,
-                    .RedirectStandardOutput = True,
-                    .RedirectStandardError = True,
-                    .CreateNoWindow = True
-                }
-
-                    process.Start()
-                    Dim output = process.StandardOutput.ReadToEnd()
-                    Dim err = process.StandardError.ReadToEnd()
-                    process.WaitForExit()
-
-                    If process.ExitCode <> 0 Then
-                        Throw New Exception($"Service command failed: {err}")
-                    End If
-                End Using
-            Catch ex As Exception
-                LogServiceError($"Error executing service command: {command}", ex)
-                Throw
-            End Try
-        End Sub
-
         Private Function GetLogPath(logName As String) As String
             Try
                 Return Path.Combine(LogBasePath, logName)
