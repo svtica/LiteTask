@@ -1523,7 +1523,7 @@ Namespace LiteTask
             End Try
         End Sub
 
-        Private Async Function RefreshUIAsync() As Task
+        Private Function RefreshUIAsync() As Task
             Try
                 _logger.LogInfo("Starting UI refresh")
 
@@ -1568,6 +1568,7 @@ Namespace LiteTask
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
                 MessageBox.Show($"Error refreshing UI: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
+            Return Task.CompletedTask
         End Function
 
         Private Sub MonitorTasks_Click(sender As Object, e As EventArgs)
