@@ -15,6 +15,7 @@ Namespace LiteTask
         Private ReadOnly _translationManager As TranslationManager
         Private _task As ScheduledTask
         Private ReadOnly _notificationManager As NotificationManager
+        Private ReadOnly _updateManager As UpdateManager
         Private _autoRefreshTimer As System.Windows.Forms.Timer
         Private ReadOnly _statusTimer As System.Windows.Forms.Timer
         Private ReadOnly _schedulerTimer As System.Windows.Forms.Timer
@@ -89,6 +90,7 @@ Namespace LiteTask
                 _toolManager = ApplicationContainer.GetService(Of ToolManager)()
                 _logger = ApplicationContainer.GetService(Of Logger)()
                 _notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                _updateManager = ApplicationContainer.GetService(Of UpdateManager)()
 
                 InitializeComponent()
 
@@ -203,9 +205,57 @@ Namespace LiteTask
             MessageBox.Show(message, "Tool Check Result", MessageBoxButtons.OK, MessageBoxIcon.Information)
         End Sub
 
-        Private Sub CheckUpdatesMenuItem_Click(sender As Object, e As EventArgs)
-            ' TODO: Implement update checking logic
-            MessageBox.Show("Update checking not implemented yet.", "Check for Updates", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Private Async Sub CheckUpdatesMenuItem_Click(sender As Object, e As EventArgs)
+            _checkUpdatesMenuItem.Enabled = False
+            Try
+                UpdateStatusLabel("Checking for updates...")
+                Dim updateInfo = Await _updateManager.CheckForUpdateAsync()
+
+                If Not updateInfo.IsUpdateAvailable Then
+                    MessageBox.Show(
+                        $"You are running the latest version ({updateInfo.CurrentVersion}).",
+                        "No Update Available",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    UpdateStatusLabel("No updates available.")
+                    Return
+                End If
+
+                ' Show update dialog
+                Dim message = $"A new version is available!{Environment.NewLine}{Environment.NewLine}" &
+                              $"Current version: {updateInfo.CurrentVersion}{Environment.NewLine}" &
+                              $"New version: {updateInfo.RemoteVersion}{Environment.NewLine}"
+
+                If Not String.IsNullOrWhiteSpace(updateInfo.ReleaseName) Then
+                    message &= $"{Environment.NewLine}{updateInfo.ReleaseName}{Environment.NewLine}"
+                End If
+
+                If String.IsNullOrEmpty(updateInfo.DownloadUrl) Then
+                    MessageBox.Show(
+                        message & $"{Environment.NewLine}No download package found in the release. Please download manually from GitHub.",
+                        "Update Available",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Return
+                End If
+
+                message &= $"{Environment.NewLine}Do you want to download and install the update?{Environment.NewLine}" &
+                           $"The application will restart after the update."
+
+                Dim result = MessageBox.Show(message, "Update Available",
+                                           MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+
+                If result = DialogResult.Yes Then
+                    Dim progress As New Progress(Of String)(Sub(status) UpdateStatusLabel(status))
+                    Await _updateManager.DownloadAndApplyUpdateAsync(updateInfo, progress)
+                End If
+
+            Catch ex As Exception
+                _logger?.LogError($"Error checking for updates: {ex.Message}")
+                MessageBox.Show($"Error checking for updates: {ex.Message}",
+                               "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                UpdateStatusLabel("Update check failed.")
+            Finally
+                _checkUpdatesMenuItem.Enabled = True
+            End Try
         End Sub
 
         Private Sub CustomScheduler_TaskCompleted(sender As Object, e As TaskCompletedEventArgs)
