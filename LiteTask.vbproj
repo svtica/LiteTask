@@ -195,6 +195,9 @@
     <None Update="Unblock-Files.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="bump-version.ps1">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Update="My Project\Resources.Designer.vb">
