@@ -208,51 +208,57 @@ Namespace LiteTask
         Private Async Sub CheckUpdatesMenuItem_Click(sender As Object, e As EventArgs)
             _checkUpdatesMenuItem.Enabled = False
             Try
-                UpdateStatusLabel("Checking for updates...")
+                UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Update.CheckingForUpdates", "Checking for updates..."))
                 Dim updateInfo = Await _updateManager.CheckForUpdateAsync()
 
                 If Not updateInfo.IsUpdateAvailable Then
                     MessageBox.Show(
-                        $"You are running the latest version ({updateInfo.CurrentVersion}).",
-                        "No Update Available",
+                        String.Format(TranslationManager.Instance.GetTranslation("Update.LatestVersion", "You are running the latest version ({0})."), updateInfo.CurrentVersion),
+                        TranslationManager.Instance.GetTranslation("Update.NoUpdateTitle", "No Update Available"),
                         MessageBoxButtons.OK, MessageBoxIcon.Information)
-                    UpdateStatusLabel("No updates available.")
+                    UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Update.NoUpdates", "No updates available."))
                     Return
                 End If
 
                 ' Show update dialog
-                Dim message = $"A new version is available!{Environment.NewLine}{Environment.NewLine}" &
-                              $"Current version: {updateInfo.CurrentVersion}{Environment.NewLine}" &
-                              $"New version: {updateInfo.RemoteVersion}{Environment.NewLine}"
+                Dim message = String.Format(TranslationManager.Instance.GetTranslation("Update.Available",
+                    "A new version is available!{0}{0}Current version: {1}{0}New version: {2}"),
+                    Environment.NewLine, updateInfo.CurrentVersion, updateInfo.RemoteVersion)
 
                 If Not String.IsNullOrWhiteSpace(updateInfo.ReleaseName) Then
-                    message &= $"{Environment.NewLine}{updateInfo.ReleaseName}{Environment.NewLine}"
+                    message &= $"{Environment.NewLine}{Environment.NewLine}{updateInfo.ReleaseName}"
                 End If
 
                 If String.IsNullOrEmpty(updateInfo.DownloadUrl) Then
                     MessageBox.Show(
-                        message & $"{Environment.NewLine}No download package found in the release. Please download manually from GitHub.",
-                        "Update Available",
+                        message & Environment.NewLine & Environment.NewLine &
+                        TranslationManager.Instance.GetTranslation("Update.NoPackage", "No download package found in the release. Please download manually from GitHub."),
+                        TranslationManager.Instance.GetTranslation("Update.AvailableTitle", "Update Available"),
                         MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Return
                 End If
 
-                message &= $"{Environment.NewLine}Do you want to download and install the update?{Environment.NewLine}" &
-                           $"The application will restart after the update."
+                message &= Environment.NewLine & Environment.NewLine &
+                           TranslationManager.Instance.GetTranslation("Update.ConfirmInstall", "Do you want to download and install the update? The application will restart after the update.")
 
-                Dim result = MessageBox.Show(message, "Update Available",
-                                           MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+                Dim result = MessageBox.Show(message,
+                    TranslationManager.Instance.GetTranslation("Update.AvailableTitle", "Update Available"),
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question)
 
                 If result = DialogResult.Yes Then
-                    Dim progress As New Progress(Of String)(Sub(status) UpdateStatusLabel(status))
-                    Await _updateManager.DownloadAndApplyUpdateAsync(updateInfo, progress)
+                    Dim progressForm As New UpdateProgressForm()
+                    progressForm.Show(Me)
+                    progressForm.AppendLog(String.Format(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.Starting", "Starting update to version {0}..."), updateInfo.RemoteVersion), Drawing.Color.Cyan)
+                    Await _updateManager.DownloadAndApplyUpdateAsync(updateInfo, progressForm)
                 End If
 
             Catch ex As Exception
                 _logger?.LogError($"Error checking for updates: {ex.Message}")
                 MessageBox.Show($"Error checking for updates: {ex.Message}",
-                               "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                UpdateStatusLabel("Update check failed.")
+                               TranslationManager.Instance.GetTranslation("Update.ErrorTitle", "Update Error"),
+                               MessageBoxButtons.OK, MessageBoxIcon.Error)
+                UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Update.CheckFailed", "Update check failed."))
             Finally
                 _checkUpdatesMenuItem.Enabled = True
             End Try
