@@ -107,6 +107,7 @@ Namespace LiteTask
                         ' Register core services
                         services.AddSingleton(Of ToolManager)(Function(sp) New ToolManager(toolsPath))
                         services.AddSingleton(Of CredentialManager)(Function(sp) New CredentialManager(sp.GetRequiredService(Of Logger)()))
+                        services.AddSingleton(Of UpdateManager)(Function(sp) New UpdateManager(sp.GetRequiredService(Of Logger)()))
                         LogInitialization("Core services registered")
 
                         ' Register remaining services
