@@ -24,7 +24,7 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 ### Tool Management
 - Automatic detection and updates of integrated tools
 - Built-in process monitoring and diagnostic utilities
-- Integrated LiteDeploy, LitePM, and LiteSrv tools
+- Integrated LiteDeploy and LitePM tools
 
 ### Notifications & Logging
 - Smart notification batching with email alerts
@@ -72,7 +72,7 @@ LiteTask.exe [options]
 LiteTaskData/
 ├── logs/              # Application and task logs
 ├── Modules/           # PowerShell modules  
-├── tools/             # Integrated utilities (LiteDeploy, LitePM, LiteSrv)
+├── tools/             # Integrated utilities (LiteDeploy, LitePM)
 ├── temp/              # Temporary files
 └── settings.xml       # Configuration file
 ```
@@ -101,4 +101,3 @@ This tool is part of **LiteSuite** - a comprehensive collection of lightweight W
 - **[LitePM](https://github.com/svtica/LitePM)** - Process Manager with System Monitoring
 - **[LiteDeploy](https://github.com/svtica/LiteDeploy)** - Network Deployment and Management
 - **[LiteRun](https://github.com/svtica/LiteRun)** - Remote Command Execution Utility (archived)
-- **[LiteSrv](https://github.com/svtica/LiteSrv)** - Windows Service Wrapper (archived)
