@@ -46,7 +46,7 @@ Namespace LiteTask
             InitializeLogRotation()
         End Sub
 
-        Private Async Function CleanupOldLogsAsync() As Task
+        Private Function CleanupOldLogsAsync() As Task
             Try
                 _rotationLock.EnterWriteLock()
 
@@ -65,6 +65,7 @@ Namespace LiteTask
             Finally
                 _rotationLock.ExitWriteLock()
             End Try
+            Return Task.CompletedTask
         End Function
 
         Private Function CompressLogAsync(logPath As String) As Task(Of Boolean)
@@ -345,10 +346,10 @@ Namespace LiteTask
             End If
         End Sub
 
-        Private Async Function WriteLogEntryAsync(entry As LogEntry) As Task
+        Private Function WriteLogEntryAsync(entry As LogEntry) As Task
             Dim logEntryBuilder As New StringBuilder()
             logEntryBuilder.Append($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{entry.Level}] {entry.Message}")
-            
+
             If entry.Exception IsNot Nothing Then
                 logEntryBuilder.AppendLine()
                 logEntryBuilder.Append($"Exception: {entry.Exception.Message}")
@@ -356,7 +357,7 @@ Namespace LiteTask
                 logEntryBuilder.Append($"StackTrace: {entry.Exception.StackTrace}")
             End If
             logEntryBuilder.AppendLine()
-            
+
             Dim logEntry = logEntryBuilder.ToString()
 
             Try
@@ -378,6 +379,7 @@ Namespace LiteTask
             Catch ex As Exception
                 Debug.WriteLine($"Error writing log entry: {ex.Message}")
             End Try
+            Return Task.CompletedTask
         End Function
 
     End Class
