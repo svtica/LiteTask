@@ -338,6 +338,37 @@
 	<translation key="_disableTaskMenuItem">Désactiver la tâche</translation>
 	<translation key="OneTimeCompleted">Ponctuelle (Terminée)</translation>
 
+	<!-- Update Progress Window -->
+	<translation key="UpdateProgressForm.Text">LiteTask - Mise à jour</translation>
+	<translation key="_titleLabel.Text">Progression de la mise à jour</translation>
+	<translation key="_closeButton.Text">Fermer</translation>
+	<translation key="Update.CheckingForUpdates">Vérification des mises à jour...</translation>
+	<translation key="Update.LatestVersion">Vous utilisez déjà la dernière version ({0}).</translation>
+	<translation key="Update.NoUpdateTitle">Aucune mise à jour disponible</translation>
+	<translation key="Update.NoUpdates">Aucune mise à jour disponible.</translation>
+	<translation key="Update.Available">Une nouvelle version est disponible !{0}{0}Version actuelle : {1}{0}Nouvelle version : {2}</translation>
+	<translation key="Update.AvailableTitle">Mise à jour disponible</translation>
+	<translation key="Update.NoPackage">Aucun paquet de téléchargement trouvé dans la version. Veuillez télécharger manuellement depuis GitHub.</translation>
+	<translation key="Update.ConfirmInstall">Voulez-vous télécharger et installer la mise à jour ? L'application redémarrera après la mise à jour.</translation>
+	<translation key="Update.ErrorTitle">Erreur de mise à jour</translation>
+	<translation key="Update.CheckFailed">Échec de la vérification des mises à jour.</translation>
+	<translation key="Update.Progress.Starting">Démarrage de la mise à jour vers la version {0}...</translation>
+	<translation key="Update.Progress.Downloading">Téléchargement de la mise à jour...</translation>
+	<translation key="Update.Progress.DownloadDone">Téléchargement terminé.</translation>
+	<translation key="Update.Progress.Extracting">Extraction des fichiers...</translation>
+	<translation key="Update.Progress.ExtractDone">Extraction terminée.</translation>
+	<translation key="Update.Progress.PostBuild">Exécution du nettoyage post-compilation...</translation>
+	<translation key="Update.Progress.PostBuildDone">Nettoyage post-compilation terminé.</translation>
+	<translation key="Update.Progress.PostBuildSkipped">Aucun script post-compilation trouvé, étape ignorée.</translation>
+	<translation key="Update.Progress.PostBuildTimeout">Le script post-compilation a expiré.</translation>
+	<translation key="Update.Progress.StoppingService">Arrêt du service...</translation>
+	<translation key="Update.Progress.ServiceStopped">Service arrêté.</translation>
+	<translation key="Update.Progress.ServiceNotRunning">Le service n'est pas en cours d'exécution, étape ignorée.</translation>
+	<translation key="Update.Progress.ServiceNotInstalled">Le service n'est pas installé, étape ignorée.</translation>
+	<translation key="Update.Progress.Launching">Lancement du script de remplacement des fichiers...</translation>
+	<translation key="Update.Progress.Complete">Mise à jour prête. L'application va maintenant redémarrer.</translation>
+	<translation key="Update.Progress.Failed">Échec de la mise à jour. Consultez le journal ci-dessus pour plus de détails.</translation>
+
 	<!-- Monitoring Tab -->
 	<translation key="_monitoringTab">Surveillance</translation>
 	<translation key="_enableMemoryMonitorCheckBox">Activer la surveillance mémoire</translation>

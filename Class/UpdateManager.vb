@@ -69,8 +69,9 @@ Namespace LiteTask
 
         ''' <summary>
         ''' Downloads, extracts, runs PostBuild, stops service, and launches the update script.
+        ''' Reports live progress to an UpdateProgressForm.
         ''' </summary>
-        Public Async Function DownloadAndApplyUpdateAsync(updateInfo As UpdateInfo, progress As IProgress(Of String)) As Task
+        Public Async Function DownloadAndApplyUpdateAsync(updateInfo As UpdateInfo, progressForm As UpdateProgressForm) As Task
             Dim zipPath As String = Nothing
             Dim extractPath As String = Nothing
 
@@ -85,48 +86,73 @@ Namespace LiteTask
                 End If
 
                 ' Step 1: Download
-                progress?.Report("Downloading update...")
+                progressForm.SetProgress(5)
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.Downloading", "Downloading update..."), Drawing.Color.White)
                 _logger?.LogInfo($"Downloading update from {updateInfo.DownloadUrl}")
                 Await DownloadFileAsync(updateInfo.DownloadUrl, zipPath)
                 _logger?.LogInfo("Download complete.")
+                progressForm.SetProgress(30)
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.DownloadDone", "Download complete."), Drawing.Color.LimeGreen)
 
                 ' Step 2: Extract
-                progress?.Report("Extracting files...")
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.Extracting", "Extracting files..."), Drawing.Color.White)
                 _logger?.LogInfo($"Extracting to {extractPath}")
                 If Directory.Exists(extractPath) Then
                     Directory.Delete(extractPath, True)
                 End If
                 ZipFile.ExtractToDirectory(zipPath, extractPath)
                 _logger?.LogInfo("Extraction complete.")
+                progressForm.SetProgress(50)
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.ExtractDone", "Extraction complete."), Drawing.Color.LimeGreen)
 
-                ' Step 3: Run PostBuild script
-                progress?.Report("Running post-build script...")
+                ' Step 3: Run PostBuild script with live output
                 Dim postBuildScript = FindFile(extractPath, "LiteTask-Post-Build.ps1")
                 If postBuildScript IsNot Nothing Then
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.PostBuild", "Running post-build cleanup..."), Drawing.Color.White)
                     _logger?.LogInfo($"Running PostBuild script: {postBuildScript}")
-                    RunPostBuildScript(postBuildScript)
+                    Await RunPostBuildScriptAsync(postBuildScript, progressForm)
                     _logger?.LogInfo("PostBuild script completed.")
+                    progressForm.SetProgress(70)
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.PostBuildDone", "Post-build cleanup complete."), Drawing.Color.LimeGreen)
                 Else
                     _logger?.LogInfo("No PostBuild script found, skipping.")
+                    progressForm.SetProgress(70)
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.PostBuildSkipped", "No post-build script found, skipping."), Drawing.Color.Gray)
                 End If
 
                 ' Step 4: Stop service if running
-                progress?.Report("Stopping service...")
-                StopServiceIfRunning()
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.StoppingService", "Stopping service..."), Drawing.Color.White)
+                StopServiceIfRunning(progressForm)
+                progressForm.SetProgress(85)
 
                 ' Step 5: Launch update script and exit
-                progress?.Report("Launching update process...")
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.Launching", "Launching file replacement script..."), Drawing.Color.White)
                 LaunchUpdateScript(extractPath)
+                progressForm.SetProgress(95)
 
-                ' Step 6: Exit application
+                ' Mark completed before exiting
+                progressForm.SetCompleted(True)
+
+                ' Give the user a moment to read the final message, then exit
+                Await Task.Delay(2000)
                 _logger?.LogInfo("Exiting application for update...")
                 Application.Exit()
 
             Catch ex As Exception
                 _logger?.LogError($"Error applying update: {ex.Message}")
+                progressForm.AppendLog($"Error: {ex.Message}", Drawing.Color.OrangeRed)
+                progressForm.SetCompleted(False)
                 ' Clean up on error
                 CleanupTempFiles(zipPath, extractPath)
-                Throw
             End Try
         End Function
 
@@ -150,7 +176,10 @@ Namespace LiteTask
             End Try
         End Function
 
-        Private Sub RunPostBuildScript(scriptPath As String)
+        ''' <summary>
+        ''' Runs the PostBuild script asynchronously, streaming output line-by-line to the progress form.
+        ''' </summary>
+        Private Async Function RunPostBuildScriptAsync(scriptPath As String, progressForm As UpdateProgressForm) As Task
             Try
                 Dim scriptDir = Path.GetDirectoryName(scriptPath)
                 Dim startInfo As New ProcessStartInfo() With {
@@ -163,28 +192,43 @@ Namespace LiteTask
                     .RedirectStandardError = True
                 }
 
-                Using proc = Process.Start(startInfo)
-                    proc.WaitForExit(60000) ' 60 second timeout
-                    If Not proc.HasExited Then
+                Using proc As New Process With {.StartInfo = startInfo}
+                    AddHandler proc.OutputDataReceived, Sub(s, args)
+                                                            If args.Data IsNot Nothing Then
+                                                                _logger?.LogInfo($"PostBuild: {args.Data}")
+                                                                progressForm.AppendLog("  " & args.Data, Drawing.Color.LightGray)
+                                                            End If
+                                                        End Sub
+
+                    AddHandler proc.ErrorDataReceived, Sub(s, args)
+                                                           If args.Data IsNot Nothing Then
+                                                               _logger?.LogError($"PostBuild error: {args.Data}")
+                                                               progressForm.AppendLog("  " & args.Data, Drawing.Color.OrangeRed)
+                                                           End If
+                                                       End Sub
+
+                    proc.Start()
+                    proc.BeginOutputReadLine()
+                    proc.BeginErrorReadLine()
+
+                    ' Wait asynchronously with a 60-second timeout
+                    Dim cts As New Threading.CancellationTokenSource(60000)
+                    Try
+                        Await proc.WaitForExitAsync(cts.Token)
+                    Catch ex As OperationCanceledException
                         proc.Kill()
                         _logger?.LogError("PostBuild script timed out after 60 seconds.")
-                    Else
-                        Dim output = proc.StandardOutput.ReadToEnd()
-                        Dim errors = proc.StandardError.ReadToEnd()
-                        If Not String.IsNullOrWhiteSpace(output) Then
-                            _logger?.LogInfo($"PostBuild output: {output}")
-                        End If
-                        If Not String.IsNullOrWhiteSpace(errors) Then
-                            _logger?.LogError($"PostBuild errors: {errors}")
-                        End If
-                    End If
+                        progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                            "Update.Progress.PostBuildTimeout", "Post-build script timed out."), Drawing.Color.OrangeRed)
+                    End Try
                 End Using
             Catch ex As Exception
                 _logger?.LogError($"Error running PostBuild script: {ex.Message}")
+                progressForm.AppendLog($"PostBuild error: {ex.Message}", Drawing.Color.OrangeRed)
             End Try
-        End Sub
+        End Function
 
-        Private Sub StopServiceIfRunning()
+        Private Sub StopServiceIfRunning(progressForm As UpdateProgressForm)
             Try
                 Using sc = New ServiceController(ServiceName)
                     If sc.Status = ServiceControllerStatus.Running OrElse
@@ -193,15 +237,22 @@ Namespace LiteTask
                         sc.Stop()
                         sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(30))
                         _logger?.LogInfo($"Service {ServiceName} stopped.")
+                        progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                            "Update.Progress.ServiceStopped", "Service stopped."), Drawing.Color.LimeGreen)
                     Else
                         _logger?.LogInfo($"Service {ServiceName} is not running (status: {sc.Status}).")
+                        progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                            "Update.Progress.ServiceNotRunning", "Service is not running, skipping."), Drawing.Color.Gray)
                     End If
                 End Using
             Catch ex As InvalidOperationException
                 ' Service not installed
                 _logger?.LogInfo($"Service {ServiceName} is not installed, skipping stop.")
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.ServiceNotInstalled", "Service is not installed, skipping."), Drawing.Color.Gray)
             Catch ex As Exception
                 _logger?.LogError($"Error stopping service: {ex.Message}")
+                progressForm.AppendLog($"Service error: {ex.Message}", Drawing.Color.OrangeRed)
             End Try
         End Sub
 
@@ -213,33 +264,24 @@ Namespace LiteTask
             Dim updateScriptPath = Path.Combine(_tempPath, "LiteTask-Update.ps1")
             Dim currentPid = Environment.ProcessId
 
-            ' Find the actual content folder inside the extracted path
-            ' It could be directly in extractPath or in a subfolder
             Dim scriptContent = $"
 # LiteTask Update Script - Auto-generated
-# Wait for the application to exit
 $processId = {currentPid}
 $appPath = '{_appPath.Replace("'", "''")}'
 $updateSource = '{extractPath.Replace("'", "''")}'
 
-Write-Host 'Waiting for LiteTask to exit...'
+# Wait for the application to exit
 try {{
     $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
     if ($process) {{
         $process.WaitForExit(30000)
         if (!$process.HasExited) {{
-            Write-Host 'Force stopping LiteTask...'
             $process | Stop-Process -Force
-            Start-Sleep -Seconds 2
         }}
     }}
 }} catch {{
     # Process already exited
 }}
-
-Start-Sleep -Seconds 2
-
-Write-Host 'Replacing files...'
 
 # Determine the source folder (handle nested folder structure)
 $sourceFolder = $updateSource
@@ -247,7 +289,6 @@ $subDirs = Get-ChildItem -Path $updateSource -Directory
 if ($subDirs.Count -eq 1 -and (Test-Path (Join-Path $subDirs[0].FullName 'LiteTask.exe'))) {{
     $sourceFolder = $subDirs[0].FullName
 }} elseif (!(Test-Path (Join-Path $updateSource 'LiteTask.exe'))) {{
-    # Search deeper for LiteTask.exe
     $exeFile = Get-ChildItem -Path $updateSource -Filter 'LiteTask.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($exeFile) {{
         $sourceFolder = $exeFile.DirectoryName
@@ -268,13 +309,10 @@ try {{
                 New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
             }}
             Copy-Item -Path $_.FullName -Destination $targetPath -Force
-            Write-Host ""Updated: $targetPath""
         }}
     }}
-    Write-Host 'File replacement complete.'
 }} catch {{
     Write-Host ""Error replacing files: $($_.Exception.Message)""
-    Read-Host 'Press Enter to exit'
     exit 1
 }}
 
@@ -288,9 +326,7 @@ try {{
 }}
 
 # Restart the application
-Write-Host 'Restarting LiteTask...'
 Start-Process -FilePath (Join-Path $appPath 'LiteTask.exe')
-Write-Host 'Update complete!'
 "
 
             File.WriteAllText(updateScriptPath, scriptContent)
@@ -301,7 +337,7 @@ Write-Host 'Update complete!'
                 .Arguments = $"-NoProfile -ExecutionPolicy Bypass -File ""{updateScriptPath}""",
                 .WorkingDirectory = _tempPath,
                 .UseShellExecute = True,
-                .CreateNoWindow = False
+                .CreateNoWindow = True
             }
 
             Process.Start(startInfo)
