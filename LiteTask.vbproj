@@ -162,16 +162,7 @@
     <None Update="LiteTask-Post-Build.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="LiteTaskData\tools\LiteSrv-README.md">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="LiteTaskData\tools\LiteSrv.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="LiteTaskData\tools\LiteSrv.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="LiteTaskData\tools\Logger.dll">
+<None Update="LiteTaskData\tools\Logger.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="logo.ico">
