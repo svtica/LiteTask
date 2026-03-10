@@ -602,17 +602,21 @@ Namespace LiteTask
                 ' Try to acquire semaphore with retries for abandoned scenarios
                 ' Using Semaphore instead of Mutex because Mutex has thread affinity:
                 ' in async code, the thread that releases may differ from the one that acquired.
-                Do While retryCount < MAX_CLEANUP_RETRIES
+                ' Create the Semaphore once and reuse across retries to avoid leaking OS handles.
+                Try
+                    semaphore = New Semaphore(1, 1, semaphoreName)
+                Catch ex As Exception
+                    _logger.LogError($"Error creating semaphore for task {_task.Name}: {ex.Message}")
+                End Try
+
+                Do While semaphore IsNot Nothing AndAlso retryCount < MAX_CLEANUP_RETRIES
                     Try
-                        semaphore = New Semaphore(1, 1, semaphoreName)
                         hasLock = semaphore.WaitOne(TimeSpan.FromSeconds(MUTEX_TIMEOUT_SECONDS))
 
                         If hasLock Then
                             Exit Do ' Successfully acquired
                         Else
                             _logger.LogWarning($"Task {_task.Name} lock timeout (attempt {retryCount + 1}). Trying cleanup...")
-                            semaphore?.Dispose()
-                            semaphore = Nothing
 
                             ' Attempt to cleanup potentially abandoned lock
                             If TryCleanupAbandonedLock(_task.Name) Then
@@ -628,8 +632,6 @@ Namespace LiteTask
 
                     Catch ex As Exception
                         _logger.LogError($"Error acquiring lock for task {_task.Name}: {ex.Message}")
-                        semaphore?.Dispose()
-                        semaphore = Nothing
                         Exit Do
                     End Try
                 Loop
@@ -806,8 +808,10 @@ Namespace LiteTask
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
 
-                    ' Non-blocking GC to reclaim memory from completed tasks without stalling the scheduler
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, blocking:=False)
+                    ' Force a GC pass after every task execution to reclaim memory from
+                    ' PowerShell runspaces, ImportExcel COM objects, and process handles.
+                    ' Optimized mode often skips collection, allowing memory to grow unbounded.
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=False)
                 End Try
             End Try
         End Function

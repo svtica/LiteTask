@@ -6,6 +6,7 @@ Imports System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel
 
 Namespace LiteTask
     Public Class TaskRunner
+        Implements IDisposable
 
         ' TODO: Phase 2 - Add audit logging for database operations
 
@@ -18,9 +19,10 @@ Namespace LiteTask
         Private ReadOnly _powerShellPathManager As PowerShellPathManager
         Private ReadOnly _sqlTab As SqlTab
         Private ReadOnly _sanitizer As New SqlCommandSanitizer()
-        Private ReadOnly _embeddedPsExec As Byte()
+        Private _embeddedPsExec As Byte()
         Private _connectionStringBase As String
         Private _sqlConfig As Dictionary(Of String, String)
+        Private _disposed As Boolean
         Public Event OutputReceived(sender As Object, data As String)
         Public Event ErrorReceived(sender As Object, data As String)
 
@@ -67,7 +69,13 @@ Namespace LiteTask
 
         End Sub
 
-        Public Sub Dispose()
+        Public Sub Dispose() Implements IDisposable.Dispose
+            If Not _disposed Then
+                ' Release the cached PsExec byte array (~1 MB) so it can be collected
+                _embeddedPsExec = Nothing
+                _sqlConfig = Nothing
+                _disposed = True
+            End If
         End Sub
 
         Private Function EscapeArgument(argument As String) As String
@@ -771,6 +779,17 @@ Namespace LiteTask
                                 _logger.LogWarning($"Error disposing PowerShell runspace: {ex.Message}")
                             End Try
                         End If
+
+                        ' Force a full GC to reclaim COM interop objects and large ImportExcel/EPPlus
+                        ' object graphs that the non-blocking Optimized collect won't release in time.
+                        ' WaitForPendingFinalizers ensures COM Release() calls complete before we return.
+                        Try
+                            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=True)
+                            GC.WaitForPendingFinalizers()
+                            GC.Collect(2, GCCollectionMode.Forced, blocking:=False)
+                        Catch
+                            ' GC errors should never propagate
+                        End Try
                     End Try
                 End Using
 
