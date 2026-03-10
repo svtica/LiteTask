@@ -64,6 +64,9 @@ Namespace LiteTask
         Private WithEvents _enableMemoryMonitorCheckBox As CheckBox
         Private WithEvents _memoryCheckIntervalLabel As Label
         Private WithEvents _memoryCheckIntervalNumeric As NumericUpDown
+        Private WithEvents _dailyRestartCheckBox As CheckBox
+        Private WithEvents _dailyRestartTimeLabel As Label
+        Private WithEvents _dailyRestartTimePicker As DateTimePicker
 
         ' Button Panel Controls
         Private WithEvents _buttonPanel As Panel
