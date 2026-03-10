@@ -803,22 +803,31 @@ Namespace LiteTask
                 settings("MemoryMonitorEnabled") = ReadValue("MemoryMonitor", "Enabled", "True")
                 settings("MemoryCheckIntervalSeconds") = ReadValue("MemoryMonitor", "CheckIntervalSeconds", "300")
                 settings("AutoRestartOnCriticalMemory") = ReadValue("MemoryMonitor", "AutoRestartOnCriticalMemory", "True")
+                settings("DailyRestartEnabled") = ReadValue("MemoryMonitor", "DailyRestartEnabled", "False")
+                settings("DailyRestartTime") = ReadValue("MemoryMonitor", "DailyRestartTime", "03:00")
                 Return settings
             Catch ex As Exception
                 _logger?.LogError($"Error reading memory monitor settings: {ex.Message}")
                 Return New Dictionary(Of String, String) From {
                     {"MemoryMonitorEnabled", "True"},
                     {"MemoryCheckIntervalSeconds", "300"},
-                    {"AutoRestartOnCriticalMemory", "True"}
+                    {"AutoRestartOnCriticalMemory", "True"},
+                    {"DailyRestartEnabled", "False"},
+                    {"DailyRestartTime", "03:00"}
                 }
             End Try
         End Function
 
-        Public Sub SaveMemoryMonitorSettings(enabled As Boolean, intervalSeconds As Integer, Optional autoRestart As Boolean = True)
+        Public Sub SaveMemoryMonitorSettings(enabled As Boolean, intervalSeconds As Integer,
+                                             Optional autoRestart As Boolean = True,
+                                             Optional dailyRestartEnabled As Boolean = False,
+                                             Optional dailyRestartTime As String = "03:00")
             Try
                 WriteValue("MemoryMonitor", "Enabled", enabled.ToString())
                 WriteValue("MemoryMonitor", "CheckIntervalSeconds", intervalSeconds.ToString())
                 WriteValue("MemoryMonitor", "AutoRestartOnCriticalMemory", autoRestart.ToString())
+                WriteValue("MemoryMonitor", "DailyRestartEnabled", dailyRestartEnabled.ToString())
+                WriteValue("MemoryMonitor", "DailyRestartTime", dailyRestartTime)
             Catch ex As Exception
                 _logger?.LogError($"Error saving memory monitor settings: {ex.Message}")
                 Throw

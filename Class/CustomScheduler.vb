@@ -41,6 +41,9 @@ Namespace LiteTask
         Private Const MEMORY_ALERT_COOLDOWN_MINUTES As Integer = 30   ' Avoid alert spam
         Private _autoRestartOnCriticalMemory As Boolean = True        ' Auto-restart service on critical memory
         Private Const AUTO_RESTART_SAFE_WINDOW_MINUTES As Integer = 5 ' Only restart if no task runs within this window
+        Private _dailyRestartEnabled As Boolean = False               ' Daily scheduled restart (off by default)
+        Private _dailyRestartTime As TimeSpan = New TimeSpan(3, 0, 0) ' Default: 03:00 AM
+        Private _lastDailyRestartDate As DateTime = DateTime.MinValue ' Tracks which day we last restarted
 
         ' Enhanced mutex management properties
         Private Const MUTEX_TIMEOUT_SECONDS As Integer = 30  ' Increased from 1 second
@@ -239,12 +242,19 @@ Namespace LiteTask
                 _memoryMonitorEnabled = Boolean.Parse(If(settings.ContainsKey("MemoryMonitorEnabled"), settings("MemoryMonitorEnabled"), "True"))
                 _memoryCheckIntervalSeconds = Integer.Parse(If(settings.ContainsKey("MemoryCheckIntervalSeconds"), settings("MemoryCheckIntervalSeconds"), "300"))
                 _autoRestartOnCriticalMemory = Boolean.Parse(If(settings.ContainsKey("AutoRestartOnCriticalMemory"), settings("AutoRestartOnCriticalMemory"), "True"))
-                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s, AutoRestart={_autoRestartOnCriticalMemory}")
+                _dailyRestartEnabled = Boolean.Parse(If(settings.ContainsKey("DailyRestartEnabled"), settings("DailyRestartEnabled"), "False"))
+                Dim dailyRestartTimeStr = If(settings.ContainsKey("DailyRestartTime"), settings("DailyRestartTime"), "03:00")
+                If Not TimeSpan.TryParse(dailyRestartTimeStr, _dailyRestartTime) Then
+                    _dailyRestartTime = New TimeSpan(3, 0, 0)
+                End If
+                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s, AutoRestart={_autoRestartOnCriticalMemory}, DailyRestart={_dailyRestartEnabled} at {_dailyRestartTime}")
             Catch ex As Exception
                 _logger.LogWarning($"Error loading memory monitor settings, using defaults: {ex.Message}")
                 _memoryMonitorEnabled = True
                 _memoryCheckIntervalSeconds = 300
                 _autoRestartOnCriticalMemory = True
+                _dailyRestartEnabled = False
+                _dailyRestartTime = New TimeSpan(3, 0, 0)
             End Try
         End Sub
 
@@ -311,6 +321,9 @@ Namespace LiteTask
 
                 ' Periodic memory usage monitoring
                 CheckMemoryUsage(now)
+
+                ' Daily scheduled restart check
+                CheckDailyRestart(now)
 
                 For Each task In _tasks.Values
                     Try
@@ -491,6 +504,75 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"[MemoryMonitor] Failed to initiate service restart: {ex.Message}")
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Checks whether a daily scheduled restart is due. The restart is triggered once per day
+        ''' within a 2-minute window around the configured time, provided no tasks are running
+        ''' and no task is scheduled within the next 5 minutes.
+        ''' </summary>
+        Private Sub CheckDailyRestart(now As DateTime)
+            Try
+                If Not _dailyRestartEnabled Then Return
+
+                ' Only trigger once per calendar day
+                If _lastDailyRestartDate.Date = now.Date Then Return
+
+                ' Check if we are within the 2-minute trigger window
+                Dim currentTime = now.TimeOfDay
+                If currentTime < _dailyRestartTime OrElse currentTime > _dailyRestartTime.Add(TimeSpan.FromMinutes(2)) Then
+                    Return
+                End If
+
+                ' Safety checks: no running tasks and no imminent tasks
+                Dim runningCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
+                If runningCount > 0 Then
+                    _logger.LogInfo($"[DailyRestart] Skipped: {runningCount} task(s) still running")
+                    Return
+                End If
+
+                Dim nextTaskTime = GetEarliestNextRunTime()
+                Dim safeWindow = TimeSpan.FromMinutes(AUTO_RESTART_SAFE_WINDOW_MINUTES)
+                If nextTaskTime <> DateTime.MaxValue AndAlso (nextTaskTime - now) <= safeWindow Then
+                    _logger.LogInfo($"[DailyRestart] Skipped: next task at {nextTaskTime:HH:mm:ss} is within {AUTO_RESTART_SAFE_WINDOW_MINUTES}-minute safe window")
+                    Return
+                End If
+
+                ' Mark today as restarted so we don't trigger again
+                _lastDailyRestartDate = now.Date
+
+                _logger.LogWarning($"[DailyRestart] Initiating scheduled daily restart at {now:HH:mm:ss}")
+
+                ' Send notification
+                Try
+                    Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                    If notificationManager IsNot Nothing Then
+                        Dim body As New StringBuilder()
+                        body.AppendLine("LiteTask is performing its scheduled daily service restart.")
+                        body.AppendLine()
+                        body.AppendLine($"  Restart Time: {now:yyyy-MM-dd HH:mm:ss}")
+                        body.AppendLine($"  Configured Time: {_dailyRestartTime}")
+                        body.AppendLine()
+                        body.AppendLine("This restart is configured to reclaim memory and handles.")
+                        body.AppendLine("Scheduled tasks will resume automatically after the restart.")
+
+                        notificationManager.QueueNotification(
+                            "LiteTask: Scheduled Daily Restart",
+                            body.ToString(),
+                            NotificationManager.NotificationPriority.Normal)
+
+                        ' Give the notification manager a moment to flush
+                        Thread.Sleep(3000)
+                    End If
+                Catch notifyEx As Exception
+                    _logger.LogError($"[DailyRestart] Failed to send restart notification: {notifyEx.Message}")
+                End Try
+
+                InitiateServiceRestart()
+
+            Catch ex As Exception
+                _logger.LogError($"[DailyRestart] Error checking daily restart: {ex.Message}")
             End Try
         End Sub
 

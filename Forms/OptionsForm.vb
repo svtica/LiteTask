@@ -446,7 +446,7 @@ Namespace LiteTask
                 .Dock = DockStyle.Fill,
                 .Padding = New Padding(10),
                 .ColumnCount = 2,
-                .RowCount = 3
+                .RowCount = 5
             }
 
             layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 40))
@@ -470,21 +470,50 @@ Namespace LiteTask
                 .Dock = DockStyle.Fill
             }
 
+            _dailyRestartCheckBox = New CheckBox With {
+                .Text = TranslationManager.Instance.GetTranslation("_dailyRestartCheckBox", "Enable Daily Service Restart"),
+                .Dock = DockStyle.Fill
+            }
+
+            _dailyRestartTimeLabel = New Label With {
+                .Text = TranslationManager.Instance.GetTranslation("_dailyRestartTimeLabel", "Restart Time:"),
+                .Dock = DockStyle.Fill
+            }
+
+            _dailyRestartTimePicker = New DateTimePicker With {
+                .Format = DateTimePickerFormat.Time,
+                .ShowUpDown = True,
+                .Value = DateTime.Today.AddHours(3),
+                .Dock = DockStyle.Fill
+            }
+
             ' Enable/disable interval control based on checkbox
             AddHandler _enableMemoryMonitorCheckBox.CheckedChanged, Sub(sender, e)
                                                                         _memoryCheckIntervalNumeric.Enabled = _enableMemoryMonitorCheckBox.Checked
                                                                         _memoryCheckIntervalLabel.Enabled = _enableMemoryMonitorCheckBox.Checked
                                                                     End Sub
 
+            ' Enable/disable daily restart time based on checkbox
+            AddHandler _dailyRestartCheckBox.CheckedChanged, Sub(sender, e)
+                                                                  _dailyRestartTimePicker.Enabled = _dailyRestartCheckBox.Checked
+                                                                  _dailyRestartTimeLabel.Enabled = _dailyRestartCheckBox.Checked
+                                                              End Sub
+
             ' Add controls to layout
             layout.Controls.Add(_enableMemoryMonitorCheckBox, 0, 0)
             layout.SetColumnSpan(_enableMemoryMonitorCheckBox, 2)
             layout.Controls.Add(_memoryCheckIntervalLabel, 0, 1)
             layout.Controls.Add(_memoryCheckIntervalNumeric, 1, 1)
+            layout.Controls.Add(_dailyRestartCheckBox, 0, 2)
+            layout.SetColumnSpan(_dailyRestartCheckBox, 2)
+            layout.Controls.Add(_dailyRestartTimeLabel, 0, 3)
+            layout.Controls.Add(_dailyRestartTimePicker, 1, 3)
 
-            ' Add tooltip
+            ' Add tooltips
             Dim toolTip As New ToolTip()
             toolTip.SetToolTip(_memoryCheckIntervalNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MemoryInterval", "How often to check memory usage (in seconds)"))
+            toolTip.SetToolTip(_dailyRestartCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.DailyRestart", "Restart the service daily to reclaim memory and handles. Restart is skipped if a task is running or scheduled within 5 minutes."))
+            toolTip.SetToolTip(_dailyRestartTimePicker, TranslationManager.Instance.GetTranslation("Options.Tooltip.DailyRestartTime", "Time of day to restart the service (default: 03:00 AM)"))
 
             _monitoringTab.Controls.Add(layout)
             _tabControl.TabPages.Add(_monitoringTab)
@@ -546,6 +575,18 @@ Namespace LiteTask
                 _memoryCheckIntervalNumeric.Enabled = _enableMemoryMonitorCheckBox.Checked
                 _memoryCheckIntervalLabel.Enabled = _enableMemoryMonitorCheckBox.Checked
 
+                ' Load daily restart settings
+                _dailyRestartCheckBox.Checked = Boolean.Parse(GetSettingValue(monitorSettings, "DailyRestartEnabled", "False"))
+                Dim dailyRestartTimeStr = GetSettingValue(monitorSettings, "DailyRestartTime", "03:00")
+                Dim parsedTime As TimeSpan
+                If TimeSpan.TryParse(dailyRestartTimeStr, parsedTime) Then
+                    _dailyRestartTimePicker.Value = DateTime.Today.Add(parsedTime)
+                Else
+                    _dailyRestartTimePicker.Value = DateTime.Today.AddHours(3)
+                End If
+                _dailyRestartTimePicker.Enabled = _dailyRestartCheckBox.Checked
+                _dailyRestartTimeLabel.Enabled = _dailyRestartCheckBox.Checked
+
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
                 MessageBox.Show($"Error loading settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -601,7 +642,9 @@ Namespace LiteTask
                 ' Save monitoring settings
                 _xmlManager.SaveMemoryMonitorSettings(
                     _enableMemoryMonitorCheckBox.Checked,
-                    CInt(_memoryCheckIntervalNumeric.Value))
+                    CInt(_memoryCheckIntervalNumeric.Value),
+                    dailyRestartEnabled:=_dailyRestartCheckBox.Checked,
+                    dailyRestartTime:=_dailyRestartTimePicker.Value.ToString("HH:mm"))
 
                 DialogResult = DialogResult.OK
                 _logger.LogInfo("Settings saved successfully")
