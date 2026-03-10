@@ -408,7 +408,7 @@ Namespace LiteTask
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing
             Try
-                Dim initialSessionState = InitialSessionState.CreateDefault2()
+                Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
                 ' Do NOT call ImportPSModule() - it loads assemblies that can never be unloaded.
