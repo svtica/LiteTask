@@ -1,8 +1,8 @@
 # LiteTask
 
 [![GitHub release](https://img.shields.io/github/v/release/svtica/LiteTask)](https://github.com/svtica/LiteTask/releases/latest)
-[![Release](https://github.com/svtica/LiteTask/actions/workflows/Release.yml/badge.svg)](https://github.com/svtica/LiteTask/actions/workflows/Release.yml)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-green.svg)](LICENSE)
+[![Release](https://github.com/svtica/LiteTask/actions/workflows/Release.yml/badge.svg)](https://github.com/svtica/LiteTask/actions/workflows/Release.yml)
 
 **Lightweight alternative to Windows Task Scheduler with advanced PowerShell integration and secure credential management.**
 
