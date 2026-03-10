@@ -407,8 +407,9 @@ Namespace LiteTask
         ''' </summary>
         Public Function CreatePowerShellInstance() As PowerShell
             Dim runspace As Runspaces.Runspace = Nothing
+            Dim initialSessionState As InitialSessionState = Nothing
             Try
-                Dim initialSessionState As InitialSessionState = InitialSessionState.CreateDefault2()
+                initialSessionState = InitialSessionState.CreateDefault2()
                 initialSessionState.ExecutionPolicy = ExecutionPolicy.Bypass
 
                 ' Do NOT call ImportPSModule() - it loads assemblies that can never be unloaded.
@@ -417,6 +418,10 @@ Namespace LiteTask
                 ' Create Runspace explicitly so callers control its lifecycle (PS.Dispose() leaks it)
                 runspace = Runspaces.RunspaceFactory.CreateRunspace(initialSessionState)
                 runspace.Open()
+
+                ' ISS is only needed to create the Runspace; dispose it now to free its internal collections.
+                initialSessionState.Dispose()
+                initialSessionState = Nothing
 
                 Dim ps = PowerShell.Create()
                 ps.Runspace = runspace
@@ -430,6 +435,13 @@ Namespace LiteTask
                         runspace.Dispose()
                     Catch
                         ' Suppress cleanup errors during error handling
+                    End Try
+                End If
+                ' Dispose ISS on error path too
+                If initialSessionState IsNot Nothing Then
+                    Try
+                        initialSessionState.Dispose()
+                    Catch
                     End Try
                 End If
                 _logger.LogError($"Error creating PowerShell instance: {ex.Message}")
