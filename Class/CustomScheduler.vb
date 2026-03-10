@@ -39,6 +39,8 @@ Namespace LiteTask
         Private _lastMemoryCheckTime As DateTime = DateTime.MinValue
         Private _lastMemoryAlertTime As DateTime = DateTime.MinValue
         Private Const MEMORY_ALERT_COOLDOWN_MINUTES As Integer = 30   ' Avoid alert spam
+        Private _autoRestartOnCriticalMemory As Boolean = True        ' Auto-restart service on critical memory
+        Private Const AUTO_RESTART_SAFE_WINDOW_MINUTES As Integer = 5 ' Only restart if no task runs within this window
 
         ' Enhanced mutex management properties
         Private Const MUTEX_TIMEOUT_SECONDS As Integer = 30  ' Increased from 1 second
@@ -236,11 +238,13 @@ Namespace LiteTask
                 Dim settings = _xmlManager.GetMemoryMonitorSettings()
                 _memoryMonitorEnabled = Boolean.Parse(If(settings.ContainsKey("MemoryMonitorEnabled"), settings("MemoryMonitorEnabled"), "True"))
                 _memoryCheckIntervalSeconds = Integer.Parse(If(settings.ContainsKey("MemoryCheckIntervalSeconds"), settings("MemoryCheckIntervalSeconds"), "300"))
-                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s")
+                _autoRestartOnCriticalMemory = Boolean.Parse(If(settings.ContainsKey("AutoRestartOnCriticalMemory"), settings("AutoRestartOnCriticalMemory"), "True"))
+                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s, AutoRestart={_autoRestartOnCriticalMemory}")
             Catch ex As Exception
                 _logger.LogWarning($"Error loading memory monitor settings, using defaults: {ex.Message}")
                 _memoryMonitorEnabled = True
                 _memoryCheckIntervalSeconds = 300
+                _autoRestartOnCriticalMemory = True
             End Try
         End Sub
 
@@ -366,6 +370,22 @@ Namespace LiteTask
 
                     If level IsNot Nothing Then
                         _lastMemoryAlertTime = now
+
+                        ' Determine if we should auto-restart the service
+                        Dim willRestart = False
+                        If level = "CRITICAL" AndAlso _autoRestartOnCriticalMemory Then
+                            Dim runningCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
+                            Dim nextTaskTime = GetEarliestNextRunTime()
+                            Dim safeWindow = TimeSpan.FromMinutes(AUTO_RESTART_SAFE_WINDOW_MINUTES)
+
+                            If runningCount = 0 AndAlso
+                               (nextTaskTime = DateTime.MaxValue OrElse (nextTaskTime - now) > safeWindow) Then
+                                willRestart = True
+                            Else
+                                _logger.LogWarning($"[MemoryMonitor] Auto-restart skipped: {runningCount} tasks running, next task at {nextTaskTime:HH:mm:ss}")
+                            End If
+                        End If
+
                         Try
                             Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
                             If notificationManager IsNot Nothing Then
@@ -381,22 +401,96 @@ Namespace LiteTask
                                 Dim runningTaskCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
                                 body.AppendLine($"  Running tasks: {runningTaskCount}")
                                 body.AppendLine()
-                                body.AppendLine("Action recommended: Investigate running tasks and consider restarting the service.")
+
+                                If willRestart Then
+                                    body.AppendLine("ACTION TAKEN: The LiteTaskService is being automatically restarted to reclaim memory.")
+                                    body.AppendLine("The service will stop and restart within approximately 10 seconds.")
+                                    body.AppendLine("Scheduled tasks will resume automatically after the restart.")
+                                Else
+                                    body.AppendLine("Action recommended: Investigate running tasks and consider restarting the service.")
+                                End If
 
                                 notificationManager.QueueNotification(
-                                    $"LiteTask {level}: Memory usage at {privateMemoryMB} MB",
+                                    $"LiteTask {level}: Memory usage at {privateMemoryMB} MB{If(willRestart, " - SERVICE RESTARTING", "")}",
                                     body.ToString(),
                                     If(level = "CRITICAL",
                                        NotificationManager.NotificationPriority.High,
                                        NotificationManager.NotificationPriority.Normal))
+
+                                ' Give the notification manager a moment to flush the email before we restart
+                                If willRestart Then
+                                    Thread.Sleep(3000)
+                                End If
                             End If
                         Catch notifyEx As Exception
                             _logger.LogError($"[MemoryMonitor] Failed to send memory alert: {notifyEx.Message}")
                         End Try
+
+                        ' Perform the auto-restart after sending the notification
+                        If willRestart Then
+                            InitiateServiceRestart()
+                        End If
                     End If
                 End Using
             Catch ex As Exception
                 _logger.LogError($"[MemoryMonitor] Error checking memory: {ex.Message}")
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Returns the earliest NextRunTime across all enabled tasks, or DateTime.MaxValue if none.
+        ''' </summary>
+        Private Function GetEarliestNextRunTime() As DateTime
+            Dim earliest = DateTime.MaxValue
+            For Each task In _tasks.Values
+                If task.Enabled AndAlso task.NextRunTime < earliest Then
+                    earliest = task.NextRunTime
+                End If
+            Next
+            Return earliest
+        End Function
+
+        ''' <summary>
+        ''' Spawns a detached helper process that waits a few seconds, then restarts the
+        ''' LiteTaskService via "net stop" / "net start". Because the helper is a separate
+        ''' process, it survives the service stopping.
+        ''' </summary>
+        Private Sub InitiateServiceRestart()
+            Try
+                _logger.LogWarning("[MemoryMonitor] Initiating automatic service restart due to critical memory usage")
+
+                ' Save current tasks before restarting
+                Try
+                    SaveTasks()
+                Catch saveEx As Exception
+                    _logger.LogError($"[MemoryMonitor] Error saving tasks before restart: {saveEx.Message}")
+                End Try
+
+                ' Launch a detached cmd.exe process that:
+                '   1. Waits 5 seconds (gives the service time to finish logging/notification)
+                '   2. Stops the LiteTaskService
+                '   3. Waits 3 seconds for a clean stop
+                '   4. Starts the LiteTaskService again
+                ' The /c flag means cmd.exe exits after the command completes.
+                ' "start /b" is not needed — cmd.exe itself is the helper process.
+                Dim restartCommand = "timeout /t 5 /nobreak >nul & net stop LiteTaskService & timeout /t 3 /nobreak >nul & net start LiteTaskService"
+
+                Dim psi As New ProcessStartInfo() With {
+                    .FileName = "cmd.exe",
+                    .Arguments = $"/c {restartCommand}",
+                    .UseShellExecute = False,
+                    .CreateNoWindow = True,
+                    .RedirectStandardOutput = False,
+                    .RedirectStandardError = False,
+                    .RedirectStandardInput = False
+                }
+
+                Dim restartProcess = Process.Start(psi)
+                ' Do NOT wait for or dispose the process — it must outlive this service instance
+                _logger.LogWarning($"[MemoryMonitor] Restart helper process launched (PID: {restartProcess?.Id}). Service will restart shortly.")
+
+            Catch ex As Exception
+                _logger.LogError($"[MemoryMonitor] Failed to initiate service restart: {ex.Message}")
             End Try
         End Sub
 
