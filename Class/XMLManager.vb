@@ -802,20 +802,23 @@ Namespace LiteTask
                 Dim settings As New Dictionary(Of String, String)
                 settings("MemoryMonitorEnabled") = ReadValue("MemoryMonitor", "Enabled", "True")
                 settings("MemoryCheckIntervalSeconds") = ReadValue("MemoryMonitor", "CheckIntervalSeconds", "300")
+                settings("AutoRestartOnCriticalMemory") = ReadValue("MemoryMonitor", "AutoRestartOnCriticalMemory", "True")
                 Return settings
             Catch ex As Exception
                 _logger?.LogError($"Error reading memory monitor settings: {ex.Message}")
                 Return New Dictionary(Of String, String) From {
                     {"MemoryMonitorEnabled", "True"},
-                    {"MemoryCheckIntervalSeconds", "300"}
+                    {"MemoryCheckIntervalSeconds", "300"},
+                    {"AutoRestartOnCriticalMemory", "True"}
                 }
             End Try
         End Function
 
-        Public Sub SaveMemoryMonitorSettings(enabled As Boolean, intervalSeconds As Integer)
+        Public Sub SaveMemoryMonitorSettings(enabled As Boolean, intervalSeconds As Integer, Optional autoRestart As Boolean = True)
             Try
                 WriteValue("MemoryMonitor", "Enabled", enabled.ToString())
                 WriteValue("MemoryMonitor", "CheckIntervalSeconds", intervalSeconds.ToString())
+                WriteValue("MemoryMonitor", "AutoRestartOnCriticalMemory", autoRestart.ToString())
             Catch ex As Exception
                 _logger?.LogError($"Error saving memory monitor settings: {ex.Message}")
                 Throw
