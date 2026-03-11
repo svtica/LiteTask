@@ -1,7 +1,8 @@
 # LiteTask
 
-[![GitHub release](https://img.shields.io/github/v/release/svtica/LiteTask)](https://github.com/svtica/LiteTask/releases/latest)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-green.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/svtica/LiteTask)](https://github.com/svtica/LiteTask/releases/latest)
+[![Release](https://github.com/svtica/LiteTask/actions/workflows/Release.yml/badge.svg)](https://github.com/svtica/LiteTask/actions/workflows/Release.yml)
 
 **Lightweight alternative to Windows Task Scheduler with advanced PowerShell integration and secure credential management.**
 
@@ -100,4 +101,3 @@ This tool is part of **LiteSuite** - a comprehensive collection of lightweight W
 - **[LiteTask](https://github.com/svtica/LiteTask)** - Advanced Task Scheduler Alternative  
 - **[LitePM](https://github.com/svtica/LitePM)** - Process Manager with System Monitoring
 - **[LiteDeploy](https://github.com/svtica/LiteDeploy)** - Network Deployment and Management
-- **[LiteRun](https://github.com/svtica/LiteRun)** - Remote Command Execution Utility (archived)
