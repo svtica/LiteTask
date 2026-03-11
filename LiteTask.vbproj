@@ -104,9 +104,15 @@
     <None Remove="LiteTaskData\tools\LiteDeploy.exe.config" />
     <None Remove="LiteTaskData\tools\LitePM.exe" />
     <None Remove="LiteTaskData\tools\LitePM.exe.config" />
+    <None Remove="LiteTaskData\tools\LitePMService.exe" />
+    <None Remove="LiteTaskData\tools\LitePMService.exe.config" />
     <None Remove="LiteTaskData\tools\LiteWMI.dll" />
     <None Remove="LiteTaskData\tools\RDPWInst.exe" />
+    <None Remove="LiteTaskData\tools\SecureChannel.dll" />
     <None Remove="LiteTaskData\tools\SecurePasswordTextBox.dll" />
+    <None Remove="LiteTaskData\tools\System.Windows.Forms.Ribbon.dll" />
+    <None Remove="LiteTaskData\tools\TaskDialog.dll" />
+    <None Remove="LiteTaskData\tools\Aga.Controls.dll" />
     <None Remove="LiteTaskData\tools\sqlcmd.exe" />
     <None Remove="PsExec64.exe" />
   </ItemGroup>
@@ -136,6 +142,24 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="LiteTaskData\tools\SecurePasswordTextBox.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\Aga.Controls.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\LitePMService.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\LitePMService.exe.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\SecureChannel.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\System.Windows.Forms.Ribbon.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LiteTaskData\tools\TaskDialog.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="LiteTaskData\tools\sqlcmd.exe">
