@@ -367,11 +367,6 @@ Namespace LiteTask
                     Dim gcTotalMB = GC.GetTotalMemory(False) \ (1024L * 1024L)
                     _logger.LogInfo($"[MemoryMonitor] Working Set: {workingSetMB} MB, Private Bytes: {privateMemoryMB} MB, GC Total: {gcTotalMB} MB, Handles: {handleCount}")
 
-                    ' Only send alerts with a cooldown to avoid flooding
-                    If (now - _lastMemoryAlertTime).TotalMinutes < MEMORY_ALERT_COOLDOWN_MINUTES Then
-                        Return
-                    End If
-
                     Dim level As String = Nothing
                     If privateMemoryMB > MEMORY_CRITICAL_THRESHOLD_MB Then
                         level = "CRITICAL"
@@ -382,9 +377,7 @@ Namespace LiteTask
                     End If
 
                     If level IsNot Nothing Then
-                        _lastMemoryAlertTime = now
-
-                        ' Determine if we should auto-restart the service
+                        ' Determine if we should auto-restart the service (checked independently of alert cooldown)
                         Dim willRestart = False
                         If level = "CRITICAL" AndAlso _autoRestartOnCriticalMemory Then
                             Dim runningCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
@@ -399,47 +392,53 @@ Namespace LiteTask
                             End If
                         End If
 
-                        Try
-                            Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                            If notificationManager IsNot Nothing Then
-                                Dim body As New StringBuilder()
-                                body.AppendLine($"LiteTask memory usage has exceeded the {level} threshold:")
-                                body.AppendLine()
-                                body.AppendLine($"  Working Set:  {workingSetMB} MB")
-                                body.AppendLine($"  Private Bytes: {privateMemoryMB} MB")
-                                body.AppendLine($"  GC Heap:       {GC.GetTotalMemory(False) \ (1024L * 1024L)} MB")
-                                body.AppendLine($"  Threshold:     {If(level = "CRITICAL", MEMORY_CRITICAL_THRESHOLD_MB, MEMORY_WARNING_THRESHOLD_MB)} MB")
-                                body.AppendLine()
-                                body.AppendLine($"  Time: {now:yyyy-MM-dd HH:mm:ss}")
-                                Dim runningTaskCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
-                                body.AppendLine($"  Running tasks: {runningTaskCount}")
-                                body.AppendLine()
+                        ' Only send alert notifications with a cooldown to avoid flooding
+                        Dim cooldownElapsed = (now - _lastMemoryAlertTime).TotalMinutes >= MEMORY_ALERT_COOLDOWN_MINUTES
+                        If cooldownElapsed Then
+                            _lastMemoryAlertTime = now
 
-                                If willRestart Then
-                                    body.AppendLine("ACTION TAKEN: The LiteTaskService is being automatically restarted to reclaim memory.")
-                                    body.AppendLine("The service will stop and restart within approximately 10 seconds.")
-                                    body.AppendLine("Scheduled tasks will resume automatically after the restart.")
-                                Else
-                                    body.AppendLine("Action recommended: Investigate running tasks and consider restarting the service.")
+                            Try
+                                Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                                If notificationManager IsNot Nothing Then
+                                    Dim body As New StringBuilder()
+                                    body.AppendLine($"LiteTask memory usage has exceeded the {level} threshold:")
+                                    body.AppendLine()
+                                    body.AppendLine($"  Working Set:  {workingSetMB} MB")
+                                    body.AppendLine($"  Private Bytes: {privateMemoryMB} MB")
+                                    body.AppendLine($"  GC Heap:       {GC.GetTotalMemory(False) \ (1024L * 1024L)} MB")
+                                    body.AppendLine($"  Threshold:     {If(level = "CRITICAL", MEMORY_CRITICAL_THRESHOLD_MB, MEMORY_WARNING_THRESHOLD_MB)} MB")
+                                    body.AppendLine()
+                                    body.AppendLine($"  Time: {now:yyyy-MM-dd HH:mm:ss}")
+                                    Dim runningTaskCount = _taskStates.Values.Where(Function(ts) ts.IsRunning).Count()
+                                    body.AppendLine($"  Running tasks: {runningTaskCount}")
+                                    body.AppendLine()
+
+                                    If willRestart Then
+                                        body.AppendLine("ACTION TAKEN: The LiteTaskService is being automatically restarted to reclaim memory.")
+                                        body.AppendLine("The service will stop and restart within approximately 10 seconds.")
+                                        body.AppendLine("Scheduled tasks will resume automatically after the restart.")
+                                    Else
+                                        body.AppendLine("Action recommended: Investigate running tasks and consider restarting the service.")
+                                    End If
+
+                                    notificationManager.QueueNotification(
+                                        $"LiteTask {level}: Memory usage at {privateMemoryMB} MB{If(willRestart, " - SERVICE RESTARTING", "")}",
+                                        body.ToString(),
+                                        If(level = "CRITICAL",
+                                           NotificationManager.NotificationPriority.High,
+                                           NotificationManager.NotificationPriority.Normal))
+
+                                    ' Give the notification manager a moment to flush the email before we restart
+                                    If willRestart Then
+                                        Thread.Sleep(3000)
+                                    End If
                                 End If
+                            Catch notifyEx As Exception
+                                _logger.LogError($"[MemoryMonitor] Failed to send memory alert: {notifyEx.Message}")
+                            End Try
+                        End If
 
-                                notificationManager.QueueNotification(
-                                    $"LiteTask {level}: Memory usage at {privateMemoryMB} MB{If(willRestart, " - SERVICE RESTARTING", "")}",
-                                    body.ToString(),
-                                    If(level = "CRITICAL",
-                                       NotificationManager.NotificationPriority.High,
-                                       NotificationManager.NotificationPriority.Normal))
-
-                                ' Give the notification manager a moment to flush the email before we restart
-                                If willRestart Then
-                                    Thread.Sleep(3000)
-                                End If
-                            End If
-                        Catch notifyEx As Exception
-                            _logger.LogError($"[MemoryMonitor] Failed to send memory alert: {notifyEx.Message}")
-                        End Try
-
-                        ' Perform the auto-restart after sending the notification
+                        ' Perform the auto-restart after sending the notification (always attempted, not gated by cooldown)
                         If willRestart Then
                             InitiateServiceRestart()
                         End If
@@ -491,11 +490,8 @@ Namespace LiteTask
                 Dim psi As New ProcessStartInfo() With {
                     .FileName = "cmd.exe",
                     .Arguments = $"/c {restartCommand}",
-                    .UseShellExecute = False,
-                    .CreateNoWindow = True,
-                    .RedirectStandardOutput = False,
-                    .RedirectStandardError = False,
-                    .RedirectStandardInput = False
+                    .UseShellExecute = True,
+                    .WindowStyle = ProcessWindowStyle.Hidden
                 }
 
                 Dim restartProcess = Process.Start(psi)
