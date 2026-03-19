@@ -325,12 +325,16 @@ try {{
     # Ignore cleanup errors
 }}
 
-# Restart the service if it was installed (requires elevation)
+# Restart the service if it was installed
 try {{
     $service = Get-Service -Name 'LiteTaskService' -ErrorAction SilentlyContinue
     if ($service) {{
-        Start-Process powershell -ArgumentList '-NoProfile -Command ""Start-Service LiteTaskService""' -Verb RunAs -WindowStyle Hidden -Wait -ErrorAction Stop
-        # Refresh and verify the service started
+        try {{
+            Start-Service -Name 'LiteTaskService' -ErrorAction Stop
+        }} catch {{
+            # Direct start failed (e.g. insufficient privileges), try elevated
+            Start-Process powershell -ArgumentList '-NoProfile -Command ""Start-Service LiteTaskService""' -Verb RunAs -WindowStyle Hidden -Wait -ErrorAction Stop
+        }}
         $service.Refresh()
         $service.WaitForStatus('Running', (New-TimeSpan -Seconds 30)) | Out-Null
     }}
