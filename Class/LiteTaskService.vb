@@ -569,34 +569,5 @@ Namespace LiteTask
             End Using
         End Sub
 
-        Private Sub RunAsService()
-            Try
-                If Not EventLog.SourceExists("LiteTaskService") Then
-                    EventLog.CreateEventSource("LiteTaskService", "Application")
-                End If
-
-                InitializeContainer()
-
-                Using service = ApplicationContainer.GetService(Of LiteTaskService)()
-                    EventLog.WriteEntry("LiteTaskService", "Starting service...", EventLogEntryType.Information)
-
-                    service.EnsureRequiredPermissions()
-
-                    Dim servicesToRun() As ServiceBase = {service}
-                    ServiceBase.Run(servicesToRun)
-                End Using
-
-            Catch ex As Exception
-                LogServiceError("Error starting service", ex)
-                EventLog.WriteEntry("LiteTaskService", $"Error starting service: {ex.Message}", EventLogEntryType.Error)
-                Throw
-            Finally
-                Try
-                    ApplicationContainer.Dispose()
-                Catch disposeEx As Exception
-                    LogServiceError("Error disposing container", disposeEx)
-                End Try
-            End Try
-        End Sub
     End Class
 End Namespace
