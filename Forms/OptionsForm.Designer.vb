@@ -67,6 +67,7 @@ Namespace LiteTask
         Private WithEvents _dailyRestartCheckBox As CheckBox
         Private WithEvents _dailyRestartTimeLabel As Label
         Private WithEvents _dailyRestartTimePicker As DateTimePicker
+        Private WithEvents _dailyRestartNotificationCheckBox As CheckBox
 
         ' Button Panel Controls
         Private WithEvents _buttonPanel As Panel

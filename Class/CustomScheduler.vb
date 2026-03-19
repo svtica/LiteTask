@@ -44,6 +44,7 @@ Namespace LiteTask
         Private _dailyRestartEnabled As Boolean = False               ' Daily scheduled restart (off by default)
         Private _dailyRestartTime As TimeSpan = New TimeSpan(3, 0, 0) ' Default: 03:00 AM
         Private _lastDailyRestartDate As DateTime = DateTime.MinValue ' Tracks which day we last restarted
+        Private _dailyRestartNotificationEnabled As Boolean = True    ' Send email notification on daily restart
 
         ' Enhanced mutex management properties
         Private Const MUTEX_TIMEOUT_SECONDS As Integer = 30  ' Increased from 1 second
@@ -247,7 +248,15 @@ Namespace LiteTask
                 If Not TimeSpan.TryParse(dailyRestartTimeStr, _dailyRestartTime) Then
                     _dailyRestartTime = New TimeSpan(3, 0, 0)
                 End If
-                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s, AutoRestart={_autoRestartOnCriticalMemory}, DailyRestart={_dailyRestartEnabled} at {_dailyRestartTime}")
+                _dailyRestartNotificationEnabled = Boolean.Parse(If(settings.ContainsKey("DailyRestartNotificationEnabled"), settings("DailyRestartNotificationEnabled"), "True"))
+                Dim lastRestartDateStr = If(settings.ContainsKey("LastDailyRestartDate"), settings("LastDailyRestartDate"), "")
+                If Not String.IsNullOrEmpty(lastRestartDateStr) Then
+                    Dim parsedDate As DateTime
+                    If DateTime.TryParse(lastRestartDateStr, parsedDate) Then
+                        _lastDailyRestartDate = parsedDate.Date
+                    End If
+                End If
+                _logger.LogInfo($"Memory monitor settings loaded: Enabled={_memoryMonitorEnabled}, Interval={_memoryCheckIntervalSeconds}s, AutoRestart={_autoRestartOnCriticalMemory}, DailyRestart={_dailyRestartEnabled} at {_dailyRestartTime}, RestartNotification={_dailyRestartNotificationEnabled}")
             Catch ex As Exception
                 _logger.LogWarning($"Error loading memory monitor settings, using defaults: {ex.Message}")
                 _memoryMonitorEnabled = True
@@ -255,6 +264,7 @@ Namespace LiteTask
                 _autoRestartOnCriticalMemory = True
                 _dailyRestartEnabled = False
                 _dailyRestartTime = New TimeSpan(3, 0, 0)
+                _dailyRestartNotificationEnabled = True
             End Try
         End Sub
 
@@ -538,32 +548,42 @@ Namespace LiteTask
                 ' Mark today as restarted so we don't trigger again
                 _lastDailyRestartDate = now.Date
 
+                ' Persist the restart date to XML so a fresh service instance
+                ' (after the restart) won't re-trigger within the same window
+                Try
+                    _xmlManager.SaveLastDailyRestartDate(now.Date)
+                Catch persistEx As Exception
+                    _logger.LogWarning($"[DailyRestart] Could not persist restart date: {persistEx.Message}")
+                End Try
+
                 _logger.LogWarning($"[DailyRestart] Initiating scheduled daily restart at {now:HH:mm:ss}")
 
-                ' Send notification
-                Try
-                    Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                    If notificationManager IsNot Nothing Then
-                        Dim body As New StringBuilder()
-                        body.AppendLine("LiteTask is performing its scheduled daily service restart.")
-                        body.AppendLine()
-                        body.AppendLine($"  Restart Time: {now:yyyy-MM-dd HH:mm:ss}")
-                        body.AppendLine($"  Configured Time: {_dailyRestartTime}")
-                        body.AppendLine()
-                        body.AppendLine("This restart is configured to reclaim memory and handles.")
-                        body.AppendLine("Scheduled tasks will resume automatically after the restart.")
+                ' Send notification (only if enabled)
+                If _dailyRestartNotificationEnabled Then
+                    Try
+                        Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                        If notificationManager IsNot Nothing Then
+                            Dim body As New StringBuilder()
+                            body.AppendLine("LiteTask is performing its scheduled daily service restart.")
+                            body.AppendLine()
+                            body.AppendLine($"  Restart Time: {now:yyyy-MM-dd HH:mm:ss}")
+                            body.AppendLine($"  Configured Time: {_dailyRestartTime}")
+                            body.AppendLine()
+                            body.AppendLine("This restart is configured to reclaim memory and handles.")
+                            body.AppendLine("Scheduled tasks will resume automatically after the restart.")
 
-                        notificationManager.QueueNotification(
-                            "LiteTask: Scheduled Daily Restart",
-                            body.ToString(),
-                            NotificationManager.NotificationPriority.Normal)
+                            notificationManager.QueueNotification(
+                                "LiteTask: Scheduled Daily Restart",
+                                body.ToString(),
+                                NotificationManager.NotificationPriority.Normal)
 
-                        ' Give the notification manager a moment to flush
-                        Thread.Sleep(3000)
-                    End If
-                Catch notifyEx As Exception
-                    _logger.LogError($"[DailyRestart] Failed to send restart notification: {notifyEx.Message}")
-                End Try
+                            ' Give the notification manager a moment to flush
+                            Thread.Sleep(3000)
+                        End If
+                    Catch notifyEx As Exception
+                        _logger.LogError($"[DailyRestart] Failed to send restart notification: {notifyEx.Message}")
+                    End Try
+                End If
 
                 InitiateServiceRestart()
 
