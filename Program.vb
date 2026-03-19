@@ -30,14 +30,30 @@ Namespace LiteTask
                     Application.SetCompatibleTextRenderingDefault(False)
                 End If
 
+                ' For GUI modes (no args or -elevated), check single instance
+                ' BEFORE initializing the container so a duplicate exits immediately
+                ' without spinning up DI services, timers, etc.
+                Dim isGuiMode = args.Length = 0 OrElse
+                                (args.Length > 0 AndAlso args(0).Equals("-elevated", StringComparison.OrdinalIgnoreCase))
+
+                If isGuiMode Then
+                    Dim createdNew As Boolean
+                    _mutex = New Mutex(True, MutexName, createdNew)
+                    If Not createdNew Then
+                        MessageBox.Show("Another instance of LiteTask is already running.", "LiteTask",
+                              MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        Return
+                    End If
+                End If
+
                 ' Initialize container
                 InitializeContainer()
-                
+
                 ' Clean up any orphaned temp files from previous runs
                 Try
                     Dim logger = ApplicationContainer.GetService(Of Logger)()
                     logger.CleanupAllTempFiles()
-                    
+
                     ' Also cleanup config files and backups
                     Dim xmlManager = ApplicationContainer.GetService(Of XMLManager)()
                     xmlManager.CleanupConfigFiles()
@@ -53,15 +69,6 @@ Namespace LiteTask
                 If args.Length > 0 Then
                     HandleCommandLineArguments(args)
                 Else
-                    ' Check for single instance only in UI mode
-                    Dim createdNew As Boolean
-                    _mutex = New Mutex(True, MutexName, createdNew)
-                    If Not createdNew Then
-                        MessageBox.Show("Another instance of LiteTask is already running.", "LiteTask",
-                              MessageBoxButtons.OK, MessageBoxIcon.Information)
-                        Return
-                    End If
-
                     ' Create and show the main application context
                     Application.Run(New ApplicationContext())
                 End If
@@ -190,11 +197,9 @@ Namespace LiteTask
 
         Private Sub HandleElevatedMode()
             Try
-                ' Perform elevated operations here
-                _logger?.LogInfo("Application running in elevated mode")
-
-                ' Initialize with elevated privileges
-                InitializeContainer()
+                ' Container already initialized in Main(); mutex already acquired
+                Dim logger = TryGetService(Of Logger)()
+                logger?.LogInfo("Application running in elevated mode")
 
                 ' Run the application
                 Application.Run(New ApplicationContext())
