@@ -689,6 +689,18 @@ Namespace LiteTask
             _emailToTextBox.Text = ""
             _useCredentialsCheckBox.Checked = False
             _credentialComboBox.SelectedIndex = 0
+
+            ' Set default monitoring values
+            _enableMemoryMonitorCheckBox.Checked = True
+            _memoryCheckIntervalNumeric.Value = 300
+            _memoryCheckIntervalNumeric.Enabled = True
+            _memoryCheckIntervalLabel.Enabled = True
+            _dailyRestartCheckBox.Checked = False
+            _dailyRestartTimePicker.Value = DateTime.Today.AddHours(3)
+            _dailyRestartTimePicker.Enabled = False
+            _dailyRestartTimeLabel.Enabled = False
+            _dailyRestartNotificationCheckBox.Checked = True
+            _dailyRestartNotificationCheckBox.Enabled = False
         End Sub
 
         Private Sub TestEmailButton_Click(sender As Object, e As EventArgs)
