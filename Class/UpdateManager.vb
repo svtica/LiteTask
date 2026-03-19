@@ -274,7 +274,7 @@ $updateSource = '{extractPath.Replace("'", "''")}'
 try {{
     $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
     if ($process) {{
-        $process.WaitForExit(30000)
+        $process.WaitForExit(30000) | Out-Null
         if (!$process.HasExited) {{
             $process | Stop-Process -Force
         }}
@@ -325,6 +325,18 @@ try {{
     # Ignore cleanup errors
 }}
 
+# Restart the service if it was installed
+try {{
+    $service = Get-Service -Name 'LiteTaskService' -ErrorAction SilentlyContinue
+    if ($service) {{
+        Start-Service -Name 'LiteTaskService' -ErrorAction SilentlyContinue
+        # Wait briefly for service to start
+        $service.WaitForStatus('Running', (New-TimeSpan -Seconds 30)) | Out-Null
+    }}
+}} catch {{
+    # Service not installed or failed to start, ignore
+}}
+
 # Restart the application
 Start-Process -FilePath (Join-Path $appPath 'LiteTask.exe')
 "
@@ -337,7 +349,7 @@ Start-Process -FilePath (Join-Path $appPath 'LiteTask.exe')
                 .Arguments = $"-NoProfile -ExecutionPolicy Bypass -File ""{updateScriptPath}""",
                 .WorkingDirectory = _tempPath,
                 .UseShellExecute = True,
-                .CreateNoWindow = True
+                .WindowStyle = ProcessWindowStyle.Hidden
             }
 
             Process.Start(startInfo)
