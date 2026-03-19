@@ -446,7 +446,7 @@ Namespace LiteTask
                 .Dock = DockStyle.Fill,
                 .Padding = New Padding(10),
                 .ColumnCount = 2,
-                .RowCount = 5
+                .RowCount = 6
             }
 
             layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 40))
@@ -487,16 +487,22 @@ Namespace LiteTask
                 .Dock = DockStyle.Fill
             }
 
+            _dailyRestartNotificationCheckBox = New CheckBox With {
+                .Text = TranslationManager.Instance.GetTranslation("_dailyRestartNotificationCheckBox", "Send Email Notification on Restart"),
+                .Dock = DockStyle.Fill
+            }
+
             ' Enable/disable interval control based on checkbox
             AddHandler _enableMemoryMonitorCheckBox.CheckedChanged, Sub(sender, e)
                                                                         _memoryCheckIntervalNumeric.Enabled = _enableMemoryMonitorCheckBox.Checked
                                                                         _memoryCheckIntervalLabel.Enabled = _enableMemoryMonitorCheckBox.Checked
                                                                     End Sub
 
-            ' Enable/disable daily restart time based on checkbox
+            ' Enable/disable daily restart time and notification based on checkbox
             AddHandler _dailyRestartCheckBox.CheckedChanged, Sub(sender, e)
                                                                   _dailyRestartTimePicker.Enabled = _dailyRestartCheckBox.Checked
                                                                   _dailyRestartTimeLabel.Enabled = _dailyRestartCheckBox.Checked
+                                                                  _dailyRestartNotificationCheckBox.Enabled = _dailyRestartCheckBox.Checked
                                                               End Sub
 
             ' Add controls to layout
@@ -508,12 +514,15 @@ Namespace LiteTask
             layout.SetColumnSpan(_dailyRestartCheckBox, 2)
             layout.Controls.Add(_dailyRestartTimeLabel, 0, 3)
             layout.Controls.Add(_dailyRestartTimePicker, 1, 3)
+            layout.Controls.Add(_dailyRestartNotificationCheckBox, 0, 4)
+            layout.SetColumnSpan(_dailyRestartNotificationCheckBox, 2)
 
             ' Add tooltips
             Dim toolTip As New ToolTip()
             toolTip.SetToolTip(_memoryCheckIntervalNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MemoryInterval", "How often to check memory usage (in seconds)"))
             toolTip.SetToolTip(_dailyRestartCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.DailyRestart", "Restart the service daily to reclaim memory and handles. Restart is skipped if a task is running or scheduled within 5 minutes."))
             toolTip.SetToolTip(_dailyRestartTimePicker, TranslationManager.Instance.GetTranslation("Options.Tooltip.DailyRestartTime", "Time of day to restart the service (default: 03:00 AM)"))
+            toolTip.SetToolTip(_dailyRestartNotificationCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.DailyRestartNotification", "Send an email notification when the daily restart occurs"))
 
             _monitoringTab.Controls.Add(layout)
             _tabControl.TabPages.Add(_monitoringTab)
@@ -587,6 +596,10 @@ Namespace LiteTask
                 _dailyRestartTimePicker.Enabled = _dailyRestartCheckBox.Checked
                 _dailyRestartTimeLabel.Enabled = _dailyRestartCheckBox.Checked
 
+                ' Load daily restart notification setting
+                _dailyRestartNotificationCheckBox.Checked = Boolean.Parse(GetSettingValue(monitorSettings, "DailyRestartNotificationEnabled", "True"))
+                _dailyRestartNotificationCheckBox.Enabled = _dailyRestartCheckBox.Checked
+
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
                 MessageBox.Show($"Error loading settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -644,7 +657,8 @@ Namespace LiteTask
                     _enableMemoryMonitorCheckBox.Checked,
                     CInt(_memoryCheckIntervalNumeric.Value),
                     dailyRestartEnabled:=_dailyRestartCheckBox.Checked,
-                    dailyRestartTime:=_dailyRestartTimePicker.Value.ToString("HH:mm"))
+                    dailyRestartTime:=_dailyRestartTimePicker.Value.ToString("HH:mm"),
+                    dailyRestartNotificationEnabled:=_dailyRestartNotificationCheckBox.Checked)
 
                 DialogResult = DialogResult.OK
                 _logger.LogInfo("Settings saved successfully")
