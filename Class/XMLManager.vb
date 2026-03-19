@@ -805,6 +805,8 @@ Namespace LiteTask
                 settings("AutoRestartOnCriticalMemory") = ReadValue("MemoryMonitor", "AutoRestartOnCriticalMemory", "True")
                 settings("DailyRestartEnabled") = ReadValue("MemoryMonitor", "DailyRestartEnabled", "False")
                 settings("DailyRestartTime") = ReadValue("MemoryMonitor", "DailyRestartTime", "03:00")
+                settings("DailyRestartNotificationEnabled") = ReadValue("MemoryMonitor", "DailyRestartNotificationEnabled", "True")
+                settings("LastDailyRestartDate") = ReadValue("MemoryMonitor", "LastDailyRestartDate", "")
                 Return settings
             Catch ex As Exception
                 _logger?.LogError($"Error reading memory monitor settings: {ex.Message}")
@@ -813,7 +815,9 @@ Namespace LiteTask
                     {"MemoryCheckIntervalSeconds", "300"},
                     {"AutoRestartOnCriticalMemory", "True"},
                     {"DailyRestartEnabled", "False"},
-                    {"DailyRestartTime", "03:00"}
+                    {"DailyRestartTime", "03:00"},
+                    {"DailyRestartNotificationEnabled", "True"},
+                    {"LastDailyRestartDate", ""}
                 }
             End Try
         End Function
@@ -821,16 +825,30 @@ Namespace LiteTask
         Public Sub SaveMemoryMonitorSettings(enabled As Boolean, intervalSeconds As Integer,
                                              Optional autoRestart As Boolean = True,
                                              Optional dailyRestartEnabled As Boolean = False,
-                                             Optional dailyRestartTime As String = "03:00")
+                                             Optional dailyRestartTime As String = "03:00",
+                                             Optional dailyRestartNotificationEnabled As Boolean = True)
             Try
                 WriteValue("MemoryMonitor", "Enabled", enabled.ToString())
                 WriteValue("MemoryMonitor", "CheckIntervalSeconds", intervalSeconds.ToString())
                 WriteValue("MemoryMonitor", "AutoRestartOnCriticalMemory", autoRestart.ToString())
                 WriteValue("MemoryMonitor", "DailyRestartEnabled", dailyRestartEnabled.ToString())
                 WriteValue("MemoryMonitor", "DailyRestartTime", dailyRestartTime)
+                WriteValue("MemoryMonitor", "DailyRestartNotificationEnabled", dailyRestartNotificationEnabled.ToString())
             Catch ex As Exception
                 _logger?.LogError($"Error saving memory monitor settings: {ex.Message}")
                 Throw
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Persists the last daily restart date so the service does not re-trigger
+        ''' another restart within the same window after being restarted.
+        ''' </summary>
+        Public Sub SaveLastDailyRestartDate(restartDate As DateTime)
+            Try
+                WriteValue("MemoryMonitor", "LastDailyRestartDate", restartDate.ToString("yyyy-MM-dd"))
+            Catch ex As Exception
+                _logger?.LogError($"Error saving last daily restart date: {ex.Message}")
             End Try
         End Sub
 
