@@ -325,16 +325,17 @@ try {{
     # Ignore cleanup errors
 }}
 
-# Restart the service if it was installed
+# Restart the service if it was installed (requires elevation)
 try {{
     $service = Get-Service -Name 'LiteTaskService' -ErrorAction SilentlyContinue
     if ($service) {{
-        Start-Service -Name 'LiteTaskService' -ErrorAction SilentlyContinue
-        # Wait briefly for service to start
+        Start-Process powershell -ArgumentList '-NoProfile -Command ""Start-Service LiteTaskService""' -Verb RunAs -WindowStyle Hidden -Wait -ErrorAction Stop
+        # Refresh and verify the service started
+        $service.Refresh()
         $service.WaitForStatus('Running', (New-TimeSpan -Seconds 30)) | Out-Null
     }}
 }} catch {{
-    # Service not installed or failed to start, ignore
+    # Service not installed, user declined UAC, or failed to start
 }}
 
 # Restart the application
