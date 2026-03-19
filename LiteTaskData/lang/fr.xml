@@ -374,4 +374,10 @@
 	<translation key="_enableMemoryMonitorCheckBox">Activer la surveillance mémoire</translation>
 	<translation key="_memoryCheckIntervalLabel">Intervalle de vérification (secondes) :</translation>
 	<translation key="Options.Tooltip.MemoryInterval">Fréquence de vérification de l'utilisation mémoire (en secondes)</translation>
+	<translation key="_dailyRestartCheckBox">Activer le redémarrage quotidien du service</translation>
+	<translation key="_dailyRestartTimeLabel">Heure de redémarrage :</translation>
+	<translation key="_dailyRestartNotificationCheckBox">Envoyer une notification par courriel au redémarrage</translation>
+	<translation key="Options.Tooltip.DailyRestart">Redémarrer le service quotidiennement pour récupérer la mémoire et les handles. Le redémarrage est ignoré si une tâche est en cours ou planifiée dans les 5 prochaines minutes.</translation>
+	<translation key="Options.Tooltip.DailyRestartTime">Heure du redémarrage quotidien du service (par défaut : 03h00)</translation>
+	<translation key="Options.Tooltip.DailyRestartNotification">Envoyer une notification par courriel lors du redémarrage quotidien</translation>
 </translations>
