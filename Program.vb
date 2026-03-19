@@ -389,21 +389,8 @@ Namespace LiteTask
                 InitializeEventLogSource()
                 EventLog.WriteEntry(ServiceName, "Starting service...", EventLogEntryType.Information)
 
-                ' Initialize app with secure defaults
-                InitializeContainer()
-                
-                ' Clean up any orphaned temp files from previous runs
-                Try
-                    Dim logger = ApplicationContainer.GetService(Of Logger)()
-                    logger.CleanupAllTempFiles()
-                    
-                    ' Also cleanup config files and backups
-                    Dim xmlManager = ApplicationContainer.GetService(Of XMLManager)()
-                    xmlManager.CleanupConfigFiles()
-                Catch ex As Exception
-                    EventLog.WriteEntry(ServiceName, $"Warning: Failed to cleanup temp files: {ex.Message}", EventLogEntryType.Warning)
-                End Try
-                
+                ' Container and temp-file cleanup already performed in Main()
+
                 Dim service = ApplicationContainer.GetService(Of LiteTaskService)()
 
                 Dim servicesToRun() As ServiceBase = {service}
