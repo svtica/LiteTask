@@ -450,7 +450,7 @@ Namespace LiteTask
 
                         ' Perform the auto-restart after sending the notification (always attempted, not gated by cooldown)
                         If willRestart Then
-                            InitiateServiceRestart()
+                            InitiateServiceRestart("critical memory usage")
                         End If
                     End If
                 End Using
@@ -477,15 +477,15 @@ Namespace LiteTask
         ''' LiteTaskService via "net stop" / "net start". Because the helper is a separate
         ''' process, it survives the service stopping.
         ''' </summary>
-        Private Sub InitiateServiceRestart()
+        Private Sub InitiateServiceRestart(Optional reason As String = "critical memory usage")
             Try
-                _logger.LogWarning("[MemoryMonitor] Initiating automatic service restart due to critical memory usage")
+                _logger.LogWarning($"[ServiceRestart] Initiating automatic service restart: {reason}")
 
                 ' Save current tasks before restarting
                 Try
                     SaveTasks()
                 Catch saveEx As Exception
-                    _logger.LogError($"[MemoryMonitor] Error saving tasks before restart: {saveEx.Message}")
+                    _logger.LogError($"[ServiceRestart] Error saving tasks before restart: {saveEx.Message}")
                 End Try
 
                 ' Launch a detached cmd.exe process that:
@@ -506,10 +506,10 @@ Namespace LiteTask
 
                 Dim restartProcess = Process.Start(psi)
                 ' Do NOT wait for or dispose the process — it must outlive this service instance
-                _logger.LogWarning($"[MemoryMonitor] Restart helper process launched (PID: {restartProcess?.Id}). Service will restart shortly.")
+                _logger.LogWarning($"[ServiceRestart] Restart helper process launched (PID: {restartProcess?.Id}). Service will restart shortly.")
 
             Catch ex As Exception
-                _logger.LogError($"[MemoryMonitor] Failed to initiate service restart: {ex.Message}")
+                _logger.LogError($"[ServiceRestart] Failed to initiate service restart: {ex.Message}")
             End Try
         End Sub
 
@@ -585,7 +585,7 @@ Namespace LiteTask
                     End Try
                 End If
 
-                InitiateServiceRestart()
+                InitiateServiceRestart("scheduled daily restart")
 
             Catch ex As Exception
                 _logger.LogError($"[DailyRestart] Error checking daily restart: {ex.Message}")
