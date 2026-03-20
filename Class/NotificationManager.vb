@@ -16,7 +16,6 @@ Namespace LiteTask
         Private _processingTask As Task
         Private _cancellationTokenSource As New CancellationTokenSource()
         Private _isProcessingEmails As Boolean = False
-        Private disposedValue As Boolean
         Private ReadOnly _activeBatches As New ConcurrentDictionary(Of String, NotificationBatch)
 
         Public Sub New(logger As Logger, xmlManager As XMLManager)
@@ -103,31 +102,6 @@ Namespace LiteTask
             End Try
         End Sub
 
-        Private Sub ProcessEmailMessage(message As EmailMessage)
-            Try
-                Using mail As New MailMessage()
-                    mail.From = New MailAddress(_emailSettings("EmailFrom"))
-                    For Each recipient In _emailSettings("EmailTo").Split(";"c)
-                        mail.To.Add(recipient.Trim())
-                    Next
-                    mail.Subject = message.Subject
-                    mail.Body = message.Body
-                    mail.Priority = If(message.Priority = NotificationPriority.High,
-                         MailPriority.High, MailPriority.Normal)
-
-                    _smtpClient.Send(mail)
-                    _logger.LogInfo($"Email sent successfully: {message.Subject}")
-                End Using
-            Catch ex As Exception
-                _logger.LogError($"Failed to send email: {ex.Message}")
-                If message.RetryCount < 3 Then
-                    message.RetryCount += 1
-                    _messageQueue.Enqueue(message)
-                    Thread.Sleep(1000 * message.RetryCount)
-                End If
-            End Try
-        End Sub
-
         Public Sub QueueNotification(subject As String, body As String, priority As NotificationPriority)
             ThrowIfDisposed()
 
@@ -193,30 +167,6 @@ Namespace LiteTask
                 _logger.LogError($"Error queueing notification: {ex.Message}")
             End Try
         End Sub
-
-        Public Async Function SendEmailAsync(message As EmailMessage) As Task
-            Try
-                Using mail As New MailMessage()
-                    mail.From = New MailAddress(_emailSettings("EmailFrom"))
-                    For Each recipient In _emailSettings("EmailTo").Split(";"c)
-                        mail.To.Add(recipient.Trim())
-                    Next
-                    mail.Subject = message.Subject
-                    mail.Body = $"{message.Body}{Environment.NewLine}{Environment.NewLine}Timestamp: {message.Timestamp}"
-                    mail.Priority = If(message.Priority = NotificationPriority.High,
-                                     MailPriority.High, MailPriority.Normal)
-
-                    Await _smtpClient.SendMailAsync(mail)
-                    _logger.LogInfo($"Email sent successfully: {message.Subject}")
-                End Using
-            Catch ex As Exception
-                _logger.LogError($"Failed to send email: {ex.Message}")
-                If message.RetryCount < 3 Then
-                    message.RetryCount += 1
-                    _messageQueue.Enqueue(message)
-                End If
-            End Try
-        End Function
 
         Private Sub ThrowIfDisposed()
             If _disposed Then
