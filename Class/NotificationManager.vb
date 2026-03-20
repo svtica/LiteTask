@@ -19,24 +19,11 @@ Namespace LiteTask
         Private disposedValue As Boolean
         Private ReadOnly _activeBatches As New ConcurrentDictionary(Of String, NotificationBatch)
 
-        Public Property Messages As New List(Of EmailMessage)
-        Public Property StartTime As DateTime
-        Public Property Subject As String
-        Public Property HighestPriority As NotificationPriority = NotificationPriority.Normal
-        Public Property BatchId As String
-
         Public Sub New(logger As Logger, xmlManager As XMLManager)
             _logger = logger
             _xmlManager = xmlManager
             InitializeEmailSettings()
             StartEmailProcessor()
-        End Sub
-
-        Public Sub AddMessage(message As EmailMessage)
-            Messages.Add(message)
-            If message.Priority > HighestPriority Then
-                HighestPriority = message.Priority
-            End If
         End Sub
 
         Public Sub Dispose() Implements IDisposable.Dispose
@@ -97,39 +84,6 @@ Namespace LiteTask
             Dispose(disposing:=False)
             MyBase.Finalize()
         End Sub
-
-        Public Function GetCombinedBody() As String
-            Dim body As New StringBuilder()
-
-            ' Add execution summary
-            body.AppendLine($"Execution Summary:")
-            body.AppendLine($"Start Time: {StartTime:yyyy-MM-dd HH:mm:ss}")
-            body.AppendLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
-            body.AppendLine($"Total Messages: {Messages.Count}")
-            body.AppendLine()
-
-            ' Group messages by type
-            Dim outputs = Messages.Where(Function(m) Not m.Body.StartsWith("Error:")).ToList()
-            Dim errors = Messages.Where(Function(m) m.Body.StartsWith("Error:")).ToList()
-
-            If outputs.Count > 0 Then
-                body.AppendLine("Execution Output:")
-                For Each msg In outputs
-                    body.AppendLine(msg.Body)
-                Next
-                body.AppendLine()
-            End If
-
-            If errors.Count > 0 Then
-                body.AppendLine("Errors:")
-                For Each msg In errors
-                    body.AppendLine(msg.Body)
-                Next
-                body.AppendLine()
-            End If
-
-            Return body.ToString()
-        End Function
 
         Private Sub InitializeEmailSettings()
             Try
@@ -213,20 +167,25 @@ Namespace LiteTask
                     Dim newBatch = New NotificationBatch(message)
                     _activeBatches.TryAdd(newBatch.BatchId, newBatch)
 
-                    ' Schedule batch processing (respect cancellation, observe exceptions)
+                    ' Schedule batch processing — always remove the batch from _activeBatches
+                    ' to prevent accumulation, but only enqueue the email if not cancelled.
                     Task.Delay(5000, _cancellationTokenSource.Token).ContinueWith(Sub(t)
-                                                      If t.IsCanceled Then Return
                                                       Dim batch As NotificationBatch = Nothing
                                                       If _activeBatches.TryRemove(newBatch.BatchId, batch) Then
-                                                          Dim batchedMessage = New EmailMessage With {
-                            .Subject = $"{batch.Subject} - {batch.Messages.Count} messages",
+                                                          If Not t.IsCanceled Then
+                                                              Dim batchedMessage = New EmailMessage With {
+                            .Subject = If(batch.Messages.Count > 1,
+                                         $"{batch.Subject} - {batch.Messages.Count} messages",
+                                         batch.Subject),
                             .Body = batch.GetCombinedBody(),
                             .Priority = batch.HighestPriority,
                             .Timestamp = batch.StartTime
                         }
-                                                          _messageQueue.Enqueue(batchedMessage)
+                                                              _messageQueue.Enqueue(batchedMessage)
+                                                          End If
+                                                          batch.Messages.Clear()
                                                       End If
-                                                  End Sub, TaskContinuationOptions.OnlyOnRanToCompletion)
+                                                  End Sub)
                 End If
 
                 _logger.LogInfo($"Email notification queued: {subject}")
