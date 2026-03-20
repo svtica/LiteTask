@@ -99,9 +99,6 @@ Namespace LiteTask
                     ' Initialize email notification system
                 End If
 
-                ' Reload memory monitor and daily restart settings on the scheduler
-                _customScheduler.LoadMemoryMonitorSettings()
-
                 _logger.LogInfo("Settings loaded successfully")
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
