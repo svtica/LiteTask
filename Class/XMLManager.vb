@@ -553,6 +553,16 @@ Namespace LiteTask
             Return task
         End Function
 
+        ''' <summary>
+        ''' Invalidates the in-memory config cache so the next ReadValue call
+        ''' re-reads from the XML file.  Useful when another process (e.g. the
+        ''' GUI) may have updated the file.
+        ''' </summary>
+        Public Sub InvalidateCache()
+            _configCache.Clear()
+            _cacheExpiry = DateTime.MinValue
+        End Sub
+
         Public Function ReadValue(section As String, key As String, defaultValue As String) As String
             Try
                 Dim cacheKey = $"{section}/{key}"
