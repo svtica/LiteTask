@@ -558,6 +558,16 @@ Namespace LiteTask
 
                 _logger.LogWarning($"[DailyRestart] Initiating scheduled daily restart at {now:HH:mm:ss}")
 
+                ' Re-read notification setting from XML to pick up any changes
+                ' made via the GUI (which may be a separate process from the service)
+                Try
+                    _xmlManager.InvalidateCache()
+                    Dim currentSettings = _xmlManager.GetMemoryMonitorSettings()
+                    _dailyRestartNotificationEnabled = Boolean.Parse(If(currentSettings.ContainsKey("DailyRestartNotificationEnabled"), currentSettings("DailyRestartNotificationEnabled"), "True"))
+                Catch settingsEx As Exception
+                    _logger.LogWarning($"[DailyRestart] Could not re-read notification setting, using cached value: {settingsEx.Message}")
+                End Try
+
                 ' Send notification (only if enabled)
                 If _dailyRestartNotificationEnabled Then
                     Try
