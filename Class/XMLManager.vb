@@ -578,11 +578,12 @@ Namespace LiteTask
                 Dim node As XmlNode = xmlDoc.SelectSingleNode($"LiteTaskSettings/{section}/{key}")
                 Dim value = If(node?.InnerText, defaultValue)
                 
-                ' Update cache
-                _configCache(cacheKey) = value
-                If _configCache.Count = 1 Then ' First item, set expiry
+                ' Update cache – clear expired entries first to prevent unbounded growth
+                If DateTime.Now >= _cacheExpiry Then
+                    _configCache.Clear()
                     _cacheExpiry = DateTime.Now.Add(_cacheTimeout)
                 End If
+                _configCache(cacheKey) = value
                 
                 Return value
             Catch ex As Exception
