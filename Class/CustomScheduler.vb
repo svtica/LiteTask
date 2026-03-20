@@ -16,17 +16,13 @@ Namespace LiteTask
         Private ReadOnly _tasks As New ConcurrentDictionary(Of String, ScheduledTask)
         Private ReadOnly _errorNotifier As ErrorNotifier
         Private ReadOnly _taskRunner As TaskRunner
-        Private disposedValue As Boolean
         Private ReadOnly _taskRunning As New ConcurrentDictionary(Of String, Boolean)
         Private ReadOnly _dependencyManager As TaskDependencyManager
         Private ReadOnly _taskLocks As New ConcurrentDictionary(Of String, Object)
         Private ReadOnly _mutexBasePath As String = "Global\LiteTask_Task_"
         Private ReadOnly _powerShellPathManager As PowerShellPathManager
         Private ReadOnly _taskStates As New ConcurrentDictionary(Of String, TaskState)
-        Private ReadOnly _schedulerLock As New SemaphoreSlim(1, 1)
         Private Const STALE_TIMEOUT_MINUTES As Integer = 15
-        Private ReadOnly _processingLock As New SemaphoreSlim(1, 1)
-        Private _isProcessing As Boolean = False
         Private ReadOnly _staleTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
         Private _lastStaleCleanupTime As DateTime = DateTime.MinValue
         Private Const STALE_CLEANUP_INTERVAL_SECONDS As Integer = 300
@@ -725,9 +721,6 @@ Namespace LiteTask
                     _taskRunning.Clear()
                     _staleTaskAlerts.Clear()
 
-                    ' Release the processing semaphores
-                    _schedulerLock.Dispose()
-                    _processingLock.Dispose()
                 End If
 
                 ' Clean up unmanaged resources

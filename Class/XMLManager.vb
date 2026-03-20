@@ -11,6 +11,7 @@ Namespace LiteTask
         Private ReadOnly _tempPath As String
         
         ' Simple cache for frequently accessed config values
+        Private ReadOnly _cacheLock As New Object()
         Private _configCache As New Dictionary(Of String, String)
         Private _cacheExpiry As DateTime = DateTime.MinValue
         Private ReadOnly _cacheTimeout As TimeSpan = TimeSpan.FromMinutes(5)
@@ -559,32 +560,38 @@ Namespace LiteTask
         ''' GUI) may have updated the file.
         ''' </summary>
         Public Sub InvalidateCache()
-            _configCache.Clear()
-            _cacheExpiry = DateTime.MinValue
+            SyncLock _cacheLock
+                _configCache.Clear()
+                _cacheExpiry = DateTime.MinValue
+            End SyncLock
         End Sub
 
         Public Function ReadValue(section As String, key As String, defaultValue As String) As String
             Try
                 Dim cacheKey = $"{section}/{key}"
-                
-                ' Check cache first
-                If DateTime.Now < _cacheExpiry AndAlso _configCache.ContainsKey(cacheKey) Then
-                    Return _configCache(cacheKey)
-                End If
-                
+
+                ' Check cache first (under lock to avoid races with InvalidateCache)
+                SyncLock _cacheLock
+                    If DateTime.Now < _cacheExpiry AndAlso _configCache.ContainsKey(cacheKey) Then
+                        Return _configCache(cacheKey)
+                    End If
+                End SyncLock
+
                 Dim xmlDoc As New XmlDocument()
                 xmlDoc.Load(_filePath)
 
                 Dim node As XmlNode = xmlDoc.SelectSingleNode($"LiteTaskSettings/{section}/{key}")
                 Dim value = If(node?.InnerText, defaultValue)
-                
+
                 ' Update cache – clear expired entries first to prevent unbounded growth
-                If DateTime.Now >= _cacheExpiry Then
-                    _configCache.Clear()
-                    _cacheExpiry = DateTime.Now.Add(_cacheTimeout)
-                End If
-                _configCache(cacheKey) = value
-                
+                SyncLock _cacheLock
+                    If DateTime.Now >= _cacheExpiry Then
+                        _configCache.Clear()
+                        _cacheExpiry = DateTime.Now.Add(_cacheTimeout)
+                    End If
+                    _configCache(cacheKey) = value
+                End SyncLock
+
                 Return value
             Catch ex As Exception
                 _logger.LogError($"Error reading value for {section}/{key}: {ex.Message}")
@@ -883,11 +890,11 @@ Namespace LiteTask
                 keyNode.InnerText = value
                 xmlDoc.Save(_filePath)
                 
-                ' Clear cache for this key and related values
-                Dim cacheKey = $"{section}/{key}"
-                If _configCache.ContainsKey(cacheKey) Then
+                ' Clear cache for this key
+                SyncLock _cacheLock
+                    Dim cacheKey = $"{section}/{key}"
                     _configCache.Remove(cacheKey)
-                End If
+                End SyncLock
             Catch ex As Exception
                 _logger.LogError($"Error writing value for {section}/{key}: {ex.Message}")
             End Try
