@@ -504,9 +504,12 @@ Namespace LiteTask
                     .WindowStyle = ProcessWindowStyle.Hidden
                 }
 
-                Dim restartProcess = Process.Start(psi)
-                ' Do NOT wait for or dispose the process — it must outlive this service instance
-                _logger.LogWarning($"[ServiceRestart] Restart helper process launched (PID: {restartProcess?.Id}). Service will restart shortly.")
+                ' Start the helper process, log its PID, then dispose the Process object
+                ' to release the managed handle. The OS process itself continues running
+                ' independently — Dispose only releases the .NET wrapper, not the process.
+                Using restartProcess = Process.Start(psi)
+                    _logger.LogWarning($"[ServiceRestart] Restart helper process launched (PID: {restartProcess?.Id}). Service will restart shortly.")
+                End Using
 
             Catch ex As Exception
                 _logger.LogError($"[ServiceRestart] Failed to initiate service restart: {ex.Message}")
