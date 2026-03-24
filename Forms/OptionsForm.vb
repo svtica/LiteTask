@@ -27,6 +27,7 @@ Namespace LiteTask
                 InitializeEmailTab()
                 InitializeSqlTab()
                 InitializeMonitoringTab()
+                InitializeBackupTab()
 
                 ' Apply translations and load settings
                 ApplyTranslations()
@@ -82,6 +83,13 @@ Namespace LiteTask
                 _defaultDatabaseLabel.Text = TranslationManager.Instance.GetTranslation("_defaultDatabaseLabel")
                 _commandTimeoutLabel.Text = TranslationManager.Instance.GetTranslation("_commandTimeoutLabel")
                 _maxBatchSizeLabel.Text = TranslationManager.Instance.GetTranslation("_maxBatchSizeLabel")
+
+                ' Backup tab controls
+                _backupTab.Text = TranslationManager.Instance.GetTranslation("_backupTab", "Backup")
+                _enableBackupCheckBox.Text = TranslationManager.Instance.GetTranslation("_enableBackupCheckBox", "Enable Automatic Backup")
+                _enableBackupRotationCheckBox.Text = TranslationManager.Instance.GetTranslation("_enableBackupRotationCheckBox", "Enable Backup Rotation")
+                _backupRetentionLabel.Text = TranslationManager.Instance.GetTranslation("_backupRetentionLabel", "Retention (days):")
+                _maxBackupCountLabel.Text = TranslationManager.Instance.GetTranslation("_maxBackupCountLabel", "Maximum Backup Count:")
 
                 ' Monitoring tab controls
                 _monitoringTab.Text = TranslationManager.Instance.GetTranslation("_monitoringTab", "Monitoring")
@@ -528,6 +536,87 @@ Namespace LiteTask
             _tabControl.TabPages.Add(_monitoringTab)
         End Sub
 
+        Private Sub InitializeBackupTab()
+            _backupTab = New TabPage(TranslationManager.Instance.GetTranslation("_backupTab", "Backup"))
+            Dim layout As New TableLayoutPanel With {
+                .Dock = DockStyle.Fill,
+                .Padding = New Padding(10),
+                .ColumnCount = 2,
+                .RowCount = 5
+            }
+
+            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 40))
+            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 60))
+
+            _enableBackupCheckBox = New CheckBox With {
+                .Text = TranslationManager.Instance.GetTranslation("_enableBackupCheckBox", "Enable Automatic Backup"),
+                .Dock = DockStyle.Fill
+            }
+
+            _enableBackupRotationCheckBox = New CheckBox With {
+                .Text = TranslationManager.Instance.GetTranslation("_enableBackupRotationCheckBox", "Enable Backup Rotation"),
+                .Dock = DockStyle.Fill
+            }
+
+            _backupRetentionLabel = New Label With {
+                .Text = TranslationManager.Instance.GetTranslation("_backupRetentionLabel", "Retention (days):"),
+                .Dock = DockStyle.Fill
+            }
+
+            _backupRetentionNumeric = New NumericUpDown With {
+                .Minimum = 1,
+                .Maximum = 365,
+                .Value = 30,
+                .Dock = DockStyle.Fill
+            }
+
+            _maxBackupCountLabel = New Label With {
+                .Text = TranslationManager.Instance.GetTranslation("_maxBackupCountLabel", "Maximum Backup Count:"),
+                .Dock = DockStyle.Fill
+            }
+
+            _maxBackupCountNumeric = New NumericUpDown With {
+                .Minimum = 5,
+                .Maximum = 500,
+                .Value = 50,
+                .Dock = DockStyle.Fill
+            }
+
+            ' Enable/disable rotation controls based on checkboxes
+            AddHandler _enableBackupCheckBox.CheckedChanged, AddressOf UpdateBackupControls
+            AddHandler _enableBackupRotationCheckBox.CheckedChanged, AddressOf UpdateBackupControls
+
+            ' Add controls to layout
+            layout.Controls.Add(_enableBackupCheckBox, 0, 0)
+            layout.SetColumnSpan(_enableBackupCheckBox, 2)
+            layout.Controls.Add(_enableBackupRotationCheckBox, 0, 1)
+            layout.SetColumnSpan(_enableBackupRotationCheckBox, 2)
+            layout.Controls.Add(_backupRetentionLabel, 0, 2)
+            layout.Controls.Add(_backupRetentionNumeric, 1, 2)
+            layout.Controls.Add(_maxBackupCountLabel, 0, 3)
+            layout.Controls.Add(_maxBackupCountNumeric, 1, 3)
+
+            ' Add tooltips
+            Dim toolTip As New ToolTip()
+            toolTip.SetToolTip(_enableBackupCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.EnableBackup", "Enable or disable automatic backup of settings before each save"))
+            toolTip.SetToolTip(_enableBackupRotationCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.EnableBackupRotation", "Enable automatic deletion of old backup files"))
+            toolTip.SetToolTip(_backupRetentionNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.BackupRetention", "Number of days to keep backup files"))
+            toolTip.SetToolTip(_maxBackupCountNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MaxBackupCount", "Maximum number of backup files to keep"))
+
+            _backupTab.Controls.Add(layout)
+            _tabControl.TabPages.Add(_backupTab)
+        End Sub
+
+        Private Sub UpdateBackupControls(sender As Object, e As EventArgs)
+            Dim backupEnabled = _enableBackupCheckBox.Checked
+            _enableBackupRotationCheckBox.Enabled = backupEnabled
+            Dim rotationEnabled = backupEnabled AndAlso _enableBackupRotationCheckBox.Checked
+            _backupRetentionLabel.Enabled = rotationEnabled
+            _backupRetentionNumeric.Enabled = rotationEnabled
+            _maxBackupCountLabel.Enabled = rotationEnabled
+            _maxBackupCountNumeric.Enabled = rotationEnabled
+        End Sub
+
         Private Function IsValidEmail(email As String) As Boolean
             Try
                 Dim addr = New System.Net.Mail.MailAddress(email)
@@ -600,6 +689,14 @@ Namespace LiteTask
                 _dailyRestartNotificationCheckBox.Checked = Boolean.Parse(GetSettingValue(monitorSettings, "DailyRestartNotificationEnabled", "True"))
                 _dailyRestartNotificationCheckBox.Enabled = _dailyRestartCheckBox.Checked
 
+                ' Load backup settings
+                Dim backupSettings = _xmlManager.GetBackupSettings()
+                _enableBackupCheckBox.Checked = Boolean.Parse(GetSettingValue(backupSettings, "BackupEnabled", "True"))
+                _enableBackupRotationCheckBox.Checked = Boolean.Parse(GetSettingValue(backupSettings, "BackupRotationEnabled", "True"))
+                _backupRetentionNumeric.Value = Integer.Parse(GetSettingValue(backupSettings, "BackupRetentionDays", "30"))
+                _maxBackupCountNumeric.Value = Integer.Parse(GetSettingValue(backupSettings, "MaxBackupCount", "50"))
+                UpdateBackupControls(Nothing, EventArgs.Empty)
+
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
                 MessageBox.Show($"Error loading settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -652,6 +749,13 @@ Namespace LiteTask
                 _xmlManager.WriteValue("SqlConfiguration", "CommandTimeout", _commandTimeoutNumeric.Value.ToString())
                 _xmlManager.WriteValue("SqlConfiguration", "MaxBatchSize", _maxBatchSizeNumeric.Value.ToString())
 
+                ' Save backup settings
+                _xmlManager.SaveBackupSettings(
+                    _enableBackupCheckBox.Checked,
+                    _enableBackupRotationCheckBox.Checked,
+                    CInt(_backupRetentionNumeric.Value),
+                    CInt(_maxBackupCountNumeric.Value))
+
                 ' Save monitoring settings
                 _xmlManager.SaveMemoryMonitorSettings(
                     _enableMemoryMonitorCheckBox.Checked,
@@ -701,6 +805,13 @@ Namespace LiteTask
             _dailyRestartTimeLabel.Enabled = False
             _dailyRestartNotificationCheckBox.Checked = True
             _dailyRestartNotificationCheckBox.Enabled = False
+
+            ' Set default backup values
+            _enableBackupCheckBox.Checked = True
+            _enableBackupRotationCheckBox.Checked = True
+            _backupRetentionNumeric.Value = 30
+            _maxBackupCountNumeric.Value = 50
+            UpdateBackupControls(Nothing, EventArgs.Empty)
         End Sub
 
         Private Sub TestEmailButton_Click(sender As Object, e As EventArgs)
