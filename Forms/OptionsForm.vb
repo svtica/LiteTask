@@ -35,7 +35,8 @@ Namespace LiteTask
                 LoadSettings()
             Catch ex As Exception
                 _logger?.LogError($"Error initializing OptionsForm: {ex.Message}")
-                MessageBox.Show($"Error initializing settings form: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("InitializationError", "Error initializing settings form")}: {ex.Message}",
+                                TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Me.Close()
             End Try
         End Sub
@@ -124,7 +125,7 @@ Namespace LiteTask
 
         Private Sub BrowseLogFolder_Click(sender As Object, e As EventArgs)
             Using dialog As New FolderBrowserDialog()
-                dialog.Description = "Select Log Folder"
+                dialog.Description = TranslationManager.Instance.GetTranslation("Options.BrowseLogFolder", "Select Log Folder")
                 dialog.ShowNewFolderButton = True
 
                 If Not String.IsNullOrEmpty(_logFolderTextBox.Text) AndAlso Directory.Exists(_logFolderTextBox.Text) Then
@@ -429,10 +430,10 @@ Namespace LiteTask
 
             ' Add tooltips
             Dim toolTip As New ToolTip()
-            toolTip.SetToolTip(_defaultServerTextBox, TranslationManager.Instance.GetTranslation("SqlTab.Tooltip.Server"))
-            toolTip.SetToolTip(_defaultDatabaseTextBox, TranslationManager.Instance.GetTranslation("SqlTab.Tooltip.Database"))
-            toolTip.SetToolTip(_commandTimeoutNumeric, TranslationManager.Instance.GetTranslation("SqlTab.Tooltip.Timeout"))
-            toolTip.SetToolTip(_maxBatchSizeNumeric, TranslationManager.Instance.GetTranslation("SqlTab.Tooltip.BatchSize"))
+            toolTip.SetToolTip(_defaultServerTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.Server"))
+            toolTip.SetToolTip(_defaultDatabaseTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.Database"))
+            toolTip.SetToolTip(_commandTimeoutNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.Timeout"))
+            toolTip.SetToolTip(_maxBatchSizeNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.BatchSize"))
 
             ' Add controls to layout
             layout.Controls.Add(_defaultServerLabel, 0, 0)
@@ -699,7 +700,8 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
-                MessageBox.Show($"Error loading settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("Options.LoadError", "Error loading settings")}: {ex.Message}",
+                                TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
 
                 ' Set default values if loading fails
                 SetDefaultValues()
@@ -766,12 +768,14 @@ Namespace LiteTask
 
                 DialogResult = DialogResult.OK
                 _logger.LogInfo("Settings saved successfully")
-                MessageBox.Show("Settings saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                MessageBox.Show(TranslationManager.Instance.GetTranslation("Options.SaveSuccess", "Settings saved successfully."),
+                                TranslationManager.Instance.GetTranslation("Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Close()
 
             Catch ex As Exception
                 _logger.LogError($"Error saving settings: {ex.Message}")
-                MessageBox.Show($"Error saving settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("Options.SaveError", "Error saving settings")}: {ex.Message}",
+                                TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 DialogResult = DialogResult.None
             End Try
         End Sub
@@ -821,8 +825,8 @@ Namespace LiteTask
                 End If
 
                 Dim emailUtils = ApplicationContainer.GetService(Of EmailUtils)()
-                Dim testMessage = "This is a test email from LiteTask."
-                Dim subject = "LiteTask Test Email"
+                Dim testMessage = TranslationManager.Instance.GetTranslation("Options.TestEmail.Body", "This is a test email from LiteTask.")
+                Dim subject = TranslationManager.Instance.GetTranslation("Options.TestEmail.Subject", "LiteTask Test Email")
 
                 Dim credential As CredentialInfo = Nothing
                 If _useCredentialsCheckBox.Checked AndAlso _credentialComboBox.SelectedIndex > 0 Then
@@ -831,11 +835,13 @@ Namespace LiteTask
 
                 ' Create test notification
                 emailUtils.SendEmailReport(subject, testMessage)
-                MessageBox.Show("Test email sent successfully.", "Test Email", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                MessageBox.Show(TranslationManager.Instance.GetTranslation("Options.TestEmail.Success", "Test email sent successfully."),
+                                TranslationManager.Instance.GetTranslation("Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
 
             Catch ex As Exception
                 _logger.LogError($"Error sending test email: {ex.Message}")
-                MessageBox.Show($"Error sending test email: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("Options.TestEmail.Error", "Error sending test email")}: {ex.Message}",
+                                TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -871,7 +877,7 @@ Namespace LiteTask
 
             If errors.Any() Then
                 MessageBox.Show(String.Join(Environment.NewLine, errors),
-            "Validation Errors", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            TranslationManager.Instance.GetTranslation("Options.ValidationError", "Validation Errors"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                 Return False
             End If
             Return True

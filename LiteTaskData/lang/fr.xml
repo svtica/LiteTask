@@ -241,7 +241,9 @@
 	<!-- Options Form Messages -->
 	<translation key="Options.SaveSuccess">Options enregistrées avec succès</translation>
 	<translation key="Options.SaveError">Erreur lors de l'enregistrement des options</translation>
+	<translation key="Options.LoadError">Erreur lors du chargement des options</translation>
 	<translation key="Options.ValidationError">Erreur de validation des options</translation>
+	<translation key="Options.BrowseLogFolder">Sélectionner le dossier des journaux</translation>
 	<translation key="Options.TestEmail.Success">Email test envoyé avec succès</translation>
 	<translation key="Options.TestEmail.Error">Erreur lors de l'envoi de l'email test</translation>
 	<translation key="Options.TestEmail.Subject">LiteTask - Email test</translation>
