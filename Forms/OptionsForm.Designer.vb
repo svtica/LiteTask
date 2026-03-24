@@ -69,6 +69,15 @@ Namespace LiteTask
         Private WithEvents _dailyRestartTimePicker As DateTimePicker
         Private WithEvents _dailyRestartNotificationCheckBox As CheckBox
 
+        ' Backup Tab Controls
+        Private WithEvents _backupTab As TabPage
+        Private WithEvents _enableBackupCheckBox As CheckBox
+        Private WithEvents _enableBackupRotationCheckBox As CheckBox
+        Private WithEvents _backupRetentionLabel As Label
+        Private WithEvents _backupRetentionNumeric As NumericUpDown
+        Private WithEvents _maxBackupCountLabel As Label
+        Private WithEvents _maxBackupCountNumeric As NumericUpDown
+
         ' Button Panel Controls
         Private WithEvents _buttonPanel As Panel
         Private WithEvents _okButton As Button
@@ -129,6 +138,15 @@ Namespace LiteTask
             Me._enableMemoryMonitorCheckBox = New CheckBox()
             Me._memoryCheckIntervalLabel = New Label()
             Me._memoryCheckIntervalNumeric = New NumericUpDown()
+
+            ' Initialize Backup Tab Controls
+            Me._backupTab = New TabPage()
+            Me._enableBackupCheckBox = New CheckBox()
+            Me._enableBackupRotationCheckBox = New CheckBox()
+            Me._backupRetentionLabel = New Label()
+            Me._backupRetentionNumeric = New NumericUpDown()
+            Me._maxBackupCountLabel = New Label()
+            Me._maxBackupCountNumeric = New NumericUpDown()
 
             ' Initialize Buttons
             Me._okButton = New Button()

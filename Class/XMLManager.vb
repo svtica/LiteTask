@@ -50,6 +50,10 @@ Namespace LiteTask
             Try
                 If Not File.Exists(_filePath) Then Return
 
+                ' Check if backups are enabled
+                Dim backupEnabled = ReadValue("BackupSettings", "Enabled", "True")
+                If Not Boolean.Parse(backupEnabled) Then Return
+
                 Dim backupFileName = $"backup_{DateTime.Now:yyyyMMddHHmmss}.xml"
                 Dim backupFilePath = Path.Combine(_backupPath, backupFileName)
 
@@ -713,14 +717,22 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Cleans up old backup files older than specified retention period
-        Private Sub CleanupOldBackups(Optional retentionDays As Integer = 30)
+        'Cleans up old backup files based on retention and max count settings
+        Private Sub CleanupOldBackups()
             Try
                 If Not System.IO.Directory.Exists(_backupPath) Then Return
-                
+
+                Dim backupSettings = GetBackupSettings()
+                Dim rotationEnabled = Boolean.Parse(If(backupSettings.ContainsKey("BackupRotationEnabled"), backupSettings("BackupRotationEnabled"), "True"))
+                If Not rotationEnabled Then Return
+
+                Dim retentionDays = Integer.Parse(If(backupSettings.ContainsKey("BackupRetentionDays"), backupSettings("BackupRetentionDays"), "30"))
+                Dim maxBackupCount = Integer.Parse(If(backupSettings.ContainsKey("MaxBackupCount"), backupSettings("MaxBackupCount"), "50"))
+
                 Dim cutoffDate = DateTime.Now.AddDays(-retentionDays)
                 Dim backupFiles = System.IO.Directory.GetFiles(_backupPath, "backup_*.xml")
-                
+
+                ' Delete files older than retention period
                 For Each backupFile In backupFiles
                     Try
                         Dim fileInfo = New System.IO.FileInfo(backupFile)
@@ -732,7 +744,26 @@ Namespace LiteTask
                         _logger?.LogWarning($"Failed to delete backup file {backupFile}: {ex.Message}")
                     End Try
                 Next
-                
+
+                ' Enforce max backup count by removing oldest files
+                Dim remainingFiles = System.IO.Directory.GetFiles(_backupPath, "backup_*.xml")
+                If remainingFiles.Length > maxBackupCount Then
+                    Dim sortedFiles = remainingFiles.
+                        Select(Function(f) New System.IO.FileInfo(f)).
+                        OrderBy(Function(f) f.CreationTime).
+                        ToArray()
+
+                    Dim filesToDelete = sortedFiles.Length - maxBackupCount
+                    For i = 0 To filesToDelete - 1
+                        Try
+                            sortedFiles(i).Delete()
+                            _logger?.LogInfo($"Deleted excess backup file: {sortedFiles(i).Name}")
+                        Catch ex As Exception
+                            _logger?.LogWarning($"Failed to delete excess backup file {sortedFiles(i).Name}: {ex.Message}")
+                        End Try
+                    Next
+                End If
+
             Catch ex As Exception
                 _logger?.LogError($"Error cleaning up old backups: {ex.Message}")
             End Try
@@ -867,6 +898,37 @@ Namespace LiteTask
                 WriteValue("MemoryMonitor", "LastDailyRestartDate", restartDate.ToString("yyyy-MM-dd"))
             Catch ex As Exception
                 _logger?.LogError($"Error saving last daily restart date: {ex.Message}")
+            End Try
+        End Sub
+
+        Public Function GetBackupSettings() As Dictionary(Of String, String)
+            Try
+                Dim settings As New Dictionary(Of String, String)
+                settings("BackupEnabled") = ReadValue("BackupSettings", "Enabled", "True")
+                settings("BackupRotationEnabled") = ReadValue("BackupSettings", "RotationEnabled", "True")
+                settings("BackupRetentionDays") = ReadValue("BackupSettings", "RetentionDays", "30")
+                settings("MaxBackupCount") = ReadValue("BackupSettings", "MaxBackupCount", "50")
+                Return settings
+            Catch ex As Exception
+                _logger?.LogError($"Error reading backup settings: {ex.Message}")
+                Return New Dictionary(Of String, String) From {
+                    {"BackupEnabled", "True"},
+                    {"BackupRotationEnabled", "True"},
+                    {"BackupRetentionDays", "30"},
+                    {"MaxBackupCount", "50"}
+                }
+            End Try
+        End Function
+
+        Public Sub SaveBackupSettings(backupEnabled As Boolean, rotationEnabled As Boolean, retentionDays As Integer, maxBackupCount As Integer)
+            Try
+                WriteValue("BackupSettings", "Enabled", backupEnabled.ToString())
+                WriteValue("BackupSettings", "RotationEnabled", rotationEnabled.ToString())
+                WriteValue("BackupSettings", "RetentionDays", retentionDays.ToString())
+                WriteValue("BackupSettings", "MaxBackupCount", maxBackupCount.ToString())
+            Catch ex As Exception
+                _logger?.LogError($"Error saving backup settings: {ex.Message}")
+                Throw
             End Try
         End Sub
 

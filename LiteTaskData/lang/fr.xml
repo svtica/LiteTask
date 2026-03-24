@@ -369,6 +369,17 @@
 	<translation key="Update.Progress.Complete">Mise à jour prête. L'application va maintenant redémarrer.</translation>
 	<translation key="Update.Progress.Failed">Échec de la mise à jour. Consultez le journal ci-dessus pour plus de détails.</translation>
 
+	<!-- Backup Tab -->
+	<translation key="_backupTab">Sauvegarde</translation>
+	<translation key="_enableBackupCheckBox">Activer la sauvegarde automatique</translation>
+	<translation key="_enableBackupRotationCheckBox">Activer la rotation des sauvegardes</translation>
+	<translation key="_backupRetentionLabel">Conservation (jours) :</translation>
+	<translation key="_maxBackupCountLabel">Nombre maximum de sauvegardes :</translation>
+	<translation key="Options.Tooltip.EnableBackup">Activer ou désactiver la sauvegarde automatique des paramètres avant chaque enregistrement</translation>
+	<translation key="Options.Tooltip.EnableBackupRotation">Activer la suppression automatique des anciens fichiers de sauvegarde</translation>
+	<translation key="Options.Tooltip.BackupRetention">Nombre de jours de conservation des fichiers de sauvegarde</translation>
+	<translation key="Options.Tooltip.MaxBackupCount">Nombre maximum de fichiers de sauvegarde à conserver</translation>
+
 	<!-- Monitoring Tab -->
 	<translation key="_monitoringTab">Surveillance</translation>
 	<translation key="_enableMemoryMonitorCheckBox">Activer la surveillance mémoire</translation>
