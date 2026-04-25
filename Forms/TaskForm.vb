@@ -348,8 +348,8 @@ Namespace LiteTask
 
             For Each action In _task.Actions
                 Dim actionErrors = validator.ValidateTaskAction(action, _task.Actions)
-                For Each err In actionErrors
-                    allErrors.Add($"[{If(action.Name, "(unnamed)")}] {err}")
+                For Each actionError In actionErrors
+                    allErrors.Add($"[{If(action.Name, "(unnamed)")}] {actionError}")
                 Next
             Next
 
