@@ -317,6 +317,11 @@ Namespace LiteTask
 
                 UpdateTaskFromForm()
 
+                If Not ValidateTaskActions() Then
+                    DialogResult = DialogResult.None
+                    Return
+                End If
+
                 If _isEditMode Then
                     _customScheduler.UpdateTask(_task)
                 Else
@@ -332,6 +337,31 @@ Namespace LiteTask
                 DialogResult = DialogResult.None
             End Try
         End Sub
+
+        Private Function ValidateTaskActions() As Boolean
+            If _task Is Nothing OrElse _task.Actions Is Nothing OrElse _task.Actions.Count = 0 Then
+                Return True
+            End If
+
+            Dim validator As New SettingsValidator(_logger)
+            Dim allErrors As New List(Of String)
+
+            For Each action In _task.Actions
+                Dim actionErrors = validator.ValidateTaskAction(action, _task.Actions)
+                For Each err In actionErrors
+                    allErrors.Add($"[{If(action.Name, "(unnamed)")}] {err}")
+                Next
+            Next
+
+            If allErrors.Any() Then
+                MessageBox.Show(String.Join(Environment.NewLine, allErrors),
+                                TranslationManager.Instance.GetTranslation("Validation.Error", "Validation Error"),
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                Return False
+            End If
+
+            Return True
+        End Function
 
         Private Sub RecurrenceTypeCombo_SelectedIndexChanged(sender As Object, e As EventArgs)
             UpdateRecurrenceControls()
