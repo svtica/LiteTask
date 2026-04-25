@@ -393,4 +393,15 @@
 	<translation key="Options.Tooltip.DailyRestart">Redémarrer le service quotidiennement pour récupérer la mémoire et les handles. Le redémarrage est ignoré si une tâche est en cours ou planifiée dans les 5 prochaines minutes.</translation>
 	<translation key="Options.Tooltip.DailyRestartTime">Heure du redémarrage quotidien du service (par défaut : 03h00)</translation>
 	<translation key="Options.Tooltip.DailyRestartNotification">Envoyer une notification par courriel lors du redémarrage quotidien</translation>
+
+	<!-- Task / Action Validation -->
+	<translation key="Validation.Error">Erreur de validation</translation>
+	<translation key="Validation.Action.NameRequired">Le nom de l'action est requis</translation>
+	<translation key="Validation.Action.TargetRequired">La cible de l'action est requise</translation>
+	<translation key="Validation.Action.TargetMissing">Le fichier cible n'existe pas : {0}</translation>
+	<translation key="Validation.Action.TimeoutMin">Le délai d'expiration doit être d'au moins 1 minute</translation>
+	<translation key="Validation.Action.RetryCountNegative">Le nombre de tentatives ne peut pas être négatif</translation>
+	<translation key="Validation.Action.RetryDelayNegative">Le délai entre tentatives ne peut pas être négatif</translation>
+	<translation key="Validation.Action.DependsOnSelf">L'action '{0}' ne peut pas dépendre d'elle-même</translation>
+	<translation key="Validation.Action.DependsOnUnknown">DependsOn référence une action inconnue : {0}</translation>
 </translations>
