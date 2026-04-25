@@ -1,7 +1,8 @@
 Namespace LiteTask
     Public Class SettingsValidator
 
-        'TODO Reimplement in Options
+        ' Wired into OptionsForm.ValidateSettings (Forms/OptionsForm.vb), called from
+        ' SaveSettings, OnFormClosing, and TestEmailButton_Click.
 
         Private ReadOnly _logger As Logger
 
