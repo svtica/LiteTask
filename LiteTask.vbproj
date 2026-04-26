@@ -76,14 +76,17 @@
     <Compile Remove="res\txt\**" />
     <Compile Remove="System\**" />
     <Compile Remove="tools\**" />
+    <Compile Remove="Tests\**" />
     <EmbeddedResource Remove="res\lang\**" />
     <EmbeddedResource Remove="res\txt\**" />
     <EmbeddedResource Remove="System\**" />
     <EmbeddedResource Remove="tools\**" />
+    <EmbeddedResource Remove="Tests\**" />
     <None Remove="res\lang\**" />
     <None Remove="res\txt\**" />
     <None Remove="System\**" />
     <None Remove="tools\**" />
+    <None Remove="Tests\**" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Host\Microsoft.PowerShell.Host.psd1" />
