@@ -1,7 +1,8 @@
 Namespace LiteTask
     Public Class SettingsValidator
 
-        'TODO Reimplement in Options
+        ' Wired into OptionsForm.ValidateSettings (Forms/OptionsForm.vb), called from
+        ' SaveSettings, OnFormClosing, and TestEmailButton_Click.
 
         Private ReadOnly _logger As Logger
 
@@ -93,6 +94,77 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError("Error validating log settings", ex)
                 errors.Add($"Error validating log settings: {ex.Message}")
+            End Try
+
+            Return errors
+        End Function
+
+        Public Function ValidateTaskAction(action As TaskAction) As List(Of String)
+            Return ValidateTaskAction(action, Nothing)
+        End Function
+
+        ' Validates a single TaskAction. When siblingActions is provided, DependsOn
+        ' is checked against the Names in that collection (same-task semantics, see
+        ' TaskDependencyManager). PowerShell modules are intentionally not preflighted.
+        Public Function ValidateTaskAction(action As TaskAction, siblingActions As IEnumerable(Of TaskAction)) As List(Of String)
+            Dim errors As New List(Of String)
+
+            Try
+                If action Is Nothing Then
+                    errors.Add("Action is null")
+                    Return errors
+                End If
+
+                If String.IsNullOrWhiteSpace(action.Name) Then
+                    errors.Add("Action name is required")
+                End If
+
+                If String.IsNullOrWhiteSpace(action.Target) Then
+                    errors.Add("Action target is required")
+                Else
+                    Select Case action.Type
+                        Case ScheduledTask.TaskType.PowerShell,
+                             ScheduledTask.TaskType.Batch,
+                             ScheduledTask.TaskType.Executable
+                            If Not File.Exists(action.Target) Then
+                                errors.Add($"Target file does not exist: {action.Target}")
+                            End If
+                        Case ScheduledTask.TaskType.SQL
+                            ' Target holds the SQL string or path; require non-empty (already covered above)
+                        Case ScheduledTask.TaskType.RemoteExecution
+                            ' Target is a remote endpoint or script path; non-empty is sufficient here
+                    End Select
+                End If
+
+                If action.TimeoutMinutes < 1 Then
+                    errors.Add("Timeout must be at least 1 minute")
+                End If
+
+                If action.RetryCount < 0 Then
+                    errors.Add("Retry count cannot be negative")
+                End If
+
+                If action.RetryDelayMinutes < 0 Then
+                    errors.Add("Retry delay cannot be negative")
+                End If
+
+                If Not String.IsNullOrWhiteSpace(action.DependsOn) AndAlso siblingActions IsNot Nothing Then
+                    Dim selfName = If(action.Name, String.Empty)
+                    Dim known = siblingActions _
+                        .Where(Function(a) a IsNot Nothing AndAlso Not Object.ReferenceEquals(a, action)) _
+                        .Select(Function(a) a.Name) _
+                        .Where(Function(n) Not String.IsNullOrWhiteSpace(n))
+
+                    If String.Equals(action.DependsOn, selfName, StringComparison.OrdinalIgnoreCase) Then
+                        errors.Add($"Action '{selfName}' cannot depend on itself")
+                    ElseIf Not known.Any(Function(n) String.Equals(n, action.DependsOn, StringComparison.OrdinalIgnoreCase)) Then
+                        errors.Add($"DependsOn references unknown action: {action.DependsOn}")
+                    End If
+                End If
+
+            Catch ex As Exception
+                _logger?.LogError("Error validating task action", ex)
+                errors.Add($"Error validating task action: {ex.Message}")
             End Try
 
             Return errors

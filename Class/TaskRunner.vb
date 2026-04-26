@@ -803,26 +803,13 @@ Namespace LiteTask
 
 
         Private Function ParseParameters(parameters As String) As Dictionary(Of String, String)
-            Dim result As New Dictionary(Of String, String)
             Try
-                If String.IsNullOrEmpty(parameters) Then Return result
-
-                ' Use Span for more efficient string splitting (if available) or stick with optimized approach
-                Dim _paramArray = parameters.Split(New Char() {" "c}, StringSplitOptions.RemoveEmptyEntries)
-                For Each param In _paramArray
-                    Dim equalIndex = param.IndexOf("="c)
-                    If equalIndex > 0 AndAlso equalIndex < param.Length - 1 Then
-                        Dim key = param.Substring(0, equalIndex)
-                        Dim value = param.Substring(equalIndex + 1)
-                        result(key) = value
-                    End If
-                Next
-
+                Dim result = ParameterParser.Parse(parameters)
                 _logger.LogInfo($"Parsed {result.Count} parameters successfully")
                 Return result
             Catch ex As Exception
                 _logger.LogError($"Error parsing parameters: {ex.Message}")
-                Return result
+                Return New Dictionary(Of String, String)
             End Try
         End Function
 

@@ -212,13 +212,31 @@ Namespace LiteTask
         End Sub
 
         Private Function ValidateInput() As Boolean
-            If String.IsNullOrWhiteSpace(_nameTextBox.Text) Then
-                MessageBox.Show("Please enter a name for the action.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-                Return False
-            End If
+            ' Build a transient TaskAction reflecting the current form state and run
+            ' it through SettingsValidator so the UI and persisted-task validation
+            ' share a single rule set.
+            Dim candidate As New TaskAction With {
+                .Name = _nameTextBox.Text.Trim(),
+                .Type = If(_typeComboBox.SelectedItem Is Nothing,
+                           ScheduledTask.TaskType.PowerShell,
+                           CType([Enum].Parse(GetType(ScheduledTask.TaskType), _typeComboBox.SelectedItem.ToString()), ScheduledTask.TaskType)),
+                .Target = _targetTextBox.Text.Trim(),
+                .Parameters = _parametersTextBox.Text.Trim(),
+                .DependsOn = If(_dependsOnCombo.SelectedIndex > 0, _dependsOnCombo.SelectedItem.ToString(), Nothing),
+                .WaitForCompletion = _waitForCompletionCheck.Checked,
+                .TimeoutMinutes = Convert.ToInt32(_timeoutNumeric.Value),
+                .RetryCount = Convert.ToInt32(_retryCountNumeric.Value),
+                .RetryDelayMinutes = Convert.ToInt32(_retryDelayNumeric.Value),
+                .ContinueOnError = _continueOnErrorCheck.Checked
+            }
 
-            If String.IsNullOrWhiteSpace(_targetTextBox.Text) Then
-                MessageBox.Show("Please specify a target.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Dim validator As New SettingsValidator(_logger)
+            Dim errors = validator.ValidateTaskAction(candidate)
+
+            If errors.Any() Then
+                MessageBox.Show(String.Join(Environment.NewLine, errors),
+                                TranslationManager.Instance.GetTranslation("Validation.Error", "Validation Error"),
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning)
                 Return False
             End If
 
