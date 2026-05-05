@@ -217,7 +217,7 @@ Namespace LiteTask
                                                     Catch ex As Exception
                                                         _logger.LogError($"Error checking tasks: {ex.Message}")
                                                     End Try
-                                                    Await Task.Delay(60000, _cancellationTokenSource.Token)
+                                                    Await Task.Delay(30000, _cancellationTokenSource.Token)
                                                 End While
                                             Catch ex As Exception When TypeOf ex Is TaskCanceledException
                                                 ' Normal service stop
