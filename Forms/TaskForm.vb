@@ -231,7 +231,10 @@ Namespace LiteTask
 
                         Select Case _task.Schedule
                             Case RecurrenceType.Interval
-                                _intervalTextBox.Text = _task.Interval.TotalMinutes.ToString()
+                                Dim totalMinutes = CInt(Math.Round(_task.Interval.TotalMinutes))
+                                If totalMinutes < 1 Then totalMinutes = 1
+                                If totalMinutes > 1440 Then totalMinutes = 1440
+                                _intervalTextBox.Text = totalMinutes.ToString()
 
                             Case RecurrenceType.Daily
                                 _dailyTimeList.Items.Clear()
@@ -453,7 +456,7 @@ Namespace LiteTask
 
                     Select Case _task.Schedule
                         Case RecurrenceType.Interval
-                            _task.Interval = TimeSpan.FromMinutes(Double.Parse(_intervalTextBox.Text))
+                            _task.Interval = TimeSpan.FromMinutes(Integer.Parse(_intervalTextBox.Text))
                             _task.DailyTimes.Clear()
 
                         Case RecurrenceType.Daily
@@ -506,9 +509,13 @@ Namespace LiteTask
                 Dim selectedItem = DirectCast(_recurrenceTypeCombo.SelectedItem, ComboBoxItem)
                 Select Case selectedItem.Value
                     Case RecurrenceType.Interval
-                        Dim interval As Double
-                        If Not Double.TryParse(_intervalTextBox.Text, interval) OrElse interval <= 0 Then
-                            MessageBox.Show("Please enter a valid interval greater than zero.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                        Dim interval As Integer
+                        If Not Integer.TryParse(_intervalTextBox.Text, interval) OrElse interval < 1 OrElse interval > 1440 Then
+                            MessageBox.Show(
+                                TranslationManager.Instance.GetTranslation("Validation.IntervalRange",
+                                    "Please enter an interval between 1 and 1440 minutes."),
+                                TranslationManager.Instance.GetTranslation("Validation.Error", "Validation Error"),
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning)
                             Return False
                         End If
 

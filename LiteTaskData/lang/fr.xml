@@ -24,6 +24,9 @@
 
 	<translation key="_viewMenu.Text">Affichage</translation>
 	<translation key="_refreshMenuItem.Text">Actualiser</translation>
+	<translation key="_openLogMenuItem.Text">Ouvrir le journal</translation>
+	<translation key="NoLogAvailable">Aucun journal disponible pour le moment. Le fichier journal sera créé lorsque l'application enregistrera sa première entrée.</translation>
+	<translation key="OpenLog.Error">Impossible d'ouvrir le journal : {0}</translation>
 	<translation key="_toggleLogMenuItem.Text">Afficher/Masquer le journal</translation>
 
 	<translation key="_toolsMenu.Text">Outils</translation>
@@ -99,7 +102,8 @@
 	<translation key="Daily">Quotidien</translation>
 	<translation key="Interval">Intervalle</translation>
 	<translation key="Monthly">Mensuel</translation>
-	<translation key="_intervalLabel.text">Intervalle (minutes) :</translation>
+	<translation key="_intervalLabel.Text">Intervalle :</translation>
+	<translation key="_intervalUnitLabel.Text">minutes (1-1440)</translation>
 	<translation key="_monthlyDayLabel.Text">Jour du mois :</translation>
 	<translation key="_monthlyTimeLabel.Text">Heure :</translation>
 	<translation key="_addTimeButton.Text">Ajouter</translation>
@@ -404,4 +408,5 @@
 	<translation key="Validation.Action.RetryDelayNegative">Le délai entre tentatives ne peut pas être négatif</translation>
 	<translation key="Validation.Action.DependsOnSelf">L'action '{0}' ne peut pas dépendre d'elle-même</translation>
 	<translation key="Validation.Action.DependsOnUnknown">DependsOn référence une action inconnue : {0}</translation>
+	<translation key="Validation.IntervalRange">Veuillez saisir un intervalle entre 1 et 1440 minutes.</translation>
 </translations>
