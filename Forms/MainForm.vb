@@ -77,6 +77,7 @@ Namespace LiteTask
         Private WithEvents _statusStrip As StatusStrip
         Private WithEvents _statusLabel As ToolStripStatusLabel
         Private WithEvents _refreshMenuItem As ToolStripMenuItem
+        Private WithEvents _openLogMenuItem As ToolStripMenuItem
         'Private WithEvents _toggleLogMenuItem As ToolStripMenuItem
         Private components As System.ComponentModel.IContainer
 
@@ -104,9 +105,10 @@ Namespace LiteTask
                 AddHandler _statusTimer.Tick, AddressOf UpdateStatus
                 _statusTimer.Start()
 
-                ' Initialize scheduler timer for GUI mode (checks tasks every 60 seconds)
+                ' Initialize scheduler timer for GUI mode (checks tasks every 30 seconds
+                ' to support minute-level interval recurrences accurately)
                 _schedulerTimer = New System.Windows.Forms.Timer With {
-                    .Interval = 60000  ' 60 seconds
+                    .Interval = 30000  ' 30 seconds
                 }
                 AddHandler _schedulerTimer.Tick, AddressOf SchedulerTimer_Tick
                 _schedulerTimer.Start()
@@ -161,6 +163,7 @@ Namespace LiteTask
 
             ' View menu
             AddHandler _refreshMenuItem.Click, AddressOf RefreshMenuItem_Click
+            AddHandler _openLogMenuItem.Click, AddressOf OpenLogMenuItem_Click
 
             ' Tools menu
             AddHandler _checkToolsMenuItem.Click, AddressOf CheckTools_Click
@@ -826,6 +829,7 @@ Namespace LiteTask
             _stopServiceMenuItem = New ToolStripMenuItem()
             _viewMenu = New ToolStripMenuItem()
             _refreshMenuItem = New ToolStripMenuItem()
+            _openLogMenuItem = New ToolStripMenuItem()
             '_toggleLogMenuItem = New ToolStripMenuItem()
             _toolsMenu = New ToolStripMenuItem()
             _checkToolsMenuItem = New ToolStripMenuItem()
@@ -1089,17 +1093,23 @@ Namespace LiteTask
             _stopServiceMenuItem.Text = "Stop Service"
             ' 
             ' _viewMenu
-            ' 
-            _viewMenu.DropDownItems.AddRange(New ToolStripItem() {_refreshMenuItem})
+            '
+            _viewMenu.DropDownItems.AddRange(New ToolStripItem() {_refreshMenuItem, New ToolStripSeparator(), _openLogMenuItem})
             _viewMenu.Name = "_viewMenu"
             _viewMenu.Size = New Size(44, 20)
             _viewMenu.Text = "View"
-            ' 
+            '
             ' _refreshMenuItem
-            ' 
+            '
             _refreshMenuItem.Name = "_refreshMenuItem"
             _refreshMenuItem.Size = New Size(180, 22)
             _refreshMenuItem.Text = "Refresh"
+            '
+            ' _openLogMenuItem
+            '
+            _openLogMenuItem.Name = "_openLogMenuItem"
+            _openLogMenuItem.Size = New Size(180, 22)
+            _openLogMenuItem.Text = TranslationManager.Instance.GetTranslation("_openLogMenuItem.Text", "Open Log File")
             ' 
             '' _toggleLogMenuItem
             '' 
@@ -1748,6 +1758,35 @@ Namespace LiteTask
                 _logger.LogError($"Error in RefreshMenuItem_Click: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
                 MessageBox.Show($"An error occurred while refreshing: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End Sub
+
+        Private Sub OpenLogMenuItem_Click(sender As Object, e As EventArgs)
+            Try
+                Dim logPath = _logger?._logFile
+                If String.IsNullOrEmpty(logPath) OrElse Not File.Exists(logPath) Then
+                    MessageBox.Show(
+                        TranslationManager.Instance.GetTranslation("NoLogAvailable",
+                            "No log file is available yet. The log file will be created the first time the application writes a log entry."),
+                        TranslationManager.Instance.GetTranslation("Information", "Information"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Return
+                End If
+
+                Dim psi As New ProcessStartInfo() With {
+                    .FileName = logPath,
+                    .UseShellExecute = True
+                }
+                Process.Start(psi)
+            Catch ex As Exception
+                _logger?.LogError($"Error opening log file: {ex.Message}")
+                MessageBox.Show(
+                    String.Format(
+                        TranslationManager.Instance.GetTranslation("OpenLog.Error",
+                            "Could not open the log file: {0}"),
+                        ex.Message),
+                    TranslationManager.Instance.GetTranslation("Error", "Error"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 

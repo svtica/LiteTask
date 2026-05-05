@@ -114,7 +114,7 @@ Namespace LiteTask
                 AddElement(xmlDoc, taskElement, "Enabled", task.Enabled.ToString())
                 AddElement(xmlDoc, taskElement, "StartTime", task.StartTime.ToString("o"))
                 AddElement(xmlDoc, taskElement, "RecurrenceType", CType(task.Schedule, Integer).ToString())
-                AddElement(xmlDoc, taskElement, "Interval", task.Interval.TotalMinutes.ToString())
+                AddElement(xmlDoc, taskElement, "Interval", task.Interval.TotalMinutes.ToString(Globalization.CultureInfo.InvariantCulture))
                 AddElement(xmlDoc, taskElement, "DailyTimes", String.Join(",", task.DailyTimes.Select(Function(t) t.ToString())))
                 AddElement(xmlDoc, taskElement, "MonthlyDay", task.MonthlyDay.ToString())
                 AddElement(xmlDoc, taskElement, "MonthlyTime", task.MonthlyTime.ToString())
@@ -297,6 +297,29 @@ Namespace LiteTask
             {"LogRetentionDays", "30"},
             {"AlertLevel", "Error"}
         }
+        End Function
+
+        ' Backward-compatible Interval parser. Accepts both the current "minutes as
+        ' double" format (e.g., "15") and legacy TimeSpan strings (e.g., "00:15:00").
+        Private Function ParseInterval(rawValue As String) As TimeSpan
+            If String.IsNullOrWhiteSpace(rawValue) Then Return TimeSpan.Zero
+
+            Dim trimmed = rawValue.Trim()
+            Dim minutes As Double
+            If Double.TryParse(trimmed, Globalization.NumberStyles.Float,
+                               Globalization.CultureInfo.InvariantCulture, minutes) Then
+                Return TimeSpan.FromMinutes(minutes)
+            End If
+            If Double.TryParse(trimmed, minutes) Then
+                Return TimeSpan.FromMinutes(minutes)
+            End If
+
+            Dim ts As TimeSpan
+            If TimeSpan.TryParse(trimmed, ts) Then
+                Return ts
+            End If
+
+            Return TimeSpan.Zero
         End Function
 
         Private Function GetElementValue(node As XmlNode, elementName As String, Optional defaultValue As String = "") As String
@@ -509,7 +532,7 @@ Namespace LiteTask
             .Enabled = Boolean.Parse(GetElementValue(taskNode, "Enabled", "True")),
             .StartTime = DateTime.Parse(GetElementValue(taskNode, "StartTime", DateTime.Now.ToString("o"))),
             .Schedule = CType(Integer.Parse(GetElementValue(taskNode, "RecurrenceType", "0")), RecurrenceType),
-            .Interval = TimeSpan.FromMinutes(Double.Parse(GetElementValue(taskNode, "Interval", "0"))),
+            .Interval = ParseInterval(GetElementValue(taskNode, "Interval", "0")),
             .NextRunTime = DateTime.Parse(GetElementValue(taskNode, "NextRunTime", DateTime.Now.ToString("o"))),
             .CredentialTarget = GetElementValue(taskNode, "CredentialTarget"),
             .AccountType = GetElementValue(taskNode, "AccountType", "Current User"),

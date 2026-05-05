@@ -102,9 +102,15 @@ Namespace LiteTask
                     End If
 
                 Case RecurrenceType.Interval
+                    If Interval.TotalMinutes <= 0 Then
+                        Return DateTime.MaxValue
+                    End If
                     If NextRunTime = DateTime.MinValue OrElse NextRunTime <= now Then
                         ' Calculate the next run time based on the current time and interval
                         Dim timeSinceStart = now - StartTime
+                        If timeSinceStart.Ticks <= 0 Then
+                            Return StartTime
+                        End If
                         Dim intervalsElapsed = Math.Ceiling(timeSinceStart.TotalMinutes / Interval.TotalMinutes)
                         Return StartTime.AddMinutes(intervalsElapsed * Interval.TotalMinutes)
                     Else
@@ -167,9 +173,13 @@ Namespace LiteTask
                     End If
 
                 Case RecurrenceType.Interval
-                    While NextRunTime <= now
-                        NextRunTime = NextRunTime.Add(Interval)
-                    End While
+                    If Interval.TotalMinutes <= 0 Then
+                        NextRunTime = DateTime.MaxValue
+                    Else
+                        While NextRunTime <= now
+                            NextRunTime = NextRunTime.Add(Interval)
+                        End While
+                    End If
 
                 Case RecurrenceType.Daily
                     NextRunTime = CalculateNextRunTime()

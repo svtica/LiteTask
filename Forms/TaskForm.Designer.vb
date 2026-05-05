@@ -227,17 +227,17 @@ Namespace LiteTask
                 _intervalPanel.Name = "_intervalPanel"
 
                 _intervalLabel.Location = New Point(0, 3)
-                _intervalLabel.Size = New Size(55, 23)
-                _intervalLabel.Text = "Interval:"
+                _intervalLabel.AutoSize = True
+                _intervalLabel.Text = TranslationManager.Instance.GetTranslation("_intervalLabel.Text", "Interval:")
                 _intervalLabel.Name = "_intervalLabel"
 
-                _intervalTextBox.Location = New Point(60, 0)
+                _intervalTextBox.Location = New Point(120, 0)
                 _intervalTextBox.Size = New Size(80, 23)
                 _intervalTextBox.Name = "_intervalTextBox"
 
-                _intervalUnitLabel.Location = New Point(145, 3)
-                _intervalUnitLabel.Size = New Size(60, 23)
-                _intervalUnitLabel.Text = "minutes"
+                _intervalUnitLabel.Location = New Point(205, 3)
+                _intervalUnitLabel.AutoSize = True
+                _intervalUnitLabel.Text = TranslationManager.Instance.GetTranslation("_intervalUnitLabel.Text", "minutes (1-1440)")
                 _intervalUnitLabel.Name = "_intervalUnitLabel"
 
                 _intervalPanel.Controls.Add(_intervalLabel)
