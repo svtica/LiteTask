@@ -251,18 +251,18 @@ Namespace LiteTask
                 End If
 
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
 
-                Dim tasksNode As XmlNode = xmlDoc.SelectSingleNode("LiteTaskSettings/Tasks")
-                If tasksNode IsNot Nothing Then
-                    Dim taskNodes As XmlNodeList = tasksNode.SelectNodes("Task")
-                    For Each taskNode As XmlNode In taskNodes
-                        Dim nameAttribute As XmlAttribute = taskNode.Attributes("Name")
-                        If nameAttribute IsNot Nothing Then
-                            taskNames.Add(nameAttribute.Value)
-                        End If
-                    Next
-                Else
+                Dim taskNodes = SelectTaskNodes(xmlDoc)
+                For Each taskNode In taskNodes
+                    Dim nameAttribute As XmlAttribute = taskNode.Attributes("Name")
+                    If nameAttribute IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(nameAttribute.Value) Then
+                        taskNames.Add(nameAttribute.Value)
+                    End If
+                Next
+
+                If taskNodes.Count = 0 Then
                     _logger?.LogInfo("No 'Tasks' node found in the XML file")
                 End If
 
@@ -273,6 +273,30 @@ Namespace LiteTask
                 _logger?.LogError($"StackTrace: {ex.StackTrace}")
                 Return New List(Of String)() ' Return an empty list instead of throwing
             End Try
+        End Function
+
+        ' Returns Task element nodes from any of the supported layouts:
+        '   LiteTaskSettings/Tasks/Task  (canonical, written by SaveTask)
+        '   LiteTaskSettings/Task        (no <Tasks> wrapper)
+        '   <Task ...> as document root  (bare snippet)
+        ' Tolerant input is allowed for imports; output (SaveTask) always uses canonical.
+        Private Function SelectTaskNodes(xmlDoc As XmlDocument) As List(Of XmlNode)
+            Dim result As New List(Of XmlNode)
+            If xmlDoc Is Nothing OrElse xmlDoc.DocumentElement Is Nothing Then Return result
+
+            For Each n As XmlNode In xmlDoc.SelectNodes("LiteTaskSettings/Tasks/Task")
+                result.Add(n)
+            Next
+
+            For Each n As XmlNode In xmlDoc.SelectNodes("LiteTaskSettings/Task")
+                result.Add(n)
+            Next
+
+            If xmlDoc.DocumentElement.Name = "Task" Then
+                result.Add(xmlDoc.DocumentElement)
+            End If
+
+            Return result
         End Function
 
         Private Function GetDefaultEmailSettings() As Dictionary(Of String, String)
@@ -491,7 +515,15 @@ Namespace LiteTask
                     xmlDoc.Load(fs)
                 End Using
 
-                Dim taskNode = xmlDoc.SelectSingleNode($"LiteTaskSettings/Tasks/Task[@Name='{SecurityElement.Escape(taskName)}']")
+                Dim taskNode As XmlNode = Nothing
+                For Each candidate In SelectTaskNodes(xmlDoc)
+                    Dim nameAttr = candidate.Attributes("Name")
+                    If nameAttr IsNot Nothing AndAlso String.Equals(nameAttr.Value, taskName, StringComparison.Ordinal) Then
+                        taskNode = candidate
+                        Exit For
+                    End If
+                Next
+
                 If taskNode Is Nothing Then
                     Return Nothing
                 End If
