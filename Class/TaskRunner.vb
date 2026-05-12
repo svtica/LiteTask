@@ -96,11 +96,26 @@ Namespace LiteTask
             Try
                 _logger.LogInfo($"Executing Batch task: {taskAction.Name}")
 
+                ' Trailing args appended to `cmd.exe /c "target.bat" <args>` so the
+                ' script receives them as %1..%* (works for both code paths).
+                Dim batchArgs As String = If(String.IsNullOrWhiteSpace(taskAction.Parameters),
+                                             String.Empty,
+                                             " " & taskAction.Parameters.Trim())
+
                 If credential IsNot Nothing Then
                     ' Parse UNC paths from batch content
                     Dim batchContent = File.ReadAllText(taskAction.Target)
                     Dim uncPaths = ParseUNCPaths(batchContent)
                     Dim envPassVar = $"BATCH_PASS_{Guid.NewGuid().ToString("N")}"
+
+                    ' Write the augmented script (net use prelude + original body) to a
+                    ' temp .bat so we can invoke it as `cmd.exe /c "tempfile" <args>`.
+                    ' The previous implementation streamed the script via stdin to
+                    ' `cmd /c -`, which cannot receive %1..%* — task parameters were
+                    ' silently dropped.
+                    Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
+                    Directory.CreateDirectory(tempDir)
+                    Dim tempBatFile = Path.Combine(tempDir, $"batch_{Guid.NewGuid():N}.bat")
 
                     Try
                         ' Set up credentials
@@ -135,22 +150,16 @@ Namespace LiteTask
                             modifiedContent.AppendLine($"net use {uncPath} /delete")
                         Next
 
-                        ' Execute using PsExec
-                        Using ms As New MemoryStream()
-                            Using writer As New StreamWriter(ms)
-                                Await writer.WriteAsync(modifiedContent.ToString())
-                                Await writer.FlushAsync()
-                                ms.Position = 0
+                        Await File.WriteAllTextAsync(tempBatFile, modifiedContent.ToString())
 
-                                Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
-                                Dim fullCommand = $"{baseArgs} -p ""%{envPassVar}%"" cmd.exe /c -"
+                        Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
+                        Dim fullCommand = $"{baseArgs} -p ""%{envPassVar}%"" cmd.exe /c ""{tempBatFile}""{batchArgs}"
 
-                                Using process As New Process With {
+                        Using process As New Process With {
                             .StartInfo = New ProcessStartInfo With {
                                 .FileName = psExecPath,
                                 .Arguments = fullCommand,
                                 .UseShellExecute = False,
-                                .RedirectStandardInput = True,
                                 .RedirectStandardOutput = True,
                                 .RedirectStandardError = True,
                                 .CreateNoWindow = True,
@@ -158,20 +167,25 @@ Namespace LiteTask
                                 .StandardErrorEncoding = Encoding.UTF8
                             }
                         }
-                                    Return Await RunProcess(process)
-                                End Using
-                            End Using
+                            Return Await RunProcess(process)
                         End Using
 
                     Finally
                         Environment.SetEnvironmentVariable(envPassVar, Nothing, EnvironmentVariableTarget.Process)
+                        If File.Exists(tempBatFile) Then
+                            Try
+                                File.Delete(tempBatFile)
+                            Catch ex As Exception
+                                _logger.LogWarning($"Failed to delete temp batch file {tempBatFile}: {ex.Message}")
+                            End Try
+                        End If
                     End Try
                 Else
                     ' Execute without credentials
                     Using process As New Process With {
                 .StartInfo = New ProcessStartInfo With {
                     .FileName = "cmd.exe",
-                    .Arguments = $"/c ""{taskAction.Target}""",
+                    .Arguments = $"/c ""{taskAction.Target}""{batchArgs}",
                     .UseShellExecute = False,
                     .RedirectStandardOutput = True,
                     .RedirectStandardError = True,
@@ -535,15 +549,18 @@ Namespace LiteTask
                 Dim sqlContent = File.ReadAllText(taskAction.Target)
                 Dim sqlInfo = ExtractSqlInfo(sqlContent)
                 Dim sqlConfig = _xmlManager.GetSqlConfiguration()
+                ' The task's Parameters field uses the same `key=value` / `-Name value`
+                ' grammar as PowerShell tasks. ParseSqlParameters parses T-SQL EXEC
+                ' syntax inside the .sql file content, not the form field.
                 Dim parameters = If(Not String.IsNullOrEmpty(taskAction.Parameters),
-                          ParseSqlParameters(taskAction.Parameters),
-                          New Dictionary(Of String, String))
+                          ParameterParser.Parse(taskAction.Parameters),
+                          New Dictionary(Of String, Object)(StringComparer.OrdinalIgnoreCase))
 
-                Dim server = If(parameters.ContainsKey("server"), parameters("server"),
+                Dim server = If(parameters.ContainsKey("server"), CStr(parameters("server")),
                     If(Not String.IsNullOrEmpty(sqlInfo.ServerName), sqlInfo.ServerName,
                     sqlConfig("DefaultServer")))
 
-                Dim database = If(parameters.ContainsKey("database"), parameters("database"),
+                Dim database = If(parameters.ContainsKey("database"), CStr(parameters("database")),
                        If(Not String.IsNullOrEmpty(sqlInfo.DatabaseName), sqlInfo.DatabaseName,
                        sqlConfig("DefaultDatabase")))
 
@@ -659,7 +676,11 @@ Namespace LiteTask
                         If Not String.IsNullOrEmpty(taskAction.Parameters) Then
                             _logger.LogInfo($"Adding parameters: {taskAction.Parameters}")
                             For Each param In ParseParameters(taskAction.Parameters)
-                                powerShell.AddParameter(param.Key, param.Value)
+                                If param.Value Is Nothing Then
+                                    powerShell.AddParameter(param.Key)
+                                Else
+                                    powerShell.AddParameter(param.Key, param.Value)
+                                End If
                             Next
                         End If
 
@@ -802,14 +823,14 @@ Namespace LiteTask
 
 
 
-        Private Function ParseParameters(parameters As String) As Dictionary(Of String, String)
+        Private Function ParseParameters(parameters As String) As Dictionary(Of String, Object)
             Try
                 Dim result = ParameterParser.Parse(parameters)
                 _logger.LogInfo($"Parsed {result.Count} parameters successfully")
                 Return result
             Catch ex As Exception
                 _logger.LogError($"Error parsing parameters: {ex.Message}")
-                Return New Dictionary(Of String, String)
+                Return New Dictionary(Of String, Object)
             End Try
         End Function
 
