@@ -1,10 +1,11 @@
-﻿' -----------------------------------------------------------------------------
+' -----------------------------------------------------------------------------
 ' Copyright (c) svtica. All rights reserved.
 ' File:    ParameterParserTests.vb
 ' Author:  LiteTask contributors
 ' Date:    2026-04-25
-' Purpose: Unit tests for LiteTask.ParameterParser covering the original
-'          unquoted form and the new cmd-style quoting.
+' Purpose: Unit tests for LiteTask.ParameterParser covering the historical
+'          `key=value` form, cmd-style quoting, and PowerShell-style
+'          `-Name Value` / switch syntax.
 ' -----------------------------------------------------------------------------
 Imports Microsoft.VisualStudio.TestTools.UnitTesting
 Imports LiteTask.LiteTask
@@ -96,6 +97,55 @@ Public Class ParameterParserTests
         Assert.AreEqual(2, result.Count)
         Assert.AreEqual("1", result("a"))
         Assert.AreEqual("2", result("b"))
+    End Sub
+
+    <TestMethod>
+    Public Sub Parse_PowerShellStyle_NameValue_Pairs()
+        Dim result = ParameterParser.Parse("-WindowHours 96 -EmailTo ""user@example.com""")
+        Assert.AreEqual(2, result.Count)
+        Assert.AreEqual("96", result("WindowHours"))
+        Assert.AreEqual("user@example.com", result("EmailTo"))
+    End Sub
+
+    <TestMethod>
+    Public Sub Parse_PowerShellStyle_SwitchBetweenParams_StoredAsNothing()
+        Dim result = ParameterParser.Parse("-Force -WindowHours 96")
+        Assert.AreEqual(2, result.Count)
+        Assert.IsTrue(result.ContainsKey("Force"))
+        Assert.IsNull(result("Force"))
+        Assert.AreEqual("96", result("WindowHours"))
+    End Sub
+
+    <TestMethod>
+    Public Sub Parse_PowerShellStyle_TrailingSwitch_StoredAsNothing()
+        Dim result = ParameterParser.Parse("-WindowHours 96 -Verbose")
+        Assert.AreEqual(2, result.Count)
+        Assert.AreEqual("96", result("WindowHours"))
+        Assert.IsNull(result("Verbose"))
+    End Sub
+
+    <TestMethod>
+    Public Sub Parse_PowerShellStyle_NameEqualsValue_Accepted()
+        Dim result = ParameterParser.Parse("-Mode=fast -Count=3")
+        Assert.AreEqual(2, result.Count)
+        Assert.AreEqual("fast", result("Mode"))
+        Assert.AreEqual("3", result("Count"))
+    End Sub
+
+    <TestMethod>
+    Public Sub Parse_MixedStyles_BothParsed()
+        Dim result = ParameterParser.Parse("alpha=one -Force -Beta ""two three""")
+        Assert.AreEqual(3, result.Count)
+        Assert.AreEqual("one", result("alpha"))
+        Assert.IsNull(result("Force"))
+        Assert.AreEqual("two three", result("Beta"))
+    End Sub
+
+    <TestMethod>
+    Public Sub Parse_KeyLookup_IsCaseInsensitive()
+        Dim result = ParameterParser.Parse("-WindowHours 96")
+        Assert.AreEqual("96", result("windowhours"))
+        Assert.AreEqual("96", result("WINDOWHOURS"))
     End Sub
 
 End Class
