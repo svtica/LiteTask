@@ -203,19 +203,25 @@ Namespace LiteTask
 
         Private Sub AddButton_Click(sender As Object, e As EventArgs)
             If ValidateInput() Then
-                Dim accountType = _accountTypeComboBox.SelectedItem.ToString()
-                Dim securePassword As New Security.SecureString()
-                For Each c As Char In _passwordTextBox.Text
-                    securePassword.AppendChar(c)
-                Next
-                _credentialManager.SaveCredential(New CredentialInfo With {
-            .Target = _targetTextBox.Text,
-            .Username = _usernameTextBox.Text,
-            .AccountType = accountType
-        }, _passwordTextBox.SecureText)
-                PopulateCredentialList()
-                ClearFields()
-                MessageBox.Show("Credential added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Try
+                    Dim accountType = _accountTypeComboBox.SelectedItem.ToString()
+                    Dim securePassword As New Security.SecureString()
+                    For Each c As Char In _passwordTextBox.Text
+                        securePassword.AppendChar(c)
+                    Next
+                    _credentialManager.SaveCredential(New CredentialInfo With {
+                .Target = _targetTextBox.Text,
+                .Username = _usernameTextBox.Text,
+                .AccountType = accountType
+            }, _passwordTextBox.SecureText)
+                    PopulateCredentialList()
+                    ClearFields()
+                    MessageBox.Show("Credential added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Catch ex As ArgumentException
+                    MessageBox.Show(ex.Message, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                Catch ex As Exception
+                    MessageBox.Show($"Failed to add credential: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End Try
             End If
         End Sub
 
@@ -247,10 +253,14 @@ Namespace LiteTask
                 Dim accountType = _credentialListView.SelectedItems(0).Text
                 Dim target = _credentialListView.SelectedItems(0).SubItems(1).Text
                 If MessageBox.Show($"Are you sure you want to delete the credential for '{target}' ({accountType})?", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
-                    _credentialManager.DeleteCredential(target, accountType)
-                    PopulateCredentialList()
-                    ClearFields()
-                    MessageBox.Show("Credential deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Try
+                        _credentialManager.DeleteCredential(target, accountType)
+                        PopulateCredentialList()
+                        ClearFields()
+                        MessageBox.Show("Credential deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Catch ex As Exception
+                        MessageBox.Show($"Failed to delete credential: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    End Try
                 End If
             Else
                 MessageBox.Show("Please select a credential to delete.", "Delete Credential", MessageBoxButtons.OK, MessageBoxIcon.Warning)
@@ -306,20 +316,26 @@ Namespace LiteTask
 
         Private Sub UpdateButton_Click(sender As Object, e As EventArgs)
             If _credentialListView.SelectedItems.Count > 0 AndAlso ValidateInput() Then
-                Dim accountType = _accountTypeComboBox.SelectedItem.ToString()
-                Dim securePassword As New Security.SecureString()
-                For Each c As Char In _passwordTextBox.Text
-                    securePassword.AppendChar(c)
-                Next
-                Dim credInfo As New CredentialInfo With {
-            .Target = _targetTextBox.Text,
-            .Username = _usernameTextBox.Text,
-            .AccountType = accountType
-        }
-                _credentialManager.SaveCredential(credInfo, securePassword)
-                PopulateCredentialList()
-                ClearFields()
-                MessageBox.Show("Credential updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Try
+                    Dim accountType = _accountTypeComboBox.SelectedItem.ToString()
+                    Dim securePassword As New Security.SecureString()
+                    For Each c As Char In _passwordTextBox.Text
+                        securePassword.AppendChar(c)
+                    Next
+                    Dim credInfo As New CredentialInfo With {
+                .Target = _targetTextBox.Text,
+                .Username = _usernameTextBox.Text,
+                .AccountType = accountType
+            }
+                    _credentialManager.SaveCredential(credInfo, securePassword)
+                    PopulateCredentialList()
+                    ClearFields()
+                    MessageBox.Show("Credential updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Catch ex As ArgumentException
+                    MessageBox.Show(ex.Message, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                Catch ex As Exception
+                    MessageBox.Show($"Failed to update credential: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End Try
             Else
                 MessageBox.Show("Please select a credential to update.", "Update Credential", MessageBoxButtons.OK, MessageBoxIcon.Warning)
             End If
