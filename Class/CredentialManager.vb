@@ -446,7 +446,7 @@ Namespace LiteTask
                 Throw New ArgumentException("Target cannot be empty")
             End If
 
-            If Not Regex.IsMatch(target, "^[a-zA-Z0-9\\_\\-\\.\\s]+$") Then
+            If Not Regex.IsMatch(target, "^[a-zA-Z0-9_\-\.\s]+$") Then
                 Throw New ArgumentException("Invalid target format")
             End If
         End Sub
@@ -474,7 +474,7 @@ Namespace LiteTask
                 Throw New ArgumentException("Username cannot be empty")
             End If
 
-            If Not Regex.IsMatch(credInfo.Username, "^[a-zA-Z0-9\\_\\-\\.\\@\\\\]+$") Then
+            If Not Regex.IsMatch(credInfo.Username, "^[a-zA-Z0-9_\-\.@\\]+$") Then
                 Throw New ArgumentException("Invalid username format")
             End If
         End Sub
