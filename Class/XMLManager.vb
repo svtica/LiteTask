@@ -41,10 +41,32 @@ Namespace LiteTask
         Private Sub AddElement(doc As XmlDocument, parent As XmlElement, name As String, value As String)
             If Not String.IsNullOrEmpty(value) Then
                 Dim element As XmlElement = doc.CreateElement(name)
-                element.InnerText = SecurityElement.Escape(value)
+                ' XmlElement.InnerText escapes XML special characters during serialization.
+                ' Wrapping the value with SecurityElement.Escape would double-encode on every
+                ' save/load cycle (e.g. " -> &quot; -> &amp;quot; -> &amp;amp;quot; ...).
+                element.InnerText = value
                 parent.AppendChild(element)
             End If
         End Sub
+
+        ' Removes accumulated HTML entity encoding from a value that was previously saved
+        ' with the double-escape bug (e.g. "&amp;amp;amp;quot;" -> "\""). Iteratively decodes
+        ' until the value stabilises or a safety cap is reached. HtmlDecode is a no-op on
+        ' plain text, so values never affected by the bug pass through unchanged.
+        Private Shared Function NormalizeAccumulatedEncoding(value As String) As String
+            If String.IsNullOrEmpty(value) Then Return value
+
+            Dim current = value
+            Dim previous As String
+            Dim iterations = 0
+            Do
+                previous = current
+                current = System.Net.WebUtility.HtmlDecode(previous)
+                iterations += 1
+            Loop While current <> previous AndAlso iterations < 10
+
+            Return current
+        End Function
 
         Private Sub CreateBackup()
             Try
@@ -546,7 +568,7 @@ Namespace LiteTask
         .Order = Integer.Parse(GetElementValue(actionNode, "Order", "1")),
         .Type = CType(Integer.Parse(GetElementValue(actionNode, "Type", "0")), TaskType),
         .Target = GetElementValue(actionNode, "Target"),
-        .Parameters = GetElementValue(actionNode, "Parameters"),
+        .Parameters = NormalizeAccumulatedEncoding(GetElementValue(actionNode, "Parameters")),
         .RequiresElevation = Boolean.Parse(GetElementValue(actionNode, "RequiresElevation", "False")),
         .DependsOn = GetElementValue(actionNode, "DependsOn"),
         .WaitForCompletion = Boolean.Parse(GetElementValue(actionNode, "WaitForCompletion", "True")),
