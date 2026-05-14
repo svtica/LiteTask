@@ -2,12 +2,22 @@ Imports System.Reflection
 
 Namespace LiteTask
 
+    ' Tracks whether the current process is running with administrator
+    ' privileges. Set during startup based on the result of acquiring the
+    ' global single-instance mutex. UI code uses this flag to hide
+    ' admin-only features when running as a standard user.
+    Public Module ElevationContext
+        Public Property IsElevated As Boolean = True
+    End Module
+
     Module Program
         Private _mutex As Mutex = Nothing
-        Private Const MutexName As String = "Global\LiteTaskApplication"
+        Private Const GlobalMutexName As String = "Global\LiteTaskApplication"
+        Private Const LocalMutexName As String = "Local\LiteTaskApplication"
         Private ReadOnly LogBasePath As String = Path.Combine(Application.StartupPath, "LiteTaskData", "logs")
         Private ReadOnly ServiceName As String = "LiteTaskService"
         Private _isServiceMode As Boolean = False
+        Private _mutexFallbackToLocal As Boolean = False
         Private _logger As Logger
 
         <STAThread()>
@@ -38,7 +48,18 @@ Namespace LiteTask
 
                 If isGuiMode Then
                     Dim createdNew As Boolean
-                    _mutex = New Mutex(True, MutexName, createdNew)
+                    Try
+                        _mutex = New Mutex(True, GlobalMutexName, createdNew)
+                    Catch ex As UnauthorizedAccessException
+                        ' Creating a Global\ kernel object requires
+                        ' SeCreateGlobalPrivilege, which standard (non-admin)
+                        ' users do not have. Fall back to a session-local
+                        ' mutex and flag the process as not elevated so the
+                        ' UI can hide admin-only features.
+                        ElevationContext.IsElevated = False
+                        _mutexFallbackToLocal = True
+                        _mutex = New Mutex(True, LocalMutexName, createdNew)
+                    End Try
                     If Not createdNew Then
                         MessageBox.Show("Another instance of LiteTask is already running.", "LiteTask",
                               MessageBoxButtons.OK, MessageBoxIcon.Information)
@@ -48,6 +69,19 @@ Namespace LiteTask
 
                 ' Initialize container
                 InitializeContainer()
+
+                ' Surface the mutex fallback now that the logger is available.
+                If _mutexFallbackToLocal Then
+                    Try
+                        Dim logger = TryGetService(Of Logger)()
+                        logger?.LogWarning(
+                            "Global mutex creation denied (UnauthorizedAccessException); " &
+                            "process is running without administrator privileges. " &
+                            "Falling back to Local\LiteTaskApplication; admin-only UI will be hidden.")
+                    Catch
+                        ' Best effort; never block startup over logging.
+                    End Try
+                End If
 
                 ' Clean up any orphaned temp files from previous runs
                 Try
