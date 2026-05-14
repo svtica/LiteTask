@@ -295,11 +295,12 @@ Namespace LiteTask
                 ' Calculate initial next run time
                 task.NextRunTime = task.CalculateNextRunTime()
 
-                ' Add task to collection
-                _tasks(task.Name) = task
-
-                ' Save to XML
+                ' Save to XML first so the file is the source of truth.
                 _xmlManager.SaveTask(task)
+
+                ' Reload tasks from XML so the in-memory cache matches the persisted
+                ' state immediately after adding.
+                LoadTasks()
 
                 _logger.LogInfo($"Task {task.Name} added successfully")
             Catch ex As Exception
@@ -1281,11 +1282,14 @@ Namespace LiteTask
                 ' Update next run time
                 updatedTask.NextRunTime = updatedTask.CalculateNextRunTime()
 
-                ' Update task in collection
-                _tasks(updatedTask.Name) = updatedTask
-
-                ' Save to XML
+                ' Save to XML first so the file is the source of truth.
                 _xmlManager.SaveTask(updatedTask)
+
+                ' Reload tasks from XML so the in-memory cache matches the persisted
+                ' state. LoadTasks() overwrites existing entries in place, so cleared
+                ' parameter values take effect on the next scheduled run without
+                ' requiring an application restart.
+                LoadTasks()
 
                 _logger.LogInfo($"Task {updatedTask.Name} updated successfully")
             Catch ex As Exception
