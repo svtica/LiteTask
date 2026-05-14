@@ -1275,6 +1275,26 @@ Namespace LiteTask
 
             AddEventsHandlers()
             InitializeAutoRefresh()
+            ApplyElevationVisibility()
+        End Sub
+
+        ' Hide UI elements whose operations require administrator privileges
+        ' when the process is not elevated. Items remain in the visual tree so
+        ' the translator still discovers and translates them.
+        Private Sub ApplyElevationVisibility()
+            Dim elevated = ElevationContext.IsElevated
+
+            ' Service install/uninstall/start/stop all shell out to `sc.exe`
+            ' which requires admin. Hide the whole submenu when not elevated.
+            If _serviceMenu IsNot Nothing Then
+                _serviceMenu.Visible = elevated
+            End If
+
+            ' "Run as Administrator" is meaningful only when not already
+            ' elevated; hide it once we have admin rights.
+            If _elevateMenuItem IsNot Nothing Then
+                _elevateMenuItem.Visible = Not elevated
+            End If
         End Sub
 
         Private Sub InitializeAutoRefresh()
