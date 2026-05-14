@@ -1893,13 +1893,27 @@ Namespace LiteTask
 
         Private Sub RequestRefresh()
             Try
-                If IsDisposed OrElse Not Visible Then Return
+                If IsDisposed Then Return
                 _refreshPending = True
-                If _autoRefreshTimer IsNot Nothing Then
+                ' Only kick the debounce timer while the form is visible. When the form
+                ' is hidden (minimised to tray), the pending flag stays armed and the
+                ' refresh is triggered from MainForm_Activated when the user reopens it.
+                If Visible AndAlso _autoRefreshTimer IsNot Nothing Then
                     _autoRefreshTimer.Start()
                 End If
             Catch ex As Exception
                 _logger?.LogError($"Error in RequestRefresh: {ex.Message}")
+            End Try
+        End Sub
+
+        Private Sub MainForm_Activated(sender As Object, e As EventArgs) Handles MyBase.Activated
+            Try
+                If IsDisposed Then Return
+                If _refreshPending AndAlso _autoRefreshTimer IsNot Nothing Then
+                    _autoRefreshTimer.Start()
+                End If
+            Catch ex As Exception
+                _logger?.LogError($"Error in MainForm_Activated: {ex.Message}")
             End Try
         End Sub
 
