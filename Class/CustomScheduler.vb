@@ -1231,32 +1231,27 @@ Namespace LiteTask
 
         Public Sub SaveTasks()
             Try
-                '_logger.LogInfo("Starting to save tasks")
-
                 If _xmlManager Is Nothing Then
                     Throw New InvalidOperationException("XMLManager is not initialized")
                 End If
 
-                ' Get current tasks
-                Dim currentTasks = GetAllTasks()
+                ' The in-memory _tasks dictionary is the source of truth. Snapshotting
+                ' it directly (instead of going through GetAllTasks) prevents
+                ' just-deleted tasks from being resurrected by an XML→memory merge.
+                Dim currentTasks = _tasks.Values.Where(Function(t) t IsNot Nothing).ToList()
+                Dim currentNames = New HashSet(Of String)(currentTasks.Select(Function(t) t.Name), StringComparer.Ordinal)
 
-                ' First, load existing task names from XML
                 Dim existingTaskNames = _xmlManager.GetAllTaskNames()
 
-                ' Find tasks to delete (tasks in XML but not in current tasks)
                 For Each existingName In existingTaskNames
-                    If Not currentTasks.Any(Function(t) t.Name = existingName) Then
+                    If Not currentNames.Contains(existingName) Then
                         _logger.LogInfo($"Deleting obsolete task from XML: {existingName}")
                         _xmlManager.DeleteTask(existingName)
                     End If
                 Next
 
-                ' Save current tasks
                 For Each task In currentTasks
-                    If task IsNot Nothing Then
-                        _xmlManager.SaveTask(task)
-                        '_logger.LogInfo($"Saved task: {task.Name}")
-                    End If
+                    _xmlManager.SaveTask(task)
                 Next
 
                 _logger.LogInfo("Tasks saved successfully")

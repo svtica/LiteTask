@@ -184,45 +184,45 @@ Namespace LiteTask
 
         Public Sub DeleteTask(taskName As String)
             Try
+                _xmlLock.EnterWriteLock()
+
                 _logger?.LogInfo($"Attempting to delete task: {taskName}")
 
                 If String.IsNullOrEmpty(taskName) Then
                     Throw New ArgumentException("Task name cannot be null or empty", NameOf(taskName))
                 End If
 
-                ' Load XML document
-                Dim xmlDoc As New XmlDocument()
                 If Not File.Exists(_filePath) Then
                     _logger?.LogWarning($"XML file not found at {_filePath}")
                     Return
                 End If
 
-                xmlDoc.Load(_filePath)
+                Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
+                Using fs As New FileStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.None)
+                    xmlDoc.Load(fs)
+                End Using
 
-                ' Find the Tasks node, create if it doesn't exist
-                Dim tasksNode As XmlNode = xmlDoc.SelectSingleNode("LiteTaskSettings/Tasks")
-                If tasksNode Is Nothing Then
-                    Dim rootNode As XmlNode = xmlDoc.SelectSingleNode("LiteTaskSettings")
-                    If rootNode Is Nothing Then
-                        rootNode = xmlDoc.CreateElement("LiteTaskSettings")
-                        xmlDoc.AppendChild(rootNode)
+                ' Remove every matching <Task Name="..."> node across all supported
+                ' layouts so the deletion sticks even for non-canonical files
+                ' (LiteTaskSettings/Task, or <Task> as document root).
+                Dim removedCount = 0
+                For Each candidate In SelectTaskNodes(xmlDoc)
+                    Dim nameAttr = candidate.Attributes("Name")
+                    If nameAttr IsNot Nothing AndAlso String.Equals(nameAttr.Value, taskName, StringComparison.Ordinal) Then
+                        If candidate Is xmlDoc.DocumentElement Then
+                            _logger?.LogWarning($"Cannot remove task {taskName}: it is the document root")
+                        Else
+                            candidate.ParentNode.RemoveChild(candidate)
+                            removedCount += 1
+                        End If
                     End If
-                    tasksNode = rootNode.AppendChild(xmlDoc.CreateElement("Tasks"))
-                End If
+                Next
 
-                ' Find the task node
-                Dim taskNode As XmlNode = tasksNode.SelectSingleNode($"Task[@Name='{taskName}']")
-                If taskNode IsNot Nothing Then
-
-                    ' Remove the task node
-                    tasksNode.RemoveChild(taskNode)
-                    
-                    ' Create a backup before saving (using existing backup mechanism)
+                If removedCount > 0 Then
                     CreateBackup()
-                    
-                    ' Save the document
-                    xmlDoc.Save(_filePath)
-                    _logger?.LogInfo($"Task {taskName} deleted successfully from XML")
+                    SaveXmlSafely(xmlDoc)
+                    _logger?.LogInfo($"Task {taskName} deleted successfully from XML ({removedCount} occurrence(s))")
                 Else
                     _logger?.LogWarning($"Task {taskName} not found in XML file")
                 End If
@@ -231,6 +231,10 @@ Namespace LiteTask
                 _logger?.LogError($"Error deleting task {taskName} from XML: {ex.Message}")
                 _logger?.LogError($"StackTrace: {ex.StackTrace}")
                 Throw New Exception($"Failed to delete task from XML: {ex.Message}", ex)
+            Finally
+                If _xmlLock.IsWriteLockHeld Then
+                    _xmlLock.ExitWriteLock()
+                End If
             End Try
         End Sub
 
