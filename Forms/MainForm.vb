@@ -293,6 +293,7 @@ Namespace LiteTask
             ApplicationContainer.GetService(Of Logger)())
 
                     If taskForm.ShowDialog() = DialogResult.OK Then
+                        NotifyServiceTasksChanged()
                         RefreshTaskList()
                         _logger.LogInfo("Task created successfully")
                     End If
@@ -355,6 +356,8 @@ Namespace LiteTask
                         MessageBox.Show("Changes may not have been saved properly. Please verify tasks.",
                               "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
                     End Try
+
+                    NotifyServiceTasksChanged()
 
                     Await RefreshUIAsync()
 
@@ -438,6 +441,7 @@ Namespace LiteTask
 
                 Using taskForm As New TaskForm(_credentialManager, _customScheduler, _logger, task)
                     If taskForm.ShowDialog() = DialogResult.OK Then
+                        NotifyServiceTasksChanged()
                         RefreshTaskList()
                         _logger.LogInfo($"Task {taskName} edited successfully")
                     End If
@@ -642,6 +646,7 @@ Namespace LiteTask
                     End If
                 Next
 
+                NotifyServiceTasksChanged()
                 RefreshTaskList()
             Catch ex As Exception
                 _logger.LogError($"Error toggling task enabled state: {ex.Message}")
@@ -769,6 +774,8 @@ Namespace LiteTask
 
                     _logger.LogInfo($"Imported task: {taskName}")
                 Next
+
+                NotifyServiceTasksChanged()
 
                 MessageBox.Show($"Successfully imported {importedTaskNames.Count} tasks.", "Import Successful", MessageBoxButtons.OK, MessageBoxIcon.Information)
                 _logger.LogInfo($"Imported {importedTaskNames.Count} tasks successfully")
@@ -2098,6 +2105,33 @@ Namespace LiteTask
 
             Return _isServiceRunning
         End Function
+
+        ''' <summary>
+        ''' Signals the running LiteTaskService (separate process) to reload its
+        ''' in-memory task list from settings.xml. Without this, the service keeps
+        ''' a stale _tasks dictionary and resurrects deleted tasks via SaveTasks
+        ''' at the end of the next execution. Best-effort: a non-admin GUI user
+        ''' may lack SERVICE_USER_DEFINED_CONTROL on the service, in which case
+        ''' the call is logged as a warning and the service stays stale until it
+        ''' is restarted.
+        ''' </summary>
+        Private Sub NotifyServiceTasksChanged()
+            Try
+                Using sc = New ServiceController(SERVICE_NAME)
+                    If sc.Status <> ServiceControllerStatus.Running Then Return
+                    sc.ExecuteCommand(LiteTaskService.CMD_RELOAD_TASKS)
+                End Using
+                _logger?.LogInfo("Sent CMD_RELOAD_TASKS to LiteTaskService")
+            Catch ex As InvalidOperationException
+                ' ServiceController throws this when the service is not installed.
+                ' Normal in GUI-only setups; nothing to do.
+            Catch ex As Exception
+                _logger?.LogWarning(
+                    $"Could not notify LiteTaskService of task change: {ex.Message}. " &
+                    "The service may keep stale task data until it is restarted. " &
+                    "Grant SERVICE_USER_DEFINED_CONTROL to the GUI user or run the GUI elevated.")
+            End Try
+        End Sub
 
         Private Sub UpdateTaskStatus(task As ScheduledTask)
             'TODO: Implement task status update
