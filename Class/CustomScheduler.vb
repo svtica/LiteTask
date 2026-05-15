@@ -1113,6 +1113,63 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Hot-reload entry point invoked by LiteTaskService.OnCustomCommand
+        ''' after the GUI mutates settings.xml. Evicts in-memory entries for
+        ''' tasks that no longer exist on disk (skipping anything currently
+        ''' executing) and refreshes the rest from XML, so the service stops
+        ''' resurrecting deleted tasks via SaveTasks at the next execution.
+        ''' </summary>
+        Public Sub ReloadTasks()
+            Try
+                _logger.LogInfo("Reloading tasks from XML (hot reload)")
+
+                Dim newTaskNames = _xmlManager.GetAllTaskNames()
+                Dim newNameSet = New HashSet(Of String)(newTaskNames, StringComparer.Ordinal)
+
+                Dim removed = 0
+                Dim deferred = 0
+                For Each existingName In _tasks.Keys.ToList()
+                    If newNameSet.Contains(existingName) Then Continue For
+
+                    Dim isRunning As Boolean = False
+                    _taskRunning.TryGetValue(existingName, isRunning)
+                    If isRunning Then
+                        _logger.LogWarning($"Hot reload: task '{existingName}' is running; eviction deferred to next reload")
+                        deferred += 1
+                        Continue For
+                    End If
+
+                    _tasks.TryRemove(existingName, Nothing)
+                    _taskStates.TryRemove(existingName, Nothing)
+                    _staleTaskAlerts.TryRemove(existingName, Nothing)
+                    _activeMutexes.TryRemove(existingName, Nothing)
+
+                    Dim removedLock As Object = Nothing
+                    If _taskLocks.TryRemove(existingName, removedLock) Then
+                        If TypeOf removedLock Is SemaphoreSlim Then
+                            DirectCast(removedLock, SemaphoreSlim).Dispose()
+                        End If
+                    End If
+                    removed += 1
+                Next
+
+                Dim refreshed = 0
+                For Each taskName In newTaskNames
+                    Dim task = _xmlManager.LoadTask(taskName)
+                    If task IsNot Nothing Then
+                        _tasks(taskName) = task
+                        refreshed += 1
+                    End If
+                Next
+
+                _logger.LogInfo($"Hot reload complete: {refreshed} task(s) in memory, {removed} evicted, {deferred} deferred")
+            Catch ex As Exception
+                _logger.LogError($"Error during hot reload: {ex.Message}")
+                _logger.LogError($"StackTrace: {ex.StackTrace}")
+            End Try
+        End Sub
+
         Private Sub HandleTaskError(task As ScheduledTask, ex As Exception)
             _logger.LogError($"Error executing task {task.Name}: {ex.Message}")
             _logger.LogError($"Stack trace: {ex.StackTrace}")
