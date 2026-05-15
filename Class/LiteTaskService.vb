@@ -6,6 +6,12 @@ Imports System.Timers
 Namespace LiteTask
     Public Class LiteTaskService
         Inherits ServiceBase
+
+        ' Custom service control code (Windows reserves 128-255 for user-defined
+        ' commands) that the GUI sends after mutating settings.xml so the service
+        ' rereads its in-memory task list without a stop/start cycle.
+        Public Const CMD_RELOAD_TASKS As Integer = 128
+
         Private _customScheduler As CustomScheduler
         Private _credentialManager As CredentialManager
         Private _xmlManager As XMLManager
@@ -263,6 +269,20 @@ Namespace LiteTask
                 _logger.LogError($"Error stopping service: {ex.Message}")
             Finally
                 _cancellationTokenSource.Dispose()
+            End Try
+        End Sub
+
+        Protected Overrides Sub OnCustomCommand(command As Integer)
+            Try
+                Select Case command
+                    Case CMD_RELOAD_TASKS
+                        _logger.LogInfo("Received CMD_RELOAD_TASKS from GUI; reloading tasks from settings.xml")
+                        _customScheduler.ReloadTasks()
+                    Case Else
+                        MyBase.OnCustomCommand(command)
+                End Select
+            Catch ex As Exception
+                _logger.LogError($"Error handling custom service command {command}: {ex.Message}")
             End Try
         End Sub
 
