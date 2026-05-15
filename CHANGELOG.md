@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Task deletion not persisting: `XMLManager.DeleteTask` only searched the canonical `LiteTaskSettings/Tasks/Task` path while `GetAllTaskNames`/`LoadTask` accept three layouts, so non-canonical entries survived deletion. `CustomScheduler.SaveTasks` then re-merged the surviving XML entry back into `_tasks` via `GetAllTasks`, resurrecting the task. `DeleteTask` now removes every matching node across supported layouts (under the existing write lock, with atomic save) and `SaveTasks` treats the in-memory `_tasks` dictionary as the source of truth.
+
 ### Changed
 - `SettingsValidator`: removed stale `TODO Reimplement in Options` comment; the validator is already wired into `OptionsForm.ValidateSettings`.
 - `TaskRunner.ParseParameters`: now delegates to a new testable `LiteTask.ParameterParser` module that supports cmd-style quoting (`key="value with spaces"`) while remaining backward-compatible with `key=value`.
