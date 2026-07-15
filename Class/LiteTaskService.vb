@@ -93,6 +93,18 @@ Namespace LiteTask
         Private Shared Function CloseHandle(hObject As IntPtr) As Boolean
         End Function
 
+        ' SetErrorMode flags: child processes inherit the error mode, so setting it
+        ' at service startup prevents Windows hard-error dialogs (missing DLL, disk
+        ' error, GP fault) from invisibly blocking a child executable that runs in
+        ' a non-interactive service session.
+        <DllImport("kernel32.dll")>
+        Private Shared Function SetErrorMode(uMode As UInteger) As UInteger
+        End Function
+
+        Private Const SEM_FAILCRITICALERRORS As UInteger = &H1UI
+        Private Const SEM_NOGPFAULTERRORBOX As UInteger = &H2UI
+        Private Const SEM_NOOPENFILEERRORBOX As UInteger = &H8000UI
+
         <DllImport("advapi32.dll", SetLastError:=True)>
         Private Shared Function CloseServiceHandle(hSCObject As IntPtr) As Boolean
         End Function
@@ -212,11 +224,40 @@ Namespace LiteTask
             Try
                 _logger.LogInfo("LiteTaskService is starting.")
 
+                ' Suppress Windows hard-error dialogs for this process and all child
+                ' processes: under a service there is no desktop to answer them, so a
+                ' dialog would block the child invisibly and hold the task lock forever.
+                Try
+                    SetErrorMode(SEM_FAILCRITICALERRORS Or SEM_NOGPFAULTERRORBOX Or SEM_NOOPENFILEERRORBOX)
+                    _logger.LogInfo("Error mode set: hard-error dialogs suppressed for service and child processes")
+                Catch ex As Exception
+                    _logger.LogWarning($"Could not set process error mode: {ex.Message}")
+                End Try
+
                 _customScheduler.ClearTaskStates()
                 _customScheduler.LoadTasks()
 
+                ' Configurable grace period before the first dispatch, so that after a
+                ' full-server reboot SQL Server and network shares have time to come up
+                ' before any task is launched.
+                Dim startupDelaySeconds = 90
+                Try
+                    Dim reliability = _xmlManager.GetReliabilitySettings()
+                    Dim configuredDelay As Integer
+                    If Integer.TryParse(reliability("StartupDelaySeconds"), configuredDelay) AndAlso configuredDelay >= 0 Then
+                        startupDelaySeconds = configuredDelay
+                    End If
+                Catch ex As Exception
+                    _logger.LogWarning($"Could not read startup delay setting, using default {startupDelaySeconds}s: {ex.Message}")
+                End Try
+
                 _serviceTask = Task.Run(Async Function()
                                             Try
+                                                If startupDelaySeconds > 0 Then
+                                                    _logger.LogInfo($"Startup delay: waiting {startupDelaySeconds}s before dispatching tasks (post-reboot grace period)")
+                                                    Await Task.Delay(TimeSpan.FromSeconds(startupDelaySeconds), _cancellationTokenSource.Token)
+                                                End If
+
                                                 While Not _cancellationTokenSource.Token.IsCancellationRequested
                                                     Try
                                                         _customScheduler.CheckAndExecuteTasks()

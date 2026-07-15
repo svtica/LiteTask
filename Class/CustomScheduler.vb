@@ -27,6 +27,28 @@ Namespace LiteTask
         Private _lastStaleCleanupTime As DateTime = DateTime.MinValue
         Private Const STALE_CLEANUP_INTERVAL_SECONDS As Integer = 300
 
+        ' Reliability settings (configurable via the Reliability section of settings.xml)
+        Private ReadOnly _sqlReadiness As SqlReadinessChecker
+        Private _sqlReadinessEnabled As Boolean = True
+        Private _sqlGatedTaskPatterns As String() = {"GenRTP", "Extracteur"}
+        Private _staggerSeconds As Integer = 5
+        Private _staleAlertRepeatMinutes As Integer = 60
+
+        ' Extra recovery/alerting state:
+        ' - _pendingDispatch prevents double-dispatch of a task whose (possibly
+        '   staggered) launch has been scheduled but has not completed yet.
+        ' - _staleAlertCounts numbers repeated stale/blocked alerts so escalation
+        '   is visible in the subject line.
+        ' - _skippedRun* track consecutive scheduler skips (lock unavailable /
+        '   already running) so a persistently blocked task raises repeated alerts
+        '   instead of failing silently every 30 seconds.
+        Private ReadOnly _pendingDispatch As New ConcurrentDictionary(Of String, Boolean)
+        Private ReadOnly _staleAlertCounts As New ConcurrentDictionary(Of String, Integer)
+        Private ReadOnly _blockedTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
+        Private ReadOnly _skippedRunFirstTime As New ConcurrentDictionary(Of String, DateTime)
+        Private ReadOnly _skippedRunCounts As New ConcurrentDictionary(Of String, Integer)
+        Private Const STALE_KILL_GRACE_MINUTES As Integer = 10
+
         ' Memory monitoring properties (configurable via Options > Monitoring)
         Private _memoryMonitorEnabled As Boolean = True
         Private _memoryCheckIntervalSeconds As Integer = 300          ' Default: 5 minutes
@@ -83,9 +105,13 @@ Namespace LiteTask
             _errorNotifier = New ErrorNotifier(xmlManager, logger)
             _dependencyManager = New TaskDependencyManager(logger, xmlManager, Me)
             _powerShellPathManager = ApplicationContainer.GetService(Of PowerShellPathManager)()
+            _sqlReadiness = New SqlReadinessChecker(xmlManager, logger)
 
             ' Load memory monitoring settings
             LoadMemoryMonitorSettings()
+
+            ' Load startup/recovery reliability settings
+            LoadReliabilitySettings()
 
             ' Initialize mutex cleanup timer (run every 5 minutes)
             _mutexCleanupTimer = New Threading.Timer(AddressOf CleanupAbandonedMutexes, Nothing,
@@ -264,6 +290,52 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Reloads startup/recovery reliability settings from XML. Called on
+        ''' construction and can be called again after configuration changes.
+        ''' </summary>
+        Public Sub LoadReliabilitySettings()
+            Try
+                Dim settings = _xmlManager.GetReliabilitySettings()
+                _sqlReadinessEnabled = Boolean.Parse(If(settings.ContainsKey("SqlReadinessEnabled"), settings("SqlReadinessEnabled"), "True"))
+                Dim gatedTasks = If(settings.ContainsKey("SqlGatedTasks"), settings("SqlGatedTasks"), "")
+                _sqlGatedTaskPatterns = gatedTasks.Split(","c).
+                    Select(Function(s) s.Trim()).
+                    Where(Function(s) s.Length > 0).
+                    ToArray()
+                _staggerSeconds = Math.Max(0, Integer.Parse(If(settings.ContainsKey("TaskLaunchStaggerSeconds"), settings("TaskLaunchStaggerSeconds"), "5")))
+                _staleAlertRepeatMinutes = Math.Max(5, Integer.Parse(If(settings.ContainsKey("StaleAlertRepeatMinutes"), settings("StaleAlertRepeatMinutes"), "60")))
+                _logger.LogInfo($"Reliability settings loaded: SqlReadiness={_sqlReadinessEnabled}, GatedTasks=[{String.Join(", ", _sqlGatedTaskPatterns)}], StaggerSeconds={_staggerSeconds}, StaleAlertRepeatMinutes={_staleAlertRepeatMinutes}")
+            Catch ex As Exception
+                _logger.LogWarning($"Error loading reliability settings, using defaults: {ex.Message}")
+                _sqlReadinessEnabled = True
+                _sqlGatedTaskPatterns = {"GenRTP", "Extracteur"}
+                _staggerSeconds = 5
+                _staleAlertRepeatMinutes = 60
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' A task must wait for SQL Server readiness when it contains a SQL action
+        ''' or when its name matches one of the configured SQL-gated patterns
+        ''' (covers executables like GenRTP that talk to SQL internally).
+        ''' </summary>
+        Private Function RequiresSqlReadiness(task As ScheduledTask) As Boolean
+            If Not _sqlReadinessEnabled Then Return False
+
+            If task.Actions IsNot Nothing AndAlso task.Actions.Any(Function(a) a.Type = TaskType.SQL) Then
+                Return True
+            End If
+
+            For Each pattern In _sqlGatedTaskPatterns
+                If task.Name.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0 Then
+                    Return True
+                End If
+            Next
+
+            Return False
+        End Function
+
         Public Sub AddTask(task As ScheduledTask)
             Try
                 If task Is Nothing Then
@@ -313,6 +385,11 @@ Namespace LiteTask
             _taskStates.Clear()
             _activeMutexes.Clear()
             _staleTaskAlerts.Clear()
+            _staleAlertCounts.Clear()
+            _blockedTaskAlerts.Clear()
+            _skippedRunFirstTime.Clear()
+            _skippedRunCounts.Clear()
+            _pendingDispatch.Clear()
             _logger.LogInfo("Task states, mutex tracking, and stale alert tracking cleared")
         End Sub
 
@@ -332,18 +409,38 @@ Namespace LiteTask
                 ' Daily scheduled restart check
                 CheckDailyRestart(now)
 
+                Dim dueIndex As Integer = 0
                 For Each task In _tasks.Values
                     Try
                         ' Skip disabled tasks
                         If Not task.Enabled Then Continue For
+                        If task.NextRunTime > now Then Continue For
 
-                        If task.NextRunTime <= now Then
-                            Dim taskState = _taskStates.GetOrAdd(task.Name, New TaskState())
+                        Dim taskState = _taskStates.GetOrAdd(task.Name, New TaskState())
+                        If taskState.IsRunning Then Continue For
 
-                            If Not taskState.IsRunning Then
-                                _logger.LogInfo($"Task due for execution: {task.Name}")
-                                ExecuteTaskAsync(task).ConfigureAwait(False)
-                            End If
+                        ' Dependency readiness gate: don't launch SQL-dependent tasks
+                        ' while SQL Server is unavailable (e.g. right after a reboot).
+                        ' NextRunTime is left untouched so the task is retried on the
+                        ' next scheduler tick instead of being marked as executed.
+                        If RequiresSqlReadiness(task) AndAlso Not _sqlReadiness.IsReady() Then
+                            _logger.LogWarning($"Task {task.Name} deferred: SQL Server is not ready yet")
+                            Continue For
+                        End If
+
+                        ' TryAdd guards against double-dispatch: the launch below may be
+                        ' staggered past the next scheduler tick.
+                        If _pendingDispatch.TryAdd(task.Name, True) Then
+                            Dim taskToRun = task
+                            Dim launchDelayMs = dueIndex * _staggerSeconds * 1000
+                            dueIndex += 1
+
+                            _logger.LogInfo($"Task due for execution: {taskToRun.Name}{If(launchDelayMs > 0, $" (staggered by {launchDelayMs \ 1000}s)", "")}")
+
+                            ' Offload to the thread pool: lock acquisition in
+                            ' ExecuteTaskAsync can block for up to 30 seconds and must
+                            ' not stall the scheduler tick.
+                            Threading.Tasks.Task.Run(Function() DispatchTaskAsync(taskToRun, launchDelayMs))
                         End If
                     Catch ex As Exception
                         _logger.LogError($"Error checking task {task.Name}: {ex.Message}")
@@ -353,6 +450,24 @@ Namespace LiteTask
                 _logger.LogError($"Error in CheckAndExecuteTasks: {ex.Message}")
             End Try
         End Sub
+
+        ''' <summary>
+        ''' Runs one scheduled dispatch, applying the optional stagger delay so
+        ''' simultaneous launches don't all hit SQL Server and network shares in
+        ''' the same second, then always clears the pending-dispatch flag.
+        ''' </summary>
+        Private Async Function DispatchTaskAsync(taskToRun As ScheduledTask, launchDelayMs As Integer) As Task
+            Try
+                If launchDelayMs > 0 Then
+                    Await Task.Delay(launchDelayMs)
+                End If
+                Await ExecuteTaskAsync(taskToRun)
+            Catch ex As Exception
+                _logger.LogError($"Error executing task {taskToRun.Name}: {ex.Message}")
+            Finally
+                _pendingDispatch.TryRemove(taskToRun.Name, Nothing)
+            End Try
+        End Function
 
         ''' <summary>
         ''' Logs memory usage periodically and sends alerts when thresholds are exceeded.
@@ -602,24 +717,56 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Total configured timeout for a task (sum of its actions' timeouts, since
+        ''' actions run sequentially). Used to decide when a running task is beyond
+        ''' recovery-by-timeout and must be forcibly killed.
+        ''' </summary>
+        Private Function GetEffectiveTimeout(taskName As String) As TimeSpan
+            Dim task As ScheduledTask = Nothing
+            If _tasks.TryGetValue(taskName, task) AndAlso task.Actions IsNot Nothing AndAlso task.Actions.Count > 0 Then
+                Return TimeSpan.FromMinutes(task.Actions.Sum(Function(a) If(a.TimeoutMinutes > 0, a.TimeoutMinutes, 60)))
+            End If
+            Return TimeSpan.FromMinutes(60)
+        End Function
+
         Private Sub CleanupStaleTasks()
             Try
                 Dim staleTimeout = TimeSpan.FromMinutes(STALE_TIMEOUT_MINUTES)
                 Dim now = DateTime.Now
 
                 For Each taskEntry In _taskStates
-                    If taskEntry.Value.IsRunning AndAlso
-                   (now - taskEntry.Value.LastStartTime) > staleTimeout Then
-                        _logger.LogWarning($"Cleaning up stale task state: {taskEntry.Key}")
+                    If Not taskEntry.Value.IsRunning Then Continue For
 
-                        ' Send email alert if not already sent for this stale instance
-                        SendStaleTaskAlert(taskEntry.Key, taskEntry.Value, staleTimeout)
+                    Dim taskName = taskEntry.Key
+                    Dim runningFor = now - taskEntry.Value.LastStartTime
+                    If runningFor <= staleTimeout Then Continue For
+
+                    ' Long-running task detected. Alert (repeats on a cadence while
+                    ' the condition persists), but do NOT reset the running state:
+                    ' resetting it while the underlying process is still alive only
+                    ' causes the scheduler to re-dispatch into a held lock forever.
+                    _logger.LogWarning($"Stale task detected: {taskName} has been running for {runningFor.TotalMinutes:F1} minutes")
+                    SendStaleTaskAlert(taskName, taskEntry.Value, staleTimeout)
+
+                    ' Last-resort recovery: the per-action timeouts should have fired
+                    ' long ago. Kill the owning process(es), release the lock, and
+                    ' reset the state so the next schedule can proceed.
+                    Dim killThreshold = GetEffectiveTimeout(taskName).Add(TimeSpan.FromMinutes(STALE_KILL_GRACE_MINUTES))
+                    If runningFor > killThreshold Then
+                        _logger.LogError($"Task {taskName} exceeded its recovery threshold ({killThreshold.TotalMinutes:F0} minutes). Forcing recovery.")
+
+                        Dim killedCount = _taskRunner.KillProcessesForTask(taskName)
+                        _logger.LogWarning($"Forced recovery of {taskName}: killed {killedCount} process(es)")
+
+                        ' Clear the in-process running marker so the abandoned lock
+                        ' can be force-released, then release it.
+                        _taskRunning.TryRemove(taskName, False)
+                        TryCleanupAbandonedLock(taskName, forceRelease:=True)
 
                         taskEntry.Value.IsRunning = False
-                        taskEntry.Value.LastError = "Task cleaned up due to timeout"
-
-                        ' Also remove from mutex tracking
-                        _activeMutexes.TryRemove(taskEntry.Key, Nothing)
+                        taskEntry.Value.LastError = $"Forced recovery after {runningFor.TotalMinutes:F0} minutes (killed {killedCount} process(es))"
+                        _activeMutexes.TryRemove(taskName, Nothing)
                     End If
                 Next
             Catch ex As Exception
@@ -627,17 +774,18 @@ Namespace LiteTask
             End Try
         End Sub
 
-        ''' Sends an email alert for a stale task, with duplicate prevention
+        ''' Sends an email alert for a stale task. The alert repeats on a
+        ''' configurable cadence while the condition persists, with an escalating
+        ''' alert number in the subject, so a multi-day blockage cannot hide
+        ''' behind a single day-one email.
         Private Sub SendStaleTaskAlert(taskName As String, taskState As TaskState, staleTimeout As TimeSpan)
             Try
                 Dim lastAlertTime As DateTime = Nothing
                 Dim now = DateTime.Now
 
-                ' Check if we already sent an alert for this task recently (within the last hour)
+                ' Rate-limit repeats to the configured cadence
                 If _staleTaskAlerts.TryGetValue(taskName, lastAlertTime) Then
-                    If (now - lastAlertTime).TotalHours < 1 Then
-                        ' Already sent an alert recently, don't spam
-                        _logger.LogInfo($"Skipping duplicate stale task alert for {taskName} (last alert: {lastAlertTime})")
+                    If (now - lastAlertTime).TotalMinutes < _staleAlertRepeatMinutes Then
                         Return
                     End If
                 End If
@@ -649,10 +797,12 @@ Namespace LiteTask
                     Return
                 End If
 
+                Dim alertNumber = _staleAlertCounts.AddOrUpdate(taskName, 1, Function(k, v) v + 1)
+
                 ' Build alert message
-                Dim subject = $"ALERT: Stale Task Detected - {taskName}"
+                Dim subject = $"ALERT #{alertNumber}: Stale Task Detected - {taskName}"
                 Dim body As New StringBuilder()
-                body.AppendLine($"A stale task has been detected and cleaned up:")
+                body.AppendLine($"A stale task has been detected (alert #{alertNumber} for this incident):")
                 body.AppendLine()
                 body.AppendLine($"Task Name: {taskName}")
                 body.AppendLine($"Started At: {taskState.LastStartTime:yyyy-MM-dd HH:mm:ss}")
@@ -665,10 +815,11 @@ Namespace LiteTask
                     body.AppendLine($"Last Error: {taskState.LastError}")
                 End If
                 body.AppendLine()
-                body.AppendLine("Action Taken: Task state has been reset and mutex released.")
+                body.AppendLine($"This alert will repeat every {_staleAlertRepeatMinutes} minutes until the task recovers.")
+                body.AppendLine("If the task exceeds its configured timeout, LiteTask will kill the owning process and release the lock automatically.")
                 body.AppendLine()
                 body.AppendLine("This typically indicates:")
-                body.AppendLine("  - The task process may be hung or stuck")
+                body.AppendLine("  - The task process may be hung or stuck (e.g. waiting on SQL Server or a network share)")
                 body.AppendLine("  - An executable may still be running in the background")
                 body.AppendLine("  - The task may have crashed without cleaning up properly")
                 body.AppendLine()
@@ -684,11 +835,74 @@ Namespace LiteTask
                 ' Update alert tracking
                 _staleTaskAlerts(taskName) = now
 
-                _logger.LogInfo($"Stale task alert sent for {taskName}")
+                _logger.LogInfo($"Stale task alert #{alertNumber} sent for {taskName}")
 
             Catch ex As Exception
                 _logger.LogError($"Error sending stale task alert for {taskName}: {ex.Message}")
             End Try
+        End Sub
+
+        ''' <summary>
+        ''' Records a scheduler skip (lock unavailable or task already running).
+        ''' A task that keeps getting skipped is effectively blocked: after the
+        ''' stale threshold, repeated escalating alerts are sent so the condition
+        ''' cannot persist silently (as happened when ~6,700 skips over 5 days
+        ''' produced a single email).
+        ''' </summary>
+        Private Sub RecordSkippedRun(taskName As String)
+            Try
+                Dim now = DateTime.Now
+                Dim firstSkip = _skippedRunFirstTime.GetOrAdd(taskName, now)
+                Dim skipCount = _skippedRunCounts.AddOrUpdate(taskName, 1, Function(k, v) v + 1)
+                Dim blockedFor = now - firstSkip
+
+                If blockedFor.TotalMinutes < STALE_TIMEOUT_MINUTES Then Return
+
+                ' Rate-limit repeats to the configured cadence
+                Dim lastAlertTime As DateTime = Nothing
+                If _blockedTaskAlerts.TryGetValue(taskName, lastAlertTime) Then
+                    If (now - lastAlertTime).TotalMinutes < _staleAlertRepeatMinutes Then
+                        Return
+                    End If
+                End If
+
+                Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                If notificationManager Is Nothing Then Return
+
+                Dim alertNumber = _staleAlertCounts.AddOrUpdate(taskName, 1, Function(k, v) v + 1)
+
+                Dim body As New StringBuilder()
+                body.AppendLine($"Task '{taskName}' is due but keeps being skipped (alert #{alertNumber} for this incident):")
+                body.AppendLine()
+                body.AppendLine($"Blocked Since: {firstSkip:yyyy-MM-dd HH:mm:ss}")
+                body.AppendLine($"Blocked Duration: {blockedFor.TotalMinutes:F0} minutes")
+                body.AppendLine($"Skipped Runs: {skipCount}")
+                body.AppendLine()
+                body.AppendLine("The task lock could not be acquired, which usually means a previous run")
+                body.AppendLine("is hung and still holding it. LiteTask will attempt automatic recovery")
+                body.AppendLine("(kill the owning process and release the lock) when the run exceeds its timeout.")
+                body.AppendLine()
+                body.AppendLine($"This alert will repeat every {_staleAlertRepeatMinutes} minutes until the task runs again.")
+
+                notificationManager.QueueNotification(
+                    $"ALERT #{alertNumber}: Task Blocked - {taskName} ({skipCount} runs skipped)",
+                    body.ToString(),
+                    NotificationManager.NotificationPriority.High)
+
+                _blockedTaskAlerts(taskName) = now
+                _logger.LogWarning($"Blocked task alert #{alertNumber} sent for {taskName} ({skipCount} skipped runs over {blockedFor.TotalMinutes:F0} minutes)")
+
+            Catch ex As Exception
+                _logger.LogError($"Error recording skipped run for {taskName}: {ex.Message}")
+            End Try
+        End Sub
+
+        ''' Clears blockage/alert tracking after a successful run
+        Private Sub ClearBlockedTracking(taskName As String)
+            _skippedRunFirstTime.TryRemove(taskName, Nothing)
+            _skippedRunCounts.TryRemove(taskName, Nothing)
+            _blockedTaskAlerts.TryRemove(taskName, Nothing)
+            _staleAlertCounts.TryRemove(taskName, Nothing)
         End Sub
 
         Protected Overridable Sub Dispose(disposing As Boolean)
@@ -838,6 +1052,7 @@ Namespace LiteTask
                 If Not hasLock Then
                     _logger.LogInfo($"Could not acquire lock for task {_task.Name} after {retryCount} retries. Will retry later.")
                     _activeMutexes.TryRemove(_task.Name, Nothing)
+                    RecordSkippedRun(_task.Name)
                     Return False
                 End If
 
@@ -848,6 +1063,10 @@ Namespace LiteTask
                 _activeMutexes(_task.Name) = DateTime.Now
                 _logger.LogInfo($"Lock acquired for task: {_task.Name}")
                 If _taskRunning.TryAdd(_task.Name, True) Then
+                    ' Flow the task name into TaskRunner (AsyncLocal) so child
+                    ' processes started for this run are tracked under this task
+                    ' and can be killed on timeout or stale-lock recovery.
+                    _taskRunner.CurrentTaskName = _task.Name
                     Try
                         ' Get credential if needed
                         Dim credential As CredentialInfo = Nothing
@@ -861,7 +1080,25 @@ Namespace LiteTask
                             action.LastRunTime = DateTime.Now
 
                             Try
-                                Dim success = Await ExecuteTaskAction(action, credential)
+                                ' Backstop timeout: TaskRunner enforces the action's
+                                ' timeout on the child process itself; this outer guard
+                                ' catches the case where the execution path hangs without
+                                ' the child exiting (e.g. output streams never closing),
+                                ' kills the owning process and releases the lock so the
+                                ' next schedule can fire.
+                                Dim actionTimeout = TaskRunner.GetActionTimeout(action)
+                                Dim backstopTimeout = actionTimeout.Add(TimeSpan.FromMinutes(2))
+                                Dim executionTask = ExecuteTaskAction(action, credential)
+                                Dim finished = Await Task.WhenAny(executionTask, Task.Delay(backstopTimeout))
+
+                                If finished IsNot executionTask Then
+                                    action.Status = TaskActionStatus.TimedOut
+                                    Dim killedCount = _taskRunner.KillProcessesForTask(_task.Name)
+                                    _logger.LogError($"Action {action.Name} of task {_task.Name} exceeded its {actionTimeout.TotalMinutes:F0}-minute timeout. Killed {killedCount} process(es).")
+                                    Throw New System.TimeoutException($"Action {action.Name} exceeded its {actionTimeout.TotalMinutes:F0}-minute timeout (killed {killedCount} process(es))")
+                                End If
+
+                                Dim success = Await executionTask
                                 If success Then
                                     action.Status = TaskActionStatus.Completed
                                     _logger.LogInfo($"Action {action.Name} completed successfully")
@@ -925,17 +1162,20 @@ Namespace LiteTask
                         End Try
 
                     Finally
+                        _taskRunner.CurrentTaskName = Nothing
                         _taskRunning.TryRemove(_task.Name, False)
                         taskState.LastEndTime = DateTime.Now
                         taskState.IsRunning = False
-                        ' Clear any stale task alert tracking when task completes normally
+                        ' Clear stale/blocked alert tracking now that the task got to run
                         _staleTaskAlerts.TryRemove(_task.Name, Nothing)
+                        ClearBlockedTracking(_task.Name)
                     End Try
 
                     Return True
                 Else
                     ' Task is already tracked as running in-process (secondary guard)
                     _logger.LogWarning($"Task {_task.Name} is already running in-process, skipping.")
+                    RecordSkippedRun(_task.Name)
                     Return False
                 End If
 
@@ -1144,6 +1384,8 @@ Namespace LiteTask
                     _taskStates.TryRemove(existingName, Nothing)
                     _staleTaskAlerts.TryRemove(existingName, Nothing)
                     _activeMutexes.TryRemove(existingName, Nothing)
+                    _pendingDispatch.TryRemove(existingName, Nothing)
+                    ClearBlockedTracking(existingName)
 
                     Dim removedLock As Object = Nothing
                     If _taskLocks.TryRemove(existingName, removedLock) Then
@@ -1206,6 +1448,8 @@ Namespace LiteTask
                 _taskRunning.TryRemove(taskName, Nothing)
                 _staleTaskAlerts.TryRemove(taskName, Nothing)
                 _activeMutexes.TryRemove(taskName, Nothing)
+                _pendingDispatch.TryRemove(taskName, Nothing)
+                ClearBlockedTracking(taskName)
 
                 Dim removedLock As Object = Nothing
                 If _taskLocks.TryRemove(taskName, removedLock) Then

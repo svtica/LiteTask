@@ -1,3 +1,4 @@
+Imports System.Collections.Concurrent
 Imports System.Collections.ObjectModel
 Imports System.Data
 Imports System.Data.SqlClient
@@ -25,6 +26,107 @@ Namespace LiteTask
         Private _disposed As Boolean
         Public Event OutputReceived(sender As Object, data As String)
         Public Event ErrorReceived(sender As Object, data As String)
+
+        ' Live child processes per execution context (task name), so the scheduler
+        ' can locate and kill the owning process when a task hangs past its timeout
+        ' or its lock goes stale. AsyncLocal flows the task name from the scheduler
+        ' into the nested async execution path without changing method signatures.
+        Private ReadOnly _trackedProcesses As New ConcurrentDictionary(Of String, ConcurrentDictionary(Of Integer, Process))
+        Private ReadOnly _currentTaskName As New Threading.AsyncLocal(Of String)
+        Private Const ADHOC_CONTEXT As String = "_adhoc"
+        Private Const DEFAULT_TASK_TIMEOUT_MINUTES As Integer = 60
+
+        ''' <summary>
+        ''' Execution context for process tracking. Set by the scheduler before
+        ''' running a task's actions; flows through awaits into RunProcessWithTimeout.
+        ''' </summary>
+        Public Property CurrentTaskName As String
+            Get
+                Return _currentTaskName.Value
+            End Get
+            Set(value As String)
+                _currentTaskName.Value = value
+            End Set
+        End Property
+
+        ''' <summary>
+        ''' Effective hard timeout for a task action. TimeoutMinutes has always been
+        ''' persisted per action but was never enforced; values &lt;= 0 fall back to
+        ''' the default so every run has a bounded duration.
+        ''' </summary>
+        Public Shared Function GetActionTimeout(taskAction As TaskAction) As TimeSpan
+            Dim minutes = If(taskAction IsNot Nothing AndAlso taskAction.TimeoutMinutes > 0,
+                             taskAction.TimeoutMinutes,
+                             DEFAULT_TASK_TIMEOUT_MINUTES)
+            Return TimeSpan.FromMinutes(minutes)
+        End Function
+
+        Private Function TrackProcess(process As Process) As String
+            Try
+                Dim key = If(CurrentTaskName, ADHOC_CONTEXT)
+                Dim bucket = _trackedProcesses.GetOrAdd(key, Function(k) New ConcurrentDictionary(Of Integer, Process)())
+                bucket(process.Id) = process
+                _logger.LogInfo($"Tracking child process {process.Id} (context: {key})")
+                Return key
+            Catch ex As Exception
+                ' Process may have exited before Id could be read; nothing to track
+                _logger.LogWarning($"Could not track child process: {ex.Message}")
+                Return Nothing
+            End Try
+        End Function
+
+        Private Sub UntrackProcess(key As String, process As Process)
+            If key Is Nothing Then Return
+            Try
+                Dim bucket As ConcurrentDictionary(Of Integer, Process) = Nothing
+                If _trackedProcesses.TryGetValue(key, bucket) Then
+                    bucket.TryRemove(process.Id, Nothing)
+                End If
+            Catch
+                ' Id unavailable (process never started) - nothing was tracked
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Kills every tracked child process (entire process tree) started for the
+        ''' given task. Used by the scheduler's timeout and stale-lock recovery so a
+        ''' hung executable cannot hold the task lock indefinitely.
+        ''' </summary>
+        Public Function KillProcessesForTask(taskName As String) As Integer
+            Dim killed = 0
+            Dim bucket As ConcurrentDictionary(Of Integer, Process) = Nothing
+            If Not _trackedProcesses.TryGetValue(taskName, bucket) OrElse bucket.IsEmpty Then
+                _logger.LogWarning($"No tracked child process found for task '{taskName}'")
+                Return 0
+            End If
+
+            For Each kvp In bucket
+                Try
+                    If Not kvp.Value.HasExited Then
+                        _logger.LogWarning($"Killing hung process {kvp.Key} (and children) for task '{taskName}'")
+                        kvp.Value.Kill(entireProcessTree:=True)
+                        killed += 1
+                    End If
+                Catch ex As ObjectDisposedException
+                    ' The Process wrapper was disposed but the OS process may live on: kill by PID
+                    Try
+                        Using p = Process.GetProcessById(kvp.Key)
+                            _logger.LogWarning($"Killing hung process {kvp.Key} (by PID) for task '{taskName}'")
+                            p.Kill(entireProcessTree:=True)
+                            killed += 1
+                        End Using
+                    Catch
+                        ' Process already gone
+                    End Try
+                Catch ex As Exception
+                    _logger.LogError($"Failed to kill process {kvp.Key} for task '{taskName}': {ex.Message}")
+                Finally
+                    bucket.TryRemove(kvp.Key, Nothing)
+                End Try
+            Next
+
+            Return killed
+        End Function
 
         Public Sub New(logger As Logger, credentialManager As CredentialManager, toolManager As ToolManager, logPath As String, XMLManager As XMLManager)
             If logger Is Nothing Then
@@ -129,8 +231,11 @@ Namespace LiteTask
                         EnvironmentVariableTarget.Process)
                         End Using
 
-                        ' Handle domain credentials
-                        Dim baseArgs = "-accepteula -nobanner -i"
+                        ' Handle domain credentials. The -i (interactive) flag is only
+                        ' valid in a user session: under the service there is no visible
+                        ' desktop, so an interactive child can block invisibly on a dialog.
+                        Dim baseArgs = "-accepteula -nobanner"
+                        If Environment.UserInteractive Then baseArgs &= " -i"
                         If taskAction.RequiresElevation Then baseArgs &= " -h"
 
                         If credential.Username.Contains("\") Then
@@ -167,7 +272,7 @@ Namespace LiteTask
                                 .StandardErrorEncoding = Encoding.UTF8
                             }
                         }
-                            Return Await RunProcess(process)
+                            Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction))
                         End Using
 
                     Finally
@@ -194,7 +299,7 @@ Namespace LiteTask
                     .StandardErrorEncoding = Encoding.UTF8
                 }
             }
-                        Return Await RunProcess(process)
+                        Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction))
                     End Using
                 End If
 
@@ -213,8 +318,11 @@ Namespace LiteTask
                 taskAction.Parameters,
                 $"""{taskAction.Target}"" {taskAction.Parameters}")
 
-                    ' Build base arguments including domain handling
-                    Dim baseArgs = "-accepteula -nobanner -i"
+                    ' Build base arguments including domain handling. The -i (interactive)
+                    ' flag is only valid in a user session: under the service there is no
+                    ' visible desktop, so an interactive child can block invisibly on a dialog.
+                    Dim baseArgs = "-accepteula -nobanner"
+                    If Environment.UserInteractive Then baseArgs &= " -i"
                     If taskAction.RequiresElevation Then baseArgs &= " -h"
 
                     If credential.Username.Contains("\") Then
@@ -254,7 +362,7 @@ Namespace LiteTask
                         .StandardErrorEncoding = Encoding.GetEncoding(863)
                     }
 
-                            Return Await RunProcess(process)
+                            Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction))
                         End Using
 
                     Finally
@@ -278,7 +386,7 @@ Namespace LiteTask
                     .StandardErrorEncoding = Encoding.GetEncoding(863)
                 }
             }
-                        Return Await RunProcess(process)
+                        Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction))
                     End Using
                 End If
 
@@ -313,9 +421,11 @@ Namespace LiteTask
             End Try
         End Function
 
-        Private Async Function ExecuteProcessWithOutput(process As Process, Optional verboseMode As Boolean = False) As Task(Of String)
+        Private Async Function ExecuteProcessWithOutput(process As Process, Optional verboseMode As Boolean = False, Optional timeout As TimeSpan? = Nothing) As Task(Of String)
             Dim output As New StringBuilder()
             Dim err As New StringBuilder()
+            Dim trackKey As String = Nothing
+            Dim effectiveTimeout = If(timeout, TimeSpan.FromMinutes(DEFAULT_TASK_TIMEOUT_MINUTES))
 
             process.StartInfo.StandardOutputEncoding = Encoding.UTF8
             process.StartInfo.StandardErrorEncoding = Encoding.UTF8
@@ -351,7 +461,23 @@ Namespace LiteTask
                 process.Start()
                 process.BeginOutputReadLine()
                 process.BeginErrorReadLine()
-                Await process.WaitForExitAsync()
+                trackKey = TrackProcess(process)
+
+                ' Enforce a hard timeout so a hung child (e.g. sqlcmd waiting on an
+                ' unavailable SQL Server) cannot hold the task lock forever
+                Using cts As New CancellationTokenSource(effectiveTimeout)
+                    Try
+                        Await process.WaitForExitAsync(cts.Token)
+                    Catch ex As OperationCanceledException
+                        _logger.LogError($"Process exceeded {effectiveTimeout.TotalMinutes:F0}-minute timeout. Killing process tree (PID {process.Id}).")
+                        Try
+                            process.Kill(entireProcessTree:=True)
+                        Catch killEx As Exception
+                            _logger.LogWarning($"Error killing timed-out process: {killEx.Message}")
+                        End Try
+                        Return $"Error: Process exceeded {effectiveTimeout.TotalMinutes:F0}-minute timeout and was killed"
+                    End Try
+                End Using
 
                 If process.ExitCode <> 0 Then
                     Dim errorMessage = err.ToString()
@@ -373,6 +499,8 @@ Namespace LiteTask
                 Catch
                     ' Suppress errors during cleanup
                 End Try
+
+                UntrackProcess(trackKey, process)
             End Try
         End Function
 
@@ -487,7 +615,7 @@ Namespace LiteTask
             End Try
         End Function
 
-        Public Async Function ExecuteSqlCommandWithSqlCmd(query As String, server As String, database As String, credential As CredentialInfo) As Task(Of String)
+        Public Async Function ExecuteSqlCommandWithSqlCmd(query As String, server As String, database As String, credential As CredentialInfo, Optional timeout As TimeSpan? = Nothing) As Task(Of String)
             Try
                 _logger.LogInfo($"Executing SQL command on {server}.{database} using sqlcmd")
 
@@ -523,7 +651,7 @@ Namespace LiteTask
                         .StandardErrorEncoding = Encoding.UTF8
                     }
                 }
-                            Return Await ExecuteProcessWithOutput(process)
+                            Return Await ExecuteProcessWithOutput(process, timeout:=timeout)
                         End Using
 
                 Finally
@@ -571,8 +699,12 @@ Namespace LiteTask
                 _logger.LogInfo($"Using Server: {server}, Database: {database}")
                 _logger.LogInfo($"Using credentials: {If(credential IsNot Nothing, credential.Username, "None")}")
 
-                ' Execute using sqlcmd
-                Dim result = Await ExecuteSqlCommandWithSqlCmd(sqlContent, server, database, credential)
+                ' Execute using sqlcmd, bounded by the action's configured timeout
+                Dim result = Await ExecuteSqlCommandWithSqlCmd(sqlContent, server, database, credential, GetActionTimeout(taskAction))
+                If result IsNot Nothing AndAlso result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase) Then
+                    _logger.LogError($"SQL task {taskAction.Name} failed: {result}")
+                    Return False
+                End If
                 Return True
             Catch ex As Exception
                 _logger.LogError($"Error in ExecuteSqlTask: {ex.Message}")
@@ -633,9 +765,6 @@ Namespace LiteTask
                 End If
             End Try
         End Function
-
-        ' Max PS task runtime before forced stop (prevents hung scripts from blocking the scheduler)
-        Private Const PS_TASK_TIMEOUT_HOURS As Integer = 4
 
         Public Async Function ExecutePowerShellTask(taskAction As TaskAction, credential As CredentialInfo) As Task(Of Boolean)
             Try
@@ -723,11 +852,13 @@ Namespace LiteTask
                         Dim hasErrors = False
                         Dim result As PSDataCollection(Of PSObject) = Nothing
                         Try
+                            ' Hard cap from the action's configured TimeoutMinutes (default 60)
+                            Dim psTimeout = GetActionTimeout(taskAction)
                             Dim invokeTask = powerShell.InvokeAsync()
-                            Dim timeoutTask = Task.Delay(TimeSpan.FromHours(PS_TASK_TIMEOUT_HOURS))
+                            Dim timeoutTask = Task.Delay(psTimeout)
 
                             If Await Task.WhenAny(invokeTask, timeoutTask) Is timeoutTask Then
-                                _logger.LogError($"PowerShell task '{taskAction.Name}' exceeded {PS_TASK_TIMEOUT_HOURS}h timeout. Stopping forcibly.")
+                                _logger.LogError($"PowerShell task '{taskAction.Name}' exceeded {psTimeout.TotalMinutes:F0}-minute timeout. Stopping forcibly.")
                                 powerShell.Stop()
                                 Return False
                             End If
@@ -894,69 +1025,16 @@ Namespace LiteTask
             _logger.LogInfo($"PowerShell Output: {informationRecord.MessageData}")
         End Sub
 
-        Private Async Function RunProcess(process As Process) As Task(Of Boolean)
-            Dim output As New StringBuilder()
-            Dim errors As New StringBuilder()
-
-            ' Named handlers so they can be removed after execution (prevents closure leaks)
-            Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
-                                                                If e.Data IsNot Nothing Then
-                                                                    output.AppendLine(e.Data)
-                                                                    _logger.LogInfo($"Process output: {e.Data}")
-                                                                    RaiseEvent OutputReceived(Me, e.Data)
-                                                                End If
-                                                            End Sub
-
-            Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
-                                                               If e.Data IsNot Nothing Then
-                                                                   errors.AppendLine(e.Data)
-                                                                   _logger.LogWarning($"Process error: {e.Data}")
-                                                                   RaiseEvent ErrorReceived(Me, e.Data)
-                                                               End If
-                                                           End Sub
-
-            Try
-                AddHandler process.OutputDataReceived, outputHandler
-                AddHandler process.ErrorDataReceived, errorHandler
-
-                process.Start()
-                process.BeginOutputReadLine()
-                process.BeginErrorReadLine()
-                Await process.WaitForExitAsync()
-
-                If process.ExitCode <> 0 Then
-                    _logger.LogError($"Process failed with exit code: {process.ExitCode}")
-                    _logger.LogError($"Error output: {errors.ToString()}")
-                    Return False
-                End If
-
-                Return True
-
-            Catch ex As Exception
-                _logger.LogError($"Error running process: {ex.Message}")
-                Return False
-            Finally
-                RemoveHandler process.OutputDataReceived, outputHandler
-                RemoveHandler process.ErrorDataReceived, errorHandler
-
-                ' Kill the process if it's still running to prevent orphaned processes
-                Try
-                    If Not process.HasExited Then
-                        process.Kill(entireProcessTree:=True)
-                    End If
-                Catch
-                    ' Suppress errors during cleanup
-                End Try
-            End Try
-        End Function
-
         ''' <summary>
         ''' Runs a process with a hard timeout. If the process exceeds the timeout,
         ''' it is killed (including the entire process tree) and False is returned.
+        ''' The process is tracked by PID under the current task context so the
+        ''' scheduler's stale-lock recovery can kill it if this method itself hangs.
         ''' </summary>
         Private Async Function RunProcessWithTimeout(process As Process, timeout As TimeSpan) As Task(Of Boolean)
             Dim output As New StringBuilder()
             Dim errors As New StringBuilder()
+            Dim trackKey As String = Nothing
 
             Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                 If e.Data IsNot Nothing Then
@@ -981,13 +1059,14 @@ Namespace LiteTask
                 process.Start()
                 process.BeginOutputReadLine()
                 process.BeginErrorReadLine()
+                trackKey = TrackProcess(process)
 
-                ' Enforce a hard timeout so hung scripts cannot hold the task lock forever
+                ' Enforce a hard timeout so hung executables cannot hold the task lock forever
                 Using cts As New CancellationTokenSource(timeout)
                     Try
                         Await process.WaitForExitAsync(cts.Token)
                     Catch ex As OperationCanceledException
-                        _logger.LogError($"Process exceeded {timeout.TotalHours:F1}h timeout. Killing process tree.")
+                        _logger.LogError($"Process exceeded {timeout.TotalMinutes:F0}-minute timeout. Killing process tree (PID {process.Id}).")
                         Try
                             process.Kill(entireProcessTree:=True)
                         Catch killEx As Exception
@@ -1020,6 +1099,8 @@ Namespace LiteTask
                 Catch
                     ' Suppress errors during cleanup
                 End Try
+
+                UntrackProcess(trackKey, process)
             End Try
         End Function
 
