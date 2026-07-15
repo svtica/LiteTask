@@ -982,6 +982,34 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Startup/recovery reliability settings. Defaults are chosen for a
+        ''' shared-reboot scenario where SQL Server and network shares come up
+        ''' after the service does.
+        ''' </summary>
+        Public Function GetReliabilitySettings() As Dictionary(Of String, String)
+            Try
+                Dim settings As New Dictionary(Of String, String)
+                settings("StartupDelaySeconds") = ReadValue("Reliability", "StartupDelaySeconds", "90")
+                settings("TaskLaunchStaggerSeconds") = ReadValue("Reliability", "TaskLaunchStaggerSeconds", "5")
+                settings("SqlReadinessEnabled") = ReadValue("Reliability", "SqlReadinessEnabled", "True")
+                settings("SqlReadinessServer") = ReadValue("Reliability", "SqlReadinessServer", "")
+                settings("SqlGatedTasks") = ReadValue("Reliability", "SqlGatedTasks", "GenRTP,Extracteur")
+                settings("StaleAlertRepeatMinutes") = ReadValue("Reliability", "StaleAlertRepeatMinutes", "60")
+                Return settings
+            Catch ex As Exception
+                _logger?.LogError($"Error reading reliability settings: {ex.Message}")
+                Return New Dictionary(Of String, String) From {
+                    {"StartupDelaySeconds", "90"},
+                    {"TaskLaunchStaggerSeconds", "5"},
+                    {"SqlReadinessEnabled", "True"},
+                    {"SqlReadinessServer", ""},
+                    {"SqlGatedTasks", "GenRTP,Extracteur"},
+                    {"StaleAlertRepeatMinutes", "60"}
+                }
+            End Try
+        End Function
+
         Public Function GetBackupSettings() As Dictionary(Of String, String)
             Try
                 Dim settings As New Dictionary(Of String, String)
