@@ -78,6 +78,21 @@ Namespace LiteTask
 
         Public Async Function DownloadAndUpdateToolAsync(toolName As String, url As String) As Task(Of Boolean)
             Try
+                ' Embedded tools (PsExec64) ship inside LiteTask.exe: nothing to download.
+                If String.Equals(url, "embedded", StringComparison.OrdinalIgnoreCase) Then
+                    _logger?.LogInfo($"Tool {toolName} is embedded in the application; skipping download.")
+                    Return True
+                End If
+
+                ' sqlcmd is distributed as a zip archive. Writing the raw download to
+                ' tools\sqlcmd.exe (as the generic path below would) replaces the
+                ' executable with zip bytes and breaks every SQL task until it is
+                ' reinstalled, so route it through the dedicated installer.
+                If String.Equals(toolName, "sqlcmd.exe", StringComparison.OrdinalIgnoreCase) OrElse
+                   (url IsNot Nothing AndAlso url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) Then
+                    Return Await DownloadAndInstallSqlcmdAsync()
+                End If
+
                 Dim toolPath = Path.Combine(_toolsPath, toolName)
                 Using response As HttpResponseMessage = Await _httpClient.GetAsync(url)
                     If response.IsSuccessStatusCode Then
