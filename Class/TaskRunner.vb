@@ -20,7 +20,6 @@ Namespace LiteTask
         Private ReadOnly _powerShellPathManager As PowerShellPathManager
         Private ReadOnly _sqlTab As SqlTab
         Private ReadOnly _sanitizer As New SqlCommandSanitizer()
-        Private _embeddedPsExec As Byte()
         Private _connectionStringBase As String
         Private _sqlConfig As Dictionary(Of String, String)
         Private _disposed As Boolean
@@ -163,8 +162,13 @@ Namespace LiteTask
             ' Initialize PowerShell environment
             _powerShellPathManager.EnsureModulePathExists()
 
-            ' Load embedded PsExec once and cache it
-            _embeddedPsExec = GetEmbeddedPsExec()
+            ' Make sure PsExec64.exe is available in the tools folder (best effort:
+            ' a failure here is retried on first credentialed Batch/Executable run)
+            Try
+                GetPsExecPath()
+            Catch ex As Exception
+                _logger.LogWarning($"Could not extract embedded PsExec64.exe: {ex.Message}")
+            End Try
 
             ' Clean up any old temporary files from previous runs
             CleanupOldTempFiles()
@@ -173,8 +177,6 @@ Namespace LiteTask
 
         Public Sub Dispose() Implements IDisposable.Dispose
             If Not _disposed Then
-                ' Release the cached PsExec byte array (~1 MB) so it can be collected
-                _embeddedPsExec = Nothing
                 _sqlConfig = Nothing
                 _disposed = True
             End If
@@ -208,7 +210,6 @@ Namespace LiteTask
                     ' Parse UNC paths from batch content
                     Dim batchContent = File.ReadAllText(taskAction.Target)
                     Dim uncPaths = ParseUNCPaths(batchContent)
-                    Dim envPassVar = $"BATCH_PASS_{Guid.NewGuid().ToString("N")}"
 
                     ' Write the augmented script (net use prelude + original body) to a
                     ' temp .bat so we can invoke it as `cmd.exe /c "tempfile" <args>`.
@@ -220,35 +221,15 @@ Namespace LiteTask
                     Dim tempBatFile = Path.Combine(tempDir, $"batch_{Guid.NewGuid():N}.bat")
 
                     Try
-                        ' Set up credentials
-                        Using securePass As New SecureString()
-                            For Each c In New NetworkCredential("", credential.SecurePassword).Password
-                                securePass.AppendChar(c)
-                            Next
-                            securePass.MakeReadOnly()
-                            Environment.SetEnvironmentVariable(envPassVar,
-                        New NetworkCredential("", securePass).Password,
-                        EnvironmentVariableTarget.Process)
-                        End Using
-
-                        ' Handle domain credentials. The -i (interactive) flag is only
-                        ' valid in a user session: under the service there is no visible
-                        ' desktop, so an interactive child can block invisibly on a dialog.
-                        Dim baseArgs = "-accepteula -nobanner"
-                        If Environment.UserInteractive Then baseArgs &= " -i"
-                        If taskAction.RequiresElevation Then baseArgs &= " -h"
-
-                        If credential.Username.Contains("\") Then
-                            Dim parts = credential.Username.Split("\"c)
-                            baseArgs &= $" -u {parts(0)}\{parts(1)}"
-                        Else
-                            baseArgs &= $" -u {credential.Username}"
-                        End If
-
-                        ' Build command with network path authentication
+                        ' Pre-connect the UNC paths referenced by the script. The script runs
+                        ' inside the PsExec logon session of the selected account, so `net use`
+                        ' authenticates with that session's own credentials: the password is
+                        ' never written to the temp file. (The previous %BATCH_PASS_xxx%
+                        ' placeholder could not expand there: PsExec children do not inherit
+                        ' the LiteTask environment.)
                         Dim modifiedContent = New StringBuilder("@echo off" & Environment.NewLine)
                         For Each uncPath In uncPaths.Distinct()
-                            modifiedContent.AppendLine($"net use {uncPath} /user:{credential.Username} %{envPassVar}%")
+                            modifiedContent.AppendLine($"net use {uncPath}")
                         Next
                         modifiedContent.AppendLine(batchContent)
                         For Each uncPath In uncPaths.Distinct()
@@ -257,26 +238,10 @@ Namespace LiteTask
 
                         Await File.WriteAllTextAsync(tempBatFile, modifiedContent.ToString())
 
-                        Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
-                        Dim fullCommand = $"{baseArgs} -p ""%{envPassVar}%"" cmd.exe /c ""{tempBatFile}""{batchArgs}"
-
-                        Using process As New Process With {
-                            .StartInfo = New ProcessStartInfo With {
-                                .FileName = psExecPath,
-                                .Arguments = fullCommand,
-                                .UseShellExecute = False,
-                                .RedirectStandardOutput = True,
-                                .RedirectStandardError = True,
-                                .CreateNoWindow = True,
-                                .StandardOutputEncoding = Encoding.UTF8,
-                                .StandardErrorEncoding = Encoding.UTF8
-                            }
-                        }
-                            Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction))
-                        End Using
+                        Dim command = PsExecCommandBuilder.BuildBatchCommand(tempBatFile, batchArgs)
+                        Return Await RunThroughPsExec(taskAction, credential, command, Encoding.UTF8)
 
                     Finally
-                        Environment.SetEnvironmentVariable(envPassVar, Nothing, EnvironmentVariableTarget.Process)
                         If File.Exists(tempBatFile) Then
                             Try
                                 File.Delete(tempBatFile)
@@ -314,60 +279,11 @@ Namespace LiteTask
                 _logger.LogInfo($"Executing Executable task: {taskAction.Name}")
 
                 If credential IsNot Nothing Then
-                    Dim command = If(String.IsNullOrEmpty(taskAction.Target),
-                taskAction.Parameters,
-                $"""{taskAction.Target}"" {taskAction.Parameters}")
-
-                    ' Build base arguments including domain handling. The -i (interactive)
-                    ' flag is only valid in a user session: under the service there is no
-                    ' visible desktop, so an interactive child can block invisibly on a dialog.
-                    Dim baseArgs = "-accepteula -nobanner"
-                    If Environment.UserInteractive Then baseArgs &= " -i"
-                    If taskAction.RequiresElevation Then baseArgs &= " -h"
-
-                    If credential.Username.Contains("\") Then
-                        Dim parts = credential.Username.Split("\"c)
-                        baseArgs &= $" -u {parts(0)}\{parts(1)}"
-                    Else
-                        baseArgs &= $" -u {credential.Username}"
-                    End If
-
-                    _logger.LogInfo($"Using credentials for user: {credential.Username}")
-
-                    ' Execute using environment variable for password
-                    Dim envPassVar = $"EXEC_PASS_{Guid.NewGuid().ToString("N")}"
-                    Try
-                        Using securePass As New SecureString()
-                            For Each c In New NetworkCredential("", credential.SecurePassword).Password
-                                securePass.AppendChar(c)
-                            Next
-                            securePass.MakeReadOnly()
-                            Environment.SetEnvironmentVariable(envPassVar,
-                        New NetworkCredential("", securePass).Password,
-                        EnvironmentVariableTarget.Process)
-                        End Using
-
-                        Dim fullCommand = $"{baseArgs} -p ""%{envPassVar}%"" {command}"
-                        Using process As New Process()
-                            process.StartInfo = New ProcessStartInfo With {
-                        .FileName = If(String.IsNullOrEmpty(taskAction.Target),
-                                     "cmd.exe",
-                                     taskAction.Target),
-                        .Arguments = fullCommand,
-                        .UseShellExecute = False,
-                        .RedirectStandardOutput = True,
-                        .RedirectStandardError = True,
-                        .CreateNoWindow = True,
-                        .StandardOutputEncoding = Encoding.GetEncoding(863),
-                        .StandardErrorEncoding = Encoding.GetEncoding(863)
-                    }
-
-                            Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction))
-                        End Using
-
-                    Finally
-                        Environment.SetEnvironmentVariable(envPassVar, Nothing, EnvironmentVariableTarget.Process)
-                    End Try
+                    ' Run the target through PsExec under the selected account. The
+                    ' previous implementation started the target itself (as the current
+                    ' user) with PsExec arguments, so the credential was never applied.
+                    Dim command = PsExecCommandBuilder.BuildExecutableCommand(taskAction.Target, taskAction.Parameters)
+                    Return Await RunThroughPsExec(taskAction, credential, command, Encoding.GetEncoding(863))
                 Else
                     ' Execute without credentials
                     Using process As New Process With {
@@ -394,6 +310,65 @@ Namespace LiteTask
                 _logger.LogError($"Error in ExecuteExecutableTask: {ex.Message}")
                 Return False
             End Try
+        End Function
+
+        ''' <summary>
+        ''' Launches <paramref name="command"/> through PsExec64 as the account held in
+        ''' <paramref name="credential"/>, with the action timeout and process tracking of
+        ''' <see cref="RunProcessWithTimeout"/>. The password is handed to PsExec with
+        ''' <c>-p</c> (PsExec offers no environment or stdin alternative); it is never
+        ''' logged, and any echo of it in the child's output is masked.
+        ''' </summary>
+        Private Async Function RunThroughPsExec(taskAction As TaskAction,
+                                                credential As CredentialInfo,
+                                                command As String,
+                                                outputEncoding As Encoding) As Task(Of Boolean)
+            Dim psExecPath = GetPsExecPath()
+            Dim password = GetPlainPassword(credential)
+
+            _logger.LogInfo($"Using credentials for user: {credential.Username}")
+
+            Dim fullCommand = PsExecCommandBuilder.BuildArguments(credential.Username,
+                                                                 password,
+                                                                 taskAction.RequiresElevation,
+                                                                 Environment.UserInteractive,
+                                                                 command)
+
+            Using process As New Process With {
+                .StartInfo = New ProcessStartInfo With {
+                    .FileName = psExecPath,
+                    .Arguments = fullCommand,
+                    .UseShellExecute = False,
+                    .RedirectStandardOutput = True,
+                    .RedirectStandardError = True,
+                    .CreateNoWindow = True,
+                    .StandardOutputEncoding = outputEncoding,
+                    .StandardErrorEncoding = outputEncoding
+                }
+            }
+                Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction), sensitiveValue:=password)
+            End Using
+        End Function
+
+        Private Shared Function GetPlainPassword(credential As CredentialInfo) As String
+            If credential.SecurePassword IsNot Nothing AndAlso credential.SecurePassword.Length > 0 Then
+                Return New NetworkCredential(String.Empty, credential.SecurePassword).Password
+            End If
+            Return If(credential.Password, String.Empty)
+        End Function
+
+        ''' <summary>
+        ''' Full path of PsExec64.exe in the tools folder, extracting the embedded copy
+        ''' on first use (nothing else writes it to disk).
+        ''' </summary>
+        Private Function GetPsExecPath() As String
+            Dim psExecPath = Path.Combine(_toolManager._toolsPath, "PsExec64.exe")
+            If Not File.Exists(psExecPath) Then
+                Directory.CreateDirectory(_toolManager._toolsPath)
+                File.WriteAllBytes(psExecPath, GetEmbeddedPsExec())
+                _logger.LogInfo($"Extracted embedded PsExec64.exe to {psExecPath}")
+            End If
+            Return psExecPath
         End Function
 
         Private Function ExtractSqlInfo(sqlContent As String) As (ServerName As String, DatabaseName As String)
@@ -501,117 +476,6 @@ Namespace LiteTask
                 End Try
 
                 UntrackProcess(trackKey, process)
-            End Try
-        End Function
-
-        Private Async Function ExecuteSecureProcess(command As String, credential As CredentialInfo,
-    requiresElevation As Boolean, Optional verboseMode As Boolean = True) As Task(Of ProcessResult)
-
-            Dim envPassVar = $"PSEXEC_PASS_{Guid.NewGuid().ToString("N")}"
-            Try
-                ' Use cached PsExec bytes
-                Dim psExecBytes = _embeddedPsExec
-
-                ' Set up credentials if provided
-                If credential IsNot Nothing Then
-                    Environment.SetEnvironmentVariable(envPassVar,
-                New NetworkCredential("", credential.SecurePassword).Password,
-                EnvironmentVariableTarget.Process)
-                End If
-
-                ' Build base arguments
-                Dim baseArgs = "-accepteula -nobanner"
-                If requiresElevation Then baseArgs &= " -h"
-
-                If credential IsNot Nothing Then
-                    If credential.Username.Contains("\") Then
-                        Dim parts = credential.Username.Split("\"c)
-                        baseArgs &= $" -u {parts(0)}\{parts(1)}"
-                    Else
-                        baseArgs &= $" -u {credential.Username}"
-                    End If
-                    baseArgs &= $" -p ""%{envPassVar}%"""
-                End If
-
-                baseArgs &= $" {command}"
-
-                ' Execute PsExec from memory without writing to disk
-                Using ms As New MemoryStream(psExecBytes)
-                    Using process As New Process()
-                        process.StartInfo = New ProcessStartInfo With {
-                    .FileName = "rundll32.exe",
-                    .Arguments = $"kernel32.dll,LoadLibrary ""{ms.ToString()}"" {baseArgs}",
-                    .UseShellExecute = False,
-                    .RedirectStandardOutput = True,
-                    .RedirectStandardError = True,
-                    .CreateNoWindow = True,
-                    .StandardOutputEncoding = Encoding.UTF8,
-                    .StandardErrorEncoding = Encoding.UTF8
-                }
-
-                        Dim output As New StringBuilder()
-                        Dim err As New StringBuilder()
-
-                        ' Named handlers so they can be removed after execution (prevents closure leaks)
-                        Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
-                                                                            If e.Data IsNot Nothing Then
-                                                                                output.AppendLine(e.Data)
-                                                                                If verboseMode Then
-                                                                                    _logger.LogInfo($"Process output: {e.Data}")
-                                                                                End If
-                                                                            End If
-                                                                        End Sub
-
-                        Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
-                                                                           If e.Data IsNot Nothing Then
-                                                                               If e.Data.Contains("Connecting") OrElse
-                           e.Data.Contains("Starting") OrElse
-                           e.Data.Contains("Copying") OrElse
-                           e.Data.Contains("exited") Then
-                                                                                   _logger.LogInfo($"Process status: {e.Data}")
-                                                                               ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
-                                                                                   err.AppendLine(e.Data)
-                                                                                   If verboseMode Then
-                                                                                       _logger.LogWarning($"Process error: {e.Data}")
-                                                                                   End If
-                                                                               End If
-                                                                           End If
-                                                                       End Sub
-
-                        Try
-                            AddHandler process.OutputDataReceived, outputHandler
-                            AddHandler process.ErrorDataReceived, errorHandler
-
-                            process.Start()
-                            process.BeginOutputReadLine()
-                            process.BeginErrorReadLine()
-                            Await process.WaitForExitAsync()
-
-                            Return New ProcessResult With {
-                        .ExitCode = process.ExitCode,
-                        .Output = output.ToString(),
-                        .GotError = err.ToString()
-                    }
-                        Finally
-                            RemoveHandler process.OutputDataReceived, outputHandler
-                            RemoveHandler process.ErrorDataReceived, errorHandler
-
-                            ' Kill the process if it's still running to prevent orphaned processes
-                            Try
-                                If Not process.HasExited Then
-                                    process.Kill(entireProcessTree:=True)
-                                End If
-                            Catch
-                                ' Suppress errors during cleanup
-                            End Try
-                        End Try
-                    End Using
-                End Using
-
-            Finally
-                If credential IsNot Nothing Then
-                    Environment.SetEnvironmentVariable(envPassVar, Nothing, EnvironmentVariableTarget.Process)
-                End If
             End Try
         End Function
 
@@ -1030,25 +894,31 @@ Namespace LiteTask
         ''' it is killed (including the entire process tree) and False is returned.
         ''' The process is tracked by PID under the current task context so the
         ''' scheduler's stale-lock recovery can kill it if this method itself hangs.
+        ''' When <paramref name="sensitiveValue"/> is supplied (e.g. a password passed
+        ''' on the child's command line), every occurrence in the captured output is
+        ''' masked before it reaches the log or the GUI.
         ''' </summary>
-        Private Async Function RunProcessWithTimeout(process As Process, timeout As TimeSpan) As Task(Of Boolean)
+        Private Async Function RunProcessWithTimeout(process As Process, timeout As TimeSpan,
+                                                     Optional sensitiveValue As String = Nothing) As Task(Of Boolean)
             Dim output As New StringBuilder()
             Dim errors As New StringBuilder()
             Dim trackKey As String = Nothing
 
             Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                 If e.Data IsNot Nothing Then
-                                                                    output.AppendLine(e.Data)
-                                                                    _logger.LogInfo($"Process output: {e.Data}")
-                                                                    RaiseEvent OutputReceived(Me, e.Data)
+                                                                    Dim line = MaskSensitiveData(e.Data, sensitiveValue)
+                                                                    output.AppendLine(line)
+                                                                    _logger.LogInfo($"Process output: {line}")
+                                                                    RaiseEvent OutputReceived(Me, line)
                                                                 End If
                                                             End Sub
 
             Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                If e.Data IsNot Nothing Then
-                                                                   errors.AppendLine(e.Data)
-                                                                   _logger.LogWarning($"Process error: {e.Data}")
-                                                                   RaiseEvent ErrorReceived(Me, e.Data)
+                                                                   Dim line = MaskSensitiveData(e.Data, sensitiveValue)
+                                                                   errors.AppendLine(line)
+                                                                   _logger.LogWarning($"Process error: {line}")
+                                                                   RaiseEvent ErrorReceived(Me, line)
                                                                End If
                                                            End Sub
 
