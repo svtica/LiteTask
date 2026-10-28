@@ -621,7 +621,9 @@ Namespace LiteTask
 
                 Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
                 Directory.CreateDirectory(tempDir)
-                Dim tempFile = Path.Combine(tempDir, $"sqlcmd_{DateTime.Now:yyyyMMddHHmmss}.sql")
+                ' Guid suffix: two tasks starting in the same second (e.g. staggered
+                ' dispatch, ad hoc SQL tab run) must never share a temp file.
+                Dim tempFile = Path.Combine(tempDir, $"sqlcmd_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}.sql")
 
                 Try
                     Await File.WriteAllTextAsync(tempFile, query)
@@ -631,7 +633,11 @@ Namespace LiteTask
                     Dim sqlcmdArgs As String
 
                     If credential IsNot Nothing Then
-                        sqlcmdArgs = $"""-S"" ""{server}"" ""-d"" ""{database}"" ""-I"" ""-h-1"" ""-i"" ""{tempFile}"" -U ""{credential.Username}"" -P ""{credential.Password}"""
+                        ' The password is NOT passed with -P: a command line is visible to
+                        ' every local user (Task Manager, WMI, Get-Process). sqlcmd reads the
+                        ' SQLCMDPASSWORD environment variable instead, which is only visible
+                        ' to the child process itself.
+                        sqlcmdArgs = $"""-S"" ""{server}"" ""-d"" ""{database}"" ""-I"" ""-h-1"" ""-i"" ""{tempFile}"" -U ""{credential.Username}"""
                         _logger.LogInfo($"Executing with SQL credentials for user: {credential.Username}")
                     Else
                         sqlcmdArgs = $"""-S"" ""{server}"" ""-d"" ""{database}"" ""-I"" ""-h-1"" ""-i"" ""{tempFile}"" -E"
@@ -651,8 +657,11 @@ Namespace LiteTask
                         .StandardErrorEncoding = Encoding.UTF8
                     }
                 }
-                            Return Await ExecuteProcessWithOutput(process, timeout:=timeout)
-                        End Using
+                        If credential IsNot Nothing Then
+                            process.StartInfo.Environment("SQLCMDPASSWORD") = If(credential.Password, String.Empty)
+                        End If
+                        Return Await ExecuteProcessWithOutput(process, timeout:=timeout)
+                    End Using
 
                 Finally
                     If File.Exists(tempFile) Then
@@ -724,7 +733,7 @@ Namespace LiteTask
                 ' Create temp directory
                 Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
                 Directory.CreateDirectory(tempDir)
-                tempSqlFile = Path.Combine(tempDir, $"sp_{DateTime.Now:yyyyMMddHHmmss}.sql")
+                tempSqlFile = Path.Combine(tempDir, $"sp_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}.sql")
 
                 ' Build SQL script
                 Dim sqlScript As New StringBuilder()

@@ -4,7 +4,23 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Security
+- `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
+- `XMLManager`: every remaining `XmlDocument.Load` now sets `XmlResolver = Nothing` (XXE / external entity hardening), consistent with the task read/write paths.
+- `UpdateManager.CheckForUpdateAsync`: only accepts an `https://` asset URL from the GitHub release API, strips any directory component from the asset name before writing it under `LiteTaskData\temp`, and disposes the parsed JSON document.
+
 ### Fixed
+- **`XMLManager.SaveToolSettings` erased the whole configuration**: it rebuilt `settings.xml` from scratch keeping only `<Task>` nodes, so `EmailSettings`, `Logging`, `SqlConfiguration`, `Reliability`, `BackupSettings` and `MemoryMonitor` were silently discarded whenever it ran (including at startup when the saved execution tool name was unknown). It now updates `ToolSettings/ExecutionTool` in place.
+- **`Tools > Update Tools` corrupted `sqlcmd.exe`**: `ToolManager.DownloadAndUpdateToolAsync` wrote the raw download (a zip archive) over `tools\sqlcmd.exe`, breaking every SQL task until the tool was reinstalled. The zip is now routed through `DownloadAndInstallSqlcmdAsync`, and embedded tools (PsExec64) are skipped instead of attempting a download.
+- **Logger rotation under the Windows service**: `_logFolder` was only set by GUI code paths, so in service mode the hourly rotation/cleanup task threw on every iteration and, because the delay was inside the `Try`, spun without pause. The folder now defaults to the log file's directory and the loop always waits between iterations, even after an error.
+- **Logger rotation stopped after the first archive**: the archive compression was awaited while holding the thread-affine `ReaderWriterLockSlim` write lock; the continuation resumed on another thread and the release threw, leaving the lock held forever. Compression now runs after the lock is released, and the log writer takes the lock as a reader so a rotation can never truncate the file mid-append.
+- `TaskRunner`: temporary `.sql` files for `sqlcmd` and stored-procedure runs are now suffixed with a GUID; two runs starting in the same second (staggered dispatch, SQL tab) previously shared and overwrote the same `sqlcmd_yyyyMMddHHmmss.sql` file.
+- `CredentialManager.GetAllCredentialTargets`: "Stored Account" entries are now listed from the file they are actually saved to and read from (`%LocalAppData%\LiteTask\SecureCredentials.dat`); the legacy location next to the executable is still listed for compatibility.
+
+### Changed
+- `Logger`: `Logging/MaxLogSize` (MB) and `Logging/LogRetentionDays` from the Options form are now applied to log rotation and cleanup (previously hard-coded to 10 MB / 30 days). Queued log entries are written in batches with a single file open instead of one open/close per line, and the remaining queue is flushed on shutdown.
+- `NotificationManager`: failed e-mail sends back off 10 s / 20 s / 30 s between the three retries instead of retrying immediately.
+
 - **Startup race after a full-server reboot silently disabling a task for days** (GenRTP incident, 2026-07-10 → 2026-07-15). Root causes addressed:
   - Per-action `TimeoutMinutes` (persisted since day one but never enforced) is now applied to every execution path: `Executable`/`Batch` child processes and `sqlcmd` run through `RunProcessWithTimeout`, which kills the entire process tree on expiry; the PowerShell in-process timeout now uses the action's configured value instead of a fixed 4 h. A scheduler-level backstop (`action timeout + 2 min`) additionally kills the tracked child processes and releases the task lock if the execution path itself hangs (e.g. output streams never closing).
   - Stale-task recovery now actually recovers: `TaskRunner` tracks child processes by PID per task (`KillProcessesForTask`), and `CleanupStaleTasks` no longer resets the running state at 15 minutes (which caused endless re-dispatch into a held lock); instead it alerts, then at `sum of action timeouts + 10 min` it kills the owning process(es), force-releases the lock, and resets the state so the next schedule fires.
