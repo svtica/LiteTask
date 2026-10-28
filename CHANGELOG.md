@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Security
+- **Self-update now verifies the Authenticode signature of the downloaded package before anything from it runs** (`UpdateManager.DownloadAndApplyUpdateAsync`). After extraction, `LiteTask.exe` is located with the same rules as the file-replacement script (archive root, single sub-folder, first match) and checked with `WinVerifyTrust` (new `AuthenticodeVerifier`): the signature must match the file content and the signer thumbprint must equal the pinned publisher certificate `res/certificate.cer` (CN=SVTI.ca, SHA-1 `EC2B412C4025C2F1C8DB512CEC66632E65C017F0`, the certificate `Release.yml` signs with) or the certificate that signed the running `LiteTask.exe`. Because that certificate is self-signed, `CERT_E_UNTRUSTEDROOT` counts as a verified digest and identity is enforced by the thumbprint pin instead of the machine's root store. Policy (`UpdateSignaturePolicy`):
+  - signed by the expected publisher: applied. The `LiteTask-Post-Build.ps1` shipped in the archive (executed with `-ExecutionPolicy Bypass` before files are replaced) must then also be validly signed by the same publisher, otherwise the update is rejected;
+  - unsigned package: rejected, **unless the running `LiteTask.exe` is itself unsigned** (development build), in which case it is applied with a visible warning so a dev build can still update when the CI signing secret is absent;
+  - tampered (digest mismatch), invalid, or signed by another certificate: rejected.
+  A rejected package stops before `RunPostBuildScriptAsync`, logs the reason, shows it in `UpdateProgressForm` and deletes the temporary archive and extracted folder. New `Update.Progress.*` strings with French translations in `LiteTaskData/lang/fr.xml`.
+- `Release.yml` now also signs the `*.ps1` files at the package root (`LiteTask-Post-Build.ps1`, `Unblock-Files.ps1`) when the signing certificate is present, so signed releases satisfy the script check above. Rotating the signing certificate requires updating `UpdateManager.ExpectedPublisherThumbprint` in a release still signed with the previous certificate.
+- Update download URL must use `https://`; the release asset name is reduced to its file name before being used as the local archive name.
+
 ### Fixed
 - **Startup race after a full-server reboot silently disabling a task for days** (GenRTP incident, 2026-07-10 → 2026-07-15). Root causes addressed:
   - Per-action `TimeoutMinutes` (persisted since day one but never enforced) is now applied to every execution path: `Executable`/`Batch` child processes and `sqlcmd` run through `RunProcessWithTimeout`, which kills the entire process tree on expiry; the PowerShell in-process timeout now uses the action's configured value instead of a fixed 4 h. A scheduler-level backstop (`action timeout + 2 min`) additionally kills the tracked child processes and releases the task lock if the execution path itself hangs (e.g. output streams never closing).
