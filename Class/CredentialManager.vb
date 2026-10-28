@@ -124,16 +124,25 @@ Namespace LiteTask
                 CredFree(pCredentials)
             End If
 
-            ' Get Stored Account credentials
-            Dim storedFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StoredCredentials.dat")
-            If File.Exists(storedFilePath) Then
-                For Each line In File.ReadAllLines(storedFilePath)
-                    Dim parts = line.Split("|"c)
-                    If parts.Length >= 1 Then
-                        targets.Add($"(Stored Account, {parts(0)})")
-                    End If
-                Next
-            End If
+            ' Get Stored Account credentials. SaveStoredCredential/GetStoredCredential
+            ' use _storedCredentialsPath (LocalApplicationData), so that file is the
+            ' authoritative one; the legacy location next to the executable is still
+            ' listed for backward compatibility.
+            Dim storedFiles = {
+                _storedCredentialsPath,
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StoredCredentials.dat")
+            }
+            For Each storedFilePath In storedFiles.Distinct(StringComparer.OrdinalIgnoreCase)
+                If File.Exists(storedFilePath) Then
+                    For Each line In File.ReadAllLines(storedFilePath)
+                        Dim parts = line.Split("|"c)
+                        If parts.Length >= 1 AndAlso Not String.IsNullOrWhiteSpace(parts(0)) Then
+                            Dim entry = $"(Stored Account, {parts(0)})"
+                            If Not targets.Contains(entry) Then targets.Add(entry)
+                        End If
+                    Next
+                End If
+            Next
 
             Return targets
         End Function

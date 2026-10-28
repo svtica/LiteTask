@@ -386,6 +386,7 @@ Namespace LiteTask
             Try
                 Dim settings As New Dictionary(Of String, String)
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
 
                 ' Return default settings if file doesn't exist
                 If Not File.Exists(_filePath) Then
@@ -420,6 +421,7 @@ Namespace LiteTask
             Try
                 Dim settings As New Dictionary(Of String, String)
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
 
                 ' Return default settings if file doesn't exist
                 If Not File.Exists(_filePath) Then
@@ -455,6 +457,7 @@ Namespace LiteTask
                 End If
 
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
 
                 ' Create ToolSettings section if it doesn't exist
@@ -494,6 +497,7 @@ Namespace LiteTask
 
                 Dim settings As New Dictionary(Of String, String)
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
 
                 Dim sqlNode = xmlDoc.SelectSingleNode("LiteTaskSettings/SqlConfiguration")
@@ -663,6 +667,7 @@ Namespace LiteTask
                 End SyncLock
 
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
 
                 Dim node As XmlNode = xmlDoc.SelectSingleNode($"LiteTaskSettings/{section}/{key}")
@@ -761,26 +766,46 @@ Namespace LiteTask
 
         Public Sub SaveToolSettings(executionTool As String)
             Try
+                ' Update the single ToolSettings/ExecutionTool value in place. The
+                ' previous implementation rebuilt the whole document from scratch
+                ' (keeping only <Task> nodes), which silently discarded every other
+                ' section (EmailSettings, Logging, SqlConfiguration, Reliability,
+                ' BackupSettings, MemoryMonitor...) each time it ran - including at
+                ' startup when the saved tool name was unknown.
+                If Not File.Exists(_filePath) Then
+                    CreateDefaultConfig()
+                End If
+
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
 
-                ' Get Task nodes to preserve them
-                Dim tasks = xmlDoc.SelectNodes("//Task")
+                Dim root = xmlDoc.SelectSingleNode("LiteTaskSettings")
+                If root Is Nothing Then
+                    root = xmlDoc.CreateElement("LiteTaskSettings")
+                    xmlDoc.AppendChild(root)
+                End If
 
-                ' Create fresh structure
-                xmlDoc.LoadXml("<?xml version='1.0' encoding='UTF-8'?>" &
-                      "<LiteTaskSettings>" &
-                      "<ToolSettings><ExecutionTool>" & executionTool & "</ExecutionTool></ToolSettings>" &
-                      "<Tasks></Tasks>" &
-                      "</LiteTaskSettings>")
+                Dim toolNode = root.SelectSingleNode("ToolSettings")
+                If toolNode Is Nothing Then
+                    toolNode = xmlDoc.CreateElement("ToolSettings")
+                    root.AppendChild(toolNode)
+                End If
 
-                ' Restore tasks
-                Dim tasksNode = xmlDoc.SelectSingleNode("//Tasks")
-                For Each task As XmlNode In tasks
-                    tasksNode.AppendChild(xmlDoc.ImportNode(task, True))
-                Next
+                Dim execToolNode = toolNode.SelectSingleNode("ExecutionTool")
+                If execToolNode Is Nothing Then
+                    execToolNode = xmlDoc.CreateElement("ExecutionTool")
+                    toolNode.AppendChild(execToolNode)
+                End If
 
+                ' InnerText escapes XML special characters on serialization.
+                execToolNode.InnerText = executionTool
                 xmlDoc.Save(_filePath)
+
+                SyncLock _cacheLock
+                    _configCache.Remove("ToolSettings/ExecutionTool")
+                End SyncLock
+
                 _logger?.LogInfo($"Tool settings saved: {executionTool}")
             Catch ex As Exception
                 _logger?.LogError($"Error saving tool settings: {ex.Message}")
@@ -920,6 +945,7 @@ Namespace LiteTask
         Private Function SectionExists(sectionName As String) As Boolean
             Try
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
                 Return xmlDoc.SelectSingleNode($"LiteTaskSettings/{sectionName}") IsNot Nothing
             Catch
@@ -1044,6 +1070,7 @@ Namespace LiteTask
         Public Sub WriteValue(section As String, key As String, value As String)
             Try
                 Dim xmlDoc As New XmlDocument()
+                xmlDoc.XmlResolver = Nothing
                 xmlDoc.Load(_filePath)
 
                 Dim sectionNode As XmlNode = xmlDoc.SelectSingleNode($"LiteTaskSettings/{section}")

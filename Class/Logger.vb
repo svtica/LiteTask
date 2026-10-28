@@ -24,6 +24,8 @@ Namespace LiteTask
         Private _disposed As Boolean = False
         Private _xmlManager As XMLManager
         Private Const MAX_QUEUE_SIZE As Integer = 10000
+        ' Maximum number of queued entries written with a single file open.
+        Private Const MAX_WRITE_BATCH As Integer = 256
 
         Public Enum LogLevel
             [Debug] = 0
@@ -37,13 +39,46 @@ Namespace LiteTask
             _logFile = logFilePath
             _xmlManager = xmlManager
 
+            ' Default the log folder to the log file's directory. Until now it was
+            ' only set through SetLogFolder (GUI code paths), so under the Windows
+            ' service _logFolder stayed Nothing and the rotation/cleanup task threw
+            ' on every iteration.
+            Dim folder = Path.GetDirectoryName(logFilePath)
+            If String.IsNullOrEmpty(folder) Then
+                folder = AppDomain.CurrentDomain.BaseDirectory
+            End If
+            _logFolder = folder
+
             ' Load log settings first
             Dim logSettings = xmlManager.GetLogSettings()
             _logLevel = DirectCast([Enum].Parse(GetType(LogLevel), logSettings("LogLevel")), LogLevel)
+            ApplyRotationSettings(logSettings)
 
             ' Start processor only after level is set
             StartLogProcessor()
             InitializeLogRotation()
+        End Sub
+
+        ''' <summary>
+        ''' Applies Logging/MaxLogSize (MB) and Logging/LogRetentionDays from the
+        ''' settings file. These values are exposed in the Options form but were
+        ''' never read by the logger, which always used 10 MB / 30 days.
+        ''' Invalid or missing values keep the built-in defaults.
+        ''' </summary>
+        Private Sub ApplyRotationSettings(logSettings As Dictionary(Of String, String))
+            If logSettings Is Nothing Then Return
+
+            Dim maxSizeMb As Integer
+            If logSettings.ContainsKey("MaxLogSize") AndAlso
+               Integer.TryParse(logSettings("MaxLogSize"), maxSizeMb) AndAlso maxSizeMb >= 1 Then
+                _maxLogSize = CLng(maxSizeMb) * 1024L * 1024L
+            End If
+
+            Dim retentionDays As Integer
+            If logSettings.ContainsKey("LogRetentionDays") AndAlso
+               Integer.TryParse(logSettings("LogRetentionDays"), retentionDays) AndAlso retentionDays >= 1 Then
+                _maxLogAge = TimeSpan.FromDays(retentionDays)
+            End If
         End Sub
 
         Private Function CleanupOldLogsAsync() As Task
@@ -178,12 +213,19 @@ Namespace LiteTask
                              Try
                                  Await RotateLogsAsync()
                                  Await CleanupOldLogsAsync()
-                                 Await Task.Delay(TimeSpan.FromHours(1), _processorCancellation.Token)
                              Catch ex As OperationCanceledException
                                  ' Normal cancellation, exit gracefully
                                  Return
                              Catch ex As Exception
                                  Debug.WriteLine($"Error in log rotation: {ex.Message}")
+                             End Try
+
+                             ' The delay lives outside the Try above: an exception in
+                             ' rotation/cleanup must not turn this loop into a busy spin.
+                             Try
+                                 Await Task.Delay(TimeSpan.FromHours(1), _processorCancellation.Token)
+                             Catch ex As OperationCanceledException
+                                 Return
                              End Try
                          End While
                      End Function, _processorCancellation.Token)
@@ -213,9 +255,16 @@ Namespace LiteTask
         End Sub
 
         Private Async Function RotateLogsAsync() As Task
-            Try
-                _rotationLock.EnterWriteLock()
+            Dim archivePath As String = Nothing
 
+            ' ReaderWriterLockSlim is thread-affine: the thread that enters the write
+            ' lock must be the one that exits it. The previous implementation awaited
+            ' the compression inside the lock, resumed on another pool thread, and the
+            ' release then threw - leaving the lock held forever and silently stopping
+            ' rotation after the first archive. Only the synchronous copy/truncate/move
+            ' is done under the lock; compression happens after it is released.
+            _rotationLock.EnterWriteLock()
+            Try
                 If Not File.Exists(_logFile) Then Return
 
                 Dim fileInfo = New FileInfo(_logFile)
@@ -227,7 +276,7 @@ Namespace LiteTask
                     Directory.CreateDirectory(customTempDir)  ' Ensure directory exists
                     Dim tempPath = Path.Combine(customTempDir, $"log_rotation_{Guid.NewGuid()}.tmp")
                     
-                    Dim archivePath = Path.Combine(_logFolder, $"{Path.GetFileNameWithoutExtension(_logFile)}_{timestamp}{Path.GetExtension(_logFile)}")
+                    Dim candidateArchivePath = Path.Combine(_logFolder, $"{Path.GetFileNameWithoutExtension(_logFile)}_{timestamp}{Path.GetExtension(_logFile)}")
 
                     ' Create atomic rotation with better error handling
                     Try
@@ -238,10 +287,8 @@ Namespace LiteTask
                         File.WriteAllText(_logFile, String.Empty)
 
                         ' Move temp to archive
-                        File.Move(tempPath, archivePath)
-
-                        ' Compress archive
-                        Await CompressLogAsync(archivePath)
+                        File.Move(tempPath, candidateArchivePath)
+                        archivePath = candidateArchivePath
                         
                     Catch ex As Exception
                         '_logger?.LogError($"Error during log rotation: {ex.Message}")
@@ -275,6 +322,11 @@ Namespace LiteTask
             Finally
                 _rotationLock.ExitWriteLock()
             End Try
+
+            ' Compress the archive outside the lock (see comment above)
+            If archivePath IsNot Nothing AndAlso File.Exists(archivePath) Then
+                Await CompressLogAsync(archivePath)
+            End If
         End Function
 
         Public Sub SetLogFolder(folder As String)
@@ -289,11 +341,19 @@ Namespace LiteTask
         Private Sub StartLogProcessor()
             _processorTask = Task.Run(Async Function()
                                           Dim emptyQueueCount = 0
+                                          Dim batch As New List(Of LogEntry)(MAX_WRITE_BATCH)
                                           While Not _processorCancellation.Token.IsCancellationRequested
                                               Try
+                                                  ' Drain up to MAX_WRITE_BATCH entries and write them with a
+                                                  ' single file open instead of one open/close per line.
+                                                  batch.Clear()
                                                   Dim entry As LogEntry = Nothing
-                                                  If _logQueue.TryDequeue(entry) Then
-                                                      Await WriteLogEntryAsync(entry)
+                                                  While batch.Count < MAX_WRITE_BATCH AndAlso _logQueue.TryDequeue(entry)
+                                                      batch.Add(entry)
+                                                  End While
+
+                                                  If batch.Count > 0 Then
+                                                      WriteLogEntries(batch)
                                                       emptyQueueCount = 0 ' Reset counter on successful dequeue
                                                   Else
                                                       emptyQueueCount += 1
@@ -303,12 +363,24 @@ Namespace LiteTask
                                                   End If
                                               Catch ex As OperationCanceledException
                                                   ' Normal shutdown, exit gracefully
-                                                  Return
+                                                  Exit While
                                               Catch ex As Exception
                                                   ' Last resort error handling
                                                   Debug.WriteLine($"Error processing log entry: {ex.Message}")
                                               End Try
                                           End While
+
+                                          ' Best-effort flush so the last entries before shutdown are not lost
+                                          Try
+                                              batch.Clear()
+                                              Dim remaining As LogEntry = Nothing
+                                              While batch.Count < MAX_WRITE_BATCH AndAlso _logQueue.TryDequeue(remaining)
+                                                  batch.Add(remaining)
+                                              End While
+                                              If batch.Count > 0 Then WriteLogEntries(batch)
+                                          Catch ex As Exception
+                                              Debug.WriteLine($"Error flushing log entries: {ex.Message}")
+                                          End Try
                                       End Function, _processorCancellation.Token)
         End Sub
 
@@ -346,41 +418,58 @@ Namespace LiteTask
             End If
         End Sub
 
-        Private Function WriteLogEntryAsync(entry As LogEntry) As Task
-            Dim logEntryBuilder As New StringBuilder()
-            logEntryBuilder.Append($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{entry.Level}] {entry.Message}")
+        Private Shared Sub AppendFormattedEntry(builder As StringBuilder, entry As LogEntry)
+            builder.Append($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{entry.Level}] {entry.Message}")
 
             If entry.Exception IsNot Nothing Then
-                logEntryBuilder.AppendLine()
-                logEntryBuilder.Append($"Exception: {entry.Exception.Message}")
-                logEntryBuilder.AppendLine()
-                logEntryBuilder.Append($"StackTrace: {entry.Exception.StackTrace}")
+                builder.AppendLine()
+                builder.Append($"Exception: {entry.Exception.Message}")
+                builder.AppendLine()
+                builder.Append($"StackTrace: {entry.Exception.StackTrace}")
             End If
-            logEntryBuilder.AppendLine()
+            builder.AppendLine()
+        End Sub
 
-            Dim logEntry = logEntryBuilder.ToString()
+        Private Sub WriteLogEntries(entries As List(Of LogEntry))
+            If entries Is Nothing OrElse entries.Count = 0 Then Return
+
+            Dim logEntryBuilder As New StringBuilder()
+            For Each entry In entries
+                AppendFormattedEntry(logEntryBuilder, entry)
+            Next
+            Dim logText = logEntryBuilder.ToString()
 
             Try
-                SyncLock _lock
-                    Using writer As New StreamWriter(_logFile, True, Encoding.UTF8)
-                        ' Use sync write inside lock
-                        writer.Write(logEntry)
-                    End Using
-                End SyncLock
+                ' Take the rotation lock as a reader so a rotation (writer) can never
+                ' truncate the file in the middle of an append. This method is fully
+                ' synchronous, so the lock is released on the thread that acquired it.
+                Dim rotationLockHeld = False
+                Try
+                    rotationLockHeld = _rotationLock.TryEnterReadLock(TimeSpan.FromSeconds(10))
+                    SyncLock _lock
+                        Using writer As New StreamWriter(_logFile, True, Encoding.UTF8)
+                            ' Use sync write inside lock
+                            writer.Write(logText)
+                        End Using
+                    End SyncLock
+                Finally
+                    If rotationLockHeld Then _rotationLock.ExitReadLock()
+                End Try
 
                 ' Write to debug output for development (only if debugger attached)
                 If Debugger.IsAttached Then
-                    Debug.WriteLine(logEntry)
+                    Debug.WriteLine(logText)
                 End If
 
                 ' Notify UI if needed
-                RaiseEvent LogEntryAdded(Me, New LogEntryEventArgs(entry))
+                For Each entry In entries
+                    RaiseEvent LogEntryAdded(Me, New LogEntryEventArgs(entry))
+                Next
 
             Catch ex As Exception
-                Debug.WriteLine($"Error writing log entry: {ex.Message}")
+                Debug.WriteLine($"Error writing log entries: {ex.Message}")
             End Try
-            Return Task.CompletedTask
-        End Function
+        End Sub
 
     End Class
 
