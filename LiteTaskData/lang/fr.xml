@@ -374,6 +374,16 @@
 	<translation key="Update.Progress.Launching">Lancement du script de remplacement des fichiers...</translation>
 	<translation key="Update.Progress.Complete">Mise à jour prête. L'application va maintenant redémarrer.</translation>
 	<translation key="Update.Progress.Failed">Échec de la mise à jour. Consultez le journal ci-dessus pour plus de détails.</translation>
+	<translation key="Update.Progress.Verifying">Vérification de la signature du paquet...</translation>
+	<translation key="Update.Progress.VerifyFailed">Mise à jour annulée : aucun script n'a été exécuté et aucun fichier n'a été remplacé.</translation>
+	<translation key="Update.Progress.ExeNotFound">LiteTask.exe est introuvable dans le paquet de mise à jour.</translation>
+	<translation key="Update.Progress.SignatureValid">Signature valide : signé par {0} (empreinte {1}).</translation>
+	<translation key="Update.Progress.UnsignedAllowed">AVERTISSEMENT : le paquet de mise à jour n'est pas signé. Poursuite uniquement parce que le LiteTask.exe en cours d'exécution est lui-même une version de développement non signée.</translation>
+	<translation key="Update.Progress.UnsignedRejected">Le paquet de mise à jour n'est pas signé par l'éditeur attendu.</translation>
+	<translation key="Update.Progress.SignatureTampered">La signature de {0} ne correspond pas à son contenu (fichier altéré ou corrompu).</translation>
+	<translation key="Update.Progress.PublisherMismatch">{0} est signé par un éditeur inattendu ({1}, empreinte {2}).</translation>
+	<translation key="Update.Progress.SignatureInvalid">La signature de {0} n'a pas pu être validée (erreur 0x{1}).</translation>
+	<translation key="Update.Progress.ScriptUnsigned">Le script post-compilation du paquet de mise à jour n'est pas signé par l'éditeur attendu.</translation>
 
 	<!-- Backup Tab -->
 	<translation key="_backupTab">Sauvegarde</translation>

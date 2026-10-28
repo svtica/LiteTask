@@ -56,7 +56,10 @@ jobs:
 
         Write-Host "Using signtool: $($signtoolPath.FullName)"
 
-        $files = Get-ChildItem -Path "bin\Release\*.exe" -Recurse
+        # Executables, plus the PowerShell scripts shipped at the package root
+        # (LiteTask-Post-Build.ps1 runs during self-update before any file is
+        # replaced, so UpdateManager requires it to carry the publisher signature).
+        $files = @(Get-ChildItem -Path "bin\Release\*.exe" -Recurse) + @(Get-ChildItem -Path "bin\Release\*.ps1")
         foreach ($file in $files) {
           Write-Host "Signing: $($file.FullName)"
           & $signtoolPath.FullName sign /f "$env:CERTIFICATE_PATH" /p "$env:CERTIFICATE_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "$($file.FullName)"

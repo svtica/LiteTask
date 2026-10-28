@@ -12,6 +12,17 @@ Namespace LiteTask
 
         Private Const GitHubApiUrl As String = "https://api.github.com/repos/svtica/LiteTask/releases/latest"
         Private Const ServiceName As String = "LiteTaskService"
+        Private Const ExecutableName As String = "LiteTask.exe"
+        Private Const PostBuildScriptName As String = "LiteTask-Post-Build.ps1"
+
+        ''' <summary>
+        ''' SHA-1 thumbprint of the publisher certificate (res\certificate.cer, CN=SVTI.ca) that the
+        ''' Release workflow signs LiteTask.exe with. An update is only applied when the extracted
+        ''' LiteTask.exe carries a valid Authenticode signature from this certificate (or from the
+        ''' certificate that signed the running executable). Rotating the signing certificate
+        ''' requires updating this constant in a release signed with the previous certificate.
+        ''' </summary>
+        Public Const ExpectedPublisherThumbprint As String = "EC2B412C4025C2F1C8DB512CEC66632E65C017F0"
 
         Public Sub New(logger As Logger)
             _logger = logger
@@ -76,8 +87,16 @@ Namespace LiteTask
             Dim extractPath As String = Nothing
 
             Try
+                ' Only accept HTTPS download links from the release API.
+                Dim downloadUri As Uri = Nothing
+                If Not Uri.TryCreate(updateInfo.DownloadUrl, UriKind.Absolute, downloadUri) OrElse
+                   Not String.Equals(downloadUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) Then
+                    Throw New InvalidOperationException($"Refusing to download update from non-HTTPS URL: {updateInfo.DownloadUrl}")
+                End If
+
                 Directory.CreateDirectory(_tempPath)
-                zipPath = Path.Combine(_tempPath, If(updateInfo.AssetName, "LiteTask-update.zip"))
+                Dim assetFileName = Path.GetFileName(If(updateInfo.AssetName, String.Empty))
+                zipPath = Path.Combine(_tempPath, If(String.IsNullOrWhiteSpace(assetFileName), "LiteTask-update.zip", assetFileName))
                 extractPath = Path.Combine(_tempPath, "update")
 
                 ' Clean previous update attempt
@@ -109,8 +128,22 @@ Namespace LiteTask
                 progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
                     "Update.Progress.ExtractDone", "Extraction complete."), Drawing.Color.LimeGreen)
 
-                ' Step 3: Run PostBuild script with live output
-                Dim postBuildScript = FindFile(extractPath, "LiteTask-Post-Build.ps1")
+                ' Step 3: Verify the Authenticode signature of the extracted package.
+                ' Nothing from the archive is executed and no file is replaced until this passes.
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.Verifying", "Verifying package signature..."), Drawing.Color.White)
+                Dim postBuildScript = FindFile(extractPath, PostBuildScriptName)
+                If Not VerifyUpdatePackage(extractPath, postBuildScript, progressForm) Then
+                    _logger?.LogError("Update package rejected by signature verification. No script was run and no file was replaced.")
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.VerifyFailed", "Update aborted: no script was run and no file was replaced."), Drawing.Color.OrangeRed)
+                    progressForm.SetCompleted(False)
+                    CleanupTempFiles(zipPath, extractPath)
+                    Return
+                End If
+                progressForm.SetProgress(55)
+
+                ' Step 4: Run PostBuild script with live output
                 If postBuildScript IsNot Nothing Then
                     progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
                         "Update.Progress.PostBuild", "Running post-build cleanup..."), Drawing.Color.White)
@@ -127,13 +160,13 @@ Namespace LiteTask
                         "Update.Progress.PostBuildSkipped", "No post-build script found, skipping."), Drawing.Color.Gray)
                 End If
 
-                ' Step 4: Stop service if running
+                ' Step 5: Stop service if running
                 progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
                     "Update.Progress.StoppingService", "Stopping service..."), Drawing.Color.White)
                 StopServiceIfRunning(progressForm)
                 progressForm.SetProgress(85)
 
-                ' Step 5: Launch update script and exit
+                ' Step 6: Launch update script and exit
                 progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
                     "Update.Progress.Launching", "Launching file replacement script..."), Drawing.Color.White)
                 LaunchUpdateScript(extractPath)
@@ -172,6 +205,126 @@ Namespace LiteTask
                 Dim files = Directory.GetFiles(rootPath, fileName, SearchOption.AllDirectories)
                 Return If(files.Length > 0, files(0), Nothing)
             Catch
+                Return Nothing
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Locates LiteTask.exe in the extracted tree using the same rules as the update script:
+        ''' archive root, then a single sub-folder, then the first match anywhere.
+        ''' </summary>
+        Private Function LocateUpdateExecutable(extractPath As String) As String
+            Try
+                Dim rootExe = Path.Combine(extractPath, ExecutableName)
+                If File.Exists(rootExe) Then Return rootExe
+
+                Dim subDirs = Directory.GetDirectories(extractPath)
+                If subDirs.Length = 1 Then
+                    Dim nestedExe = Path.Combine(subDirs(0), ExecutableName)
+                    If File.Exists(nestedExe) Then Return nestedExe
+                End If
+            Catch
+            End Try
+            Return FindFile(extractPath, ExecutableName)
+        End Function
+
+        ''' <summary>
+        ''' Verifies that the extracted LiteTask.exe carries a valid Authenticode signature from the
+        ''' expected publisher (see <see cref="ExpectedPublisherThumbprint"/>). Policy:
+        '''  - signed by the expected publisher: accepted; the post-build script shipped in the
+        '''    archive must then be signed by the same publisher, since it runs before any file is
+        '''    replaced;
+        '''  - unsigned package while the running LiteTask.exe is itself unsigned (development
+        '''    build): accepted with a warning;
+        '''  - unsigned, tampered, invalid or signed by another publisher: rejected.
+        ''' Returns False when the update must not proceed. Reasons are logged and shown in the form.
+        ''' </summary>
+        Private Function VerifyUpdatePackage(extractPath As String, postBuildScript As String, progressForm As UpdateProgressForm) As Boolean
+            Dim updateExe = LocateUpdateExecutable(extractPath)
+            If updateExe Is Nothing Then
+                _logger?.LogError($"{ExecutableName} not found in extracted update package at {extractPath}.")
+                progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                    "Update.Progress.ExeNotFound", "LiteTask.exe was not found in the update package."), Drawing.Color.OrangeRed)
+                Return False
+            End If
+
+            Dim running = GetRunningExecutableSignature()
+            Dim expected = UpdateSignaturePolicy.ExpectedThumbprints(ExpectedPublisherThumbprint, running)
+            Dim package = AuthenticodeVerifier.Verify(updateExe)
+            _logger?.LogInfo($"Signature of running executable: {If(running Is Nothing, "<unknown>", running.ToString())}")
+            _logger?.LogInfo($"Signature of {updateExe}: {package}")
+
+            Dim verdict = UpdateSignaturePolicy.Evaluate(package, running, expected)
+            Select Case verdict
+                Case UpdateSignatureVerdict.Accepted
+                    _logger?.LogInfo($"Update package signature accepted (signer {package.SignerSubject}, thumbprint {package.SignerThumbprint}).")
+                    progressForm.AppendLog(String.Format(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.SignatureValid", "Signature valid: signed by {0} (thumbprint {1})."),
+                        package.SignerSubject, package.SignerThumbprint), Drawing.Color.LimeGreen)
+
+                Case UpdateSignatureVerdict.AcceptedUnsignedDevBuild
+                    _logger?.LogWarning("Update package is unsigned; accepted because the running executable is an unsigned development build.")
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.UnsignedAllowed", "WARNING: the update package is not signed. Proceeding only because the running LiteTask.exe is itself an unsigned development build."), Drawing.Color.Yellow)
+                    ' Nothing in an unsigned package can be pinned, including the post-build script.
+                    Return True
+
+                Case UpdateSignatureVerdict.RejectedUnsigned
+                    _logger?.LogError("Update package rejected: LiteTask.exe is not signed while the running executable is signed.")
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.UnsignedRejected", "The update package is not signed by the expected publisher."), Drawing.Color.OrangeRed)
+                    Return False
+
+                Case UpdateSignatureVerdict.RejectedTampered
+                    _logger?.LogError($"Update package rejected: the signature of {updateExe} does not match its content (0x{package.ErrorCode:X8}).")
+                    progressForm.AppendLog(String.Format(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.SignatureTampered", "The signature of {0} does not match its content (file tampered or corrupted)."),
+                        ExecutableName), Drawing.Color.OrangeRed)
+                    Return False
+
+                Case UpdateSignatureVerdict.RejectedPublisherMismatch
+                    _logger?.LogError($"Update package rejected: {updateExe} is signed by an unexpected publisher ({package.SignerSubject}, thumbprint {package.SignerThumbprint}); expected one of [{String.Join(", ", expected)}].")
+                    progressForm.AppendLog(String.Format(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.PublisherMismatch", "{0} is signed by an unexpected publisher ({1}, thumbprint {2})."),
+                        ExecutableName, package.SignerSubject, package.SignerThumbprint), Drawing.Color.OrangeRed)
+                    Return False
+
+                Case Else
+                    _logger?.LogError($"Update package rejected: the signature of {updateExe} could not be validated (0x{package.ErrorCode:X8}).")
+                    progressForm.AppendLog(String.Format(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.SignatureInvalid", "The signature of {0} could not be validated (error 0x{1})."),
+                        ExecutableName, package.ErrorCode.ToString("X8")), Drawing.Color.OrangeRed)
+                    Return False
+            End Select
+
+            ' Signed release: the post-build script runs with -ExecutionPolicy Bypass before any file
+            ' is replaced, so it must come from the same publisher as the executable.
+            If postBuildScript IsNot Nothing Then
+                Dim script = AuthenticodeVerifier.Verify(postBuildScript)
+                _logger?.LogInfo($"Signature of {postBuildScript}: {script}")
+                If Not script.IsSignatureValid OrElse Not AuthenticodeVerifier.ThumbprintMatches(script.SignerThumbprint, expected) Then
+                    _logger?.LogError($"Update package rejected: {PostBuildScriptName} is not validly signed by the expected publisher ({script}).")
+                    progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.ScriptUnsigned", "The post-build script in the update package is not signed by the expected publisher."), Drawing.Color.OrangeRed)
+                    Return False
+                End If
+                _logger?.LogInfo($"{PostBuildScriptName} signature accepted.")
+            End If
+
+            Return True
+        End Function
+
+        ''' <summary>
+        ''' Authenticode result of the currently running LiteTask.exe, or Nothing when it cannot be determined.
+        ''' </summary>
+        Private Function GetRunningExecutableSignature() As AuthenticodeResult
+            Try
+                Dim exePath = Environment.ProcessPath
+                If String.IsNullOrWhiteSpace(exePath) Then exePath = Application.ExecutablePath
+                If String.IsNullOrWhiteSpace(exePath) OrElse Not File.Exists(exePath) Then Return Nothing
+                Return AuthenticodeVerifier.Verify(exePath)
+            Catch ex As Exception
+                _logger?.LogWarning($"Could not determine the signature of the running executable: {ex.Message}")
                 Return Nothing
             End Try
         End Function
