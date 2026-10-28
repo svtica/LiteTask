@@ -42,34 +42,41 @@ Namespace LiteTask
                 response.EnsureSuccessStatusCode()
 
                 Dim json = Await response.Content.ReadAsStringAsync()
-                Dim doc = JsonDocument.Parse(json)
-                Dim root = doc.RootElement
+                Dim info As UpdateInfo
+                Using doc = JsonDocument.Parse(json)
+                    Dim root = doc.RootElement
 
-                Dim tagName = root.GetProperty("tag_name").GetString()
-                Dim remoteVersion = tagName.TrimStart("v"c)
-                Dim currentVersion = Application.ProductVersion
+                    Dim tagName = root.GetProperty("tag_name").GetString()
+                    Dim remoteVersion = tagName.TrimStart("v"c)
+                    Dim currentVersion = Application.ProductVersion
 
-                Dim info As New UpdateInfo With {
-                    .CurrentVersion = currentVersion,
-                    .RemoteVersion = remoteVersion,
-                    .IsUpdateAvailable = IsNewerVersion(currentVersion, remoteVersion),
-                    .ReleaseNotes = If(root.TryGetProperty("body", Nothing), root.GetProperty("body").GetString(), ""),
-                    .ReleaseName = If(root.TryGetProperty("name", Nothing), root.GetProperty("name").GetString(), tagName)
-                }
+                    info = New UpdateInfo With {
+                        .CurrentVersion = currentVersion,
+                        .RemoteVersion = remoteVersion,
+                        .IsUpdateAvailable = IsNewerVersion(currentVersion, remoteVersion),
+                        .ReleaseNotes = If(root.TryGetProperty("body", Nothing), root.GetProperty("body").GetString(), ""),
+                        .ReleaseName = If(root.TryGetProperty("name", Nothing), root.GetProperty("name").GetString(), tagName)
+                    }
 
-                ' Find the zip asset download URL
-                If root.TryGetProperty("assets", Nothing) Then
-                    For Each asset In root.GetProperty("assets").EnumerateArray()
-                        Dim assetName = asset.GetProperty("name").GetString()
-                        If assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) Then
-                            info.DownloadUrl = asset.GetProperty("browser_download_url").GetString()
-                            info.AssetName = assetName
-                            Exit For
-                        End If
-                    Next
-                End If
+                    ' Find the zip asset download URL. Only accept HTTPS links so a
+                    ' tampered API answer cannot redirect the download to plain HTTP.
+                    If root.TryGetProperty("assets", Nothing) Then
+                        For Each asset In root.GetProperty("assets").EnumerateArray()
+                            Dim assetName = asset.GetProperty("name").GetString()
+                            Dim downloadUrl = asset.GetProperty("browser_download_url").GetString()
+                            If assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) AndAlso
+                               downloadUrl IsNot Nothing AndAlso
+                               downloadUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) Then
+                                info.DownloadUrl = downloadUrl
+                                ' Never let the remote asset name escape the temp folder.
+                                info.AssetName = Path.GetFileName(assetName)
+                                Exit For
+                            End If
+                        Next
+                    End If
+                End Using
 
-                _logger?.LogInfo($"Update check complete. Current: {currentVersion}, Remote: {remoteVersion}, Update available: {info.IsUpdateAvailable}")
+                _logger?.LogInfo($"Update check complete. Current: {info.CurrentVersion}, Remote: {info.RemoteVersion}, Update available: {info.IsUpdateAvailable}")
                 Return info
 
             Catch ex As Exception

@@ -207,8 +207,10 @@ Namespace LiteTask
                                                            If message.RetryCount < 3 Then
                                                                message.RetryCount += 1
                                                                _messageQueue.Enqueue(message)
-                                                               ' Move delay outside of catch block
                                                                _isProcessingEmails = False
+                                                               ' Back off before retrying (10 s, 20 s, 30 s) instead of
+                                                               ' hammering the SMTP server three times in a row.
+                                                               Await Task.Delay(TimeSpan.FromSeconds(10 * message.RetryCount), _cancellationTokenSource.Token)
                                                                Continue While
                                                            End If
                                                        End Try
