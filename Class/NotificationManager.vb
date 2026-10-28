@@ -181,6 +181,9 @@ Namespace LiteTask
                                                    Dim message As EmailMessage = Nothing
                                                    If _messageQueue.TryDequeue(message) Then
                                                        _isProcessingEmails = True
+                                                       ' Set in the Catch below; awaited after the Try because VB does
+                                                       ' not allow Await inside a Catch block (BC36943).
+                                                       Dim retryDelay As TimeSpan = TimeSpan.Zero
                                                        Try
                                                            Using mail As New MailMessage()
                                                                mail.From = New MailAddress(_emailSettings("EmailFrom"))
@@ -207,13 +210,16 @@ Namespace LiteTask
                                                            If message.RetryCount < 3 Then
                                                                message.RetryCount += 1
                                                                _messageQueue.Enqueue(message)
-                                                               _isProcessingEmails = False
                                                                ' Back off before retrying (10 s, 20 s, 30 s) instead of
                                                                ' hammering the SMTP server three times in a row.
-                                                               Await Task.Delay(TimeSpan.FromSeconds(10 * message.RetryCount), _cancellationTokenSource.Token)
-                                                               Continue While
+                                                               retryDelay = TimeSpan.FromSeconds(10 * message.RetryCount)
                                                            End If
                                                        End Try
+
+                                                       _isProcessingEmails = False
+                                                       If retryDelay > TimeSpan.Zero Then
+                                                           Await Task.Delay(retryDelay, _cancellationTokenSource.Token)
+                                                       End If
                                                    Else
                                                        ' Move delay outside of try block
                                                        _isProcessingEmails = False
