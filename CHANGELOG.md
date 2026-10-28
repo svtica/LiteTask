@@ -10,7 +10,7 @@ All notable changes to this project are documented in this file.
   - unsigned package: rejected, **unless the running `LiteTask.exe` is itself unsigned** (development build), in which case it is applied with a visible warning so a dev build can still update when the CI signing secret is absent;
   - tampered (digest mismatch), invalid, or signed by another certificate: rejected.
   A rejected package stops before `RunPostBuildScriptAsync`, logs the reason, shows it in `UpdateProgressForm` and deletes the temporary archive and extracted folder. New `Update.Progress.*` strings with French translations in `LiteTaskData/lang/fr.xml`.
-- `Release.yml` now also signs the `*.ps1` files at the package root (`LiteTask-Post-Build.ps1`, `Unblock-Files.ps1`) when the signing certificate is present, so signed releases satisfy the script check above. Rotating the signing certificate requires updating `UpdateManager.ExpectedPublisherThumbprint` in a release still signed with the previous certificate.
+- `Release.yml` now also signs the `*.ps1` files at the package root (currently `LiteTask-Post-Build.ps1`) when the signing certificate is present, so signed releases satisfy the script check above. Rotating the signing certificate requires updating `UpdateManager.ExpectedPublisherThumbprint` in a release still signed with the previous certificate.
 - Update download URL must use `https://`; the release asset name is reduced to its file name before being used as the local archive name.
 
 ### Fixed
