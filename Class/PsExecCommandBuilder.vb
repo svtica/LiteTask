@@ -119,5 +119,23 @@ Namespace LiteTask
             Return sb.ToString()
         End Function
 
+        ''' <summary>
+        ''' True when <paramref name="line"/> is one of PsExec's own progress messages,
+        ''' which it writes to stderr even with <c>-nobanner</c>:
+        ''' "Connecting to local system...", "Starting PSEXESVC service on local system...",
+        ''' "Copying authentication key to HOST...", "Connecting with PsExec service on HOST...",
+        ''' "Starting C:\app.exe on HOST..." and "C:\app.exe exited on HOST with error code 0.".
+        ''' Real failures ("Access is denied.", "Couldn't access HOST:", "The user name or
+        ''' password is incorrect.") do not match and stay classified as errors.
+        ''' </summary>
+        Public Function IsStatusLine(line As String) As Boolean
+            If String.IsNullOrWhiteSpace(line) Then Return False
+            Return StatusLinePattern.IsMatch(line.Trim())
+        End Function
+
+        Private ReadOnly StatusLinePattern As New System.Text.RegularExpressions.Regex(
+            "^(Connecting (to|with) .+\.\.\.|Starting .+ on .+\.\.\.|Copying .+ to .+\.\.\.|.+ exited on .+ with error code -?\d+\.?)$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase Or System.Text.RegularExpressions.RegexOptions.Compiled)
+
     End Module
 End Namespace

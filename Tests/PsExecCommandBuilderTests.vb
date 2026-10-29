@@ -94,4 +94,37 @@ Public Class PsExecCommandBuilderTests
         Assert.AreEqual("""C:\dir\file.exe""", PsExecCommandBuilder.QuoteArgument("C:\dir\file.exe", forceQuotes:=True))
     End Sub
 
+    <TestMethod>
+    Public Sub IsStatusLine_PsExecProgressMessages_AreStatus()
+        Dim lines = {
+            "Connecting to local system...",
+            "Starting PSEXESVC service on local system...",
+            "Copying authentication key to SRV01...",
+            "Connecting with PsExec service on SRV01...",
+            "Starting C:/Example/app.exe on SRV01...",
+            "C:/Example/app.exe exited on SRV01 with error code 0.",
+            "cmd.exe exited on SRV01 with error code -1073741510."
+        }
+        For Each line In lines
+            Assert.IsTrue(PsExecCommandBuilder.IsStatusLine(line), line)
+        Next
+    End Sub
+
+    <TestMethod>
+    Public Sub IsStatusLine_RealErrorsAndBlankLines_AreNotStatus()
+        Dim lines = {
+            "",
+            "   ",
+            "Access is denied.",
+            "Couldn't access SRV01:",
+            "The user name or password is incorrect.",
+            "PsExec could not start cmd.exe on SRV01:",
+            "Starting import failed"
+        }
+        For Each line In lines
+            Assert.IsFalse(PsExecCommandBuilder.IsStatusLine(line), $"'{line}'")
+        Next
+        Assert.IsFalse(PsExecCommandBuilder.IsStatusLine(Nothing))
+    End Sub
+
 End Class

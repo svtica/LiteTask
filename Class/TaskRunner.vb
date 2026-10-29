@@ -346,7 +346,8 @@ Namespace LiteTask
                     .StandardErrorEncoding = outputEncoding
                 }
             }
-                Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction), sensitiveValue:=password)
+                Return Await RunProcessWithTimeout(process, GetActionTimeout(taskAction),
+                                                   sensitiveValue:=password, psExecStatusAsInfo:=True)
             End Using
         End Function
 
@@ -417,8 +418,7 @@ Namespace LiteTask
 
             Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                If e.Data IsNot Nothing Then
-                                                                   If e.Data.Contains("Connecting") OrElse e.Data.Contains("Starting") OrElse
-               e.Data.Contains("Copying") OrElse e.Data.Contains("exited") Then
+                                                                   If PsExecCommandBuilder.IsStatusLine(e.Data) Then
                                                                        _logger.LogInfo($"Process status: {e.Data}")
                                                                    ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
                                                                        err.AppendLine(e.Data)
@@ -906,9 +906,14 @@ Namespace LiteTask
         ''' When <paramref name="sensitiveValue"/> is supplied (e.g. a password passed
         ''' on the child's command line), every occurrence in the captured output is
         ''' masked before it reaches the log or the GUI.
+        ''' With <paramref name="psExecStatusAsInfo"/>, PsExec's own progress messages
+        ''' (written to stderr: "Connecting to local system...", "... exited with error
+        ''' code 0.") are logged as Info and raised as output; blank stderr lines are
+        ''' dropped. Only genuine stderr content is logged as a warning.
         ''' </summary>
         Private Async Function RunProcessWithTimeout(process As Process, timeout As TimeSpan,
-                                                     Optional sensitiveValue As String = Nothing) As Task(Of Boolean)
+                                                     Optional sensitiveValue As String = Nothing,
+                                                     Optional psExecStatusAsInfo As Boolean = False) As Task(Of Boolean)
             Dim output As New StringBuilder()
             Dim errors As New StringBuilder()
             Dim trackKey As String = Nothing
@@ -923,12 +928,18 @@ Namespace LiteTask
                                                             End Sub
 
             Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
-                                                               If e.Data IsNot Nothing Then
-                                                                   Dim line = MaskSensitiveData(e.Data, sensitiveValue)
-                                                                   errors.AppendLine(line)
-                                                                   _logger.LogWarning($"Process error: {line}")
-                                                                   RaiseEvent ErrorReceived(Me, line)
+                                                               If e.Data Is Nothing Then Return
+                                                               Dim line = MaskSensitiveData(e.Data, sensitiveValue)
+                                                               ' PsExec separates its progress messages with empty lines
+                                                               If String.IsNullOrWhiteSpace(line) Then Return
+                                                               If psExecStatusAsInfo AndAlso PsExecCommandBuilder.IsStatusLine(line) Then
+                                                                   _logger.LogInfo($"Process status: {line}")
+                                                                   RaiseEvent OutputReceived(Me, line)
+                                                                   Return
                                                                End If
+                                                               errors.AppendLine(line)
+                                                               _logger.LogWarning($"Process error: {line}")
+                                                               RaiseEvent ErrorReceived(Me, line)
                                                            End Sub
 
             Try
