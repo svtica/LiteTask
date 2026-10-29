@@ -94,4 +94,37 @@ Public Class PsExecCommandBuilderTests
         Assert.AreEqual("""C:\dir\file.exe""", PsExecCommandBuilder.QuoteArgument("C:\dir\file.exe", forceQuotes:=True))
     End Sub
 
+    <TestMethod>
+    Public Sub IsStatusLine_PsExecProgressMessages_AreStatus()
+        Dim lines = {
+            "Connecting to local system...",
+            "Starting PSEXESVC service on local system...",
+            "Copying authentication key to XCONCENTMDS...",
+            "Connecting with PsExec service on XCONCENTMDS...",
+            "Starting C:\SIVT II\Extracteur\ExtracteurVBNET-DTS-CAPII.exe on XCONCENTMDS...",
+            "C:\SIVT II\GenRTP Automatique\GenRTP_CAP_II.exe exited on XCONCENTMDS with error code 0.",
+            "cmd.exe exited on XCONCENTMDS with error code -1073741510."
+        }
+        For Each line In lines
+            Assert.IsTrue(PsExecCommandBuilder.IsStatusLine(line), line)
+        Next
+    End Sub
+
+    <TestMethod>
+    Public Sub IsStatusLine_RealErrorsAndBlankLines_AreNotStatus()
+        Dim lines = {
+            "",
+            "   ",
+            "Access is denied.",
+            "Couldn't access XCONCENTMDS:",
+            "The user name or password is incorrect.",
+            "PsExec could not start cmd.exe on XCONCENTMDS:",
+            "Starting import failed"
+        }
+        For Each line In lines
+            Assert.IsFalse(PsExecCommandBuilder.IsStatusLine(line), $"'{line}'")
+        Next
+        Assert.IsFalse(PsExecCommandBuilder.IsStatusLine(Nothing))
+    End Sub
+
 End Class
