@@ -405,6 +405,7 @@ Namespace LiteTask
 
             process.StartInfo.StandardOutputEncoding = Encoding.UTF8
             process.StartInfo.StandardErrorEncoding = Encoding.UTF8
+            Dim stopwatch = Stopwatch.StartNew()
 
             ' Named handlers so they can be removed after execution (prevents closure leaks)
             Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
@@ -455,10 +456,11 @@ Namespace LiteTask
                 End Using
 
                 If process.ExitCode <> 0 Then
-                    Dim errorMessage = err.ToString()
-                    Return If(String.IsNullOrWhiteSpace(errorMessage),
-                $"Error: Process exited with code {process.ExitCode}",
-                $"Error: {errorMessage}")
+                    ' sqlcmd (and most console tools) print their error text on stdout
+                    ' unless told otherwise, so the stdout tail is part of the failure
+                    ' report. Previously only stderr was returned and "Process exited
+                    ' with code 1" was all that reached the log (GLPI #4302).
+                    Return ProcessFailureFormatter.BuildFailureMessage(process.ExitCode, output.ToString(), err.ToString(), stopwatch.Elapsed)
                 End If
 
                 Return output.ToString()
@@ -494,6 +496,9 @@ Namespace LiteTask
                     _logger.LogInfo($"Created temporary SQL file: {tempFile}")
 
                     Dim sqlcmdPath = Path.Combine(_toolManager._toolsPath, "sqlcmd.exe")
+                    ' Argument layout is unchanged from 1.2.1.12 and pinned by the
+                    ' SqlCmdCommandBuilder unit tests. The password never appears here
+                    ' (SQLCMDPASSWORD below), so the line can be logged as is.
                     Dim sqlcmdArgs As String
 
                     If credential IsNot Nothing Then
@@ -501,12 +506,13 @@ Namespace LiteTask
                         ' every local user (Task Manager, WMI, Get-Process). sqlcmd reads the
                         ' SQLCMDPASSWORD environment variable instead, which is only visible
                         ' to the child process itself.
-                        sqlcmdArgs = $"""-S"" ""{server}"" ""-d"" ""{database}"" ""-I"" ""-h-1"" ""-i"" ""{tempFile}"" -U ""{credential.Username}"""
+                        sqlcmdArgs = SqlCmdCommandBuilder.BuildArguments(server, database, tempFile, credential.Username)
                         _logger.LogInfo($"Executing with SQL credentials for user: {credential.Username}")
                     Else
-                        sqlcmdArgs = $"""-S"" ""{server}"" ""-d"" ""{database}"" ""-I"" ""-h-1"" ""-i"" ""{tempFile}"" -E"
+                        sqlcmdArgs = SqlCmdCommandBuilder.BuildArguments(server, database, tempFile, Nothing)
                         _logger.LogInfo("Executing with integrated security")
                     End If
+                    _logger.LogInfo($"sqlcmd command line: ""{sqlcmdPath}"" {sqlcmdArgs}")
 
                     Using process As New Process With {
                     .StartInfo = New ProcessStartInfo(sqlcmdPath) With {

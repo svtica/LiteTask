@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.1.13] - 2026-11-10 - diagnostics and alerting only (GLPI #4302)
+
+**No behaviour change.** For a given task and environment, 1.2.1.13 decides to run, defer or skip exactly as 1.2.1.12, launches the same command lines (sqlcmd arguments pinned by `SqlCmdCommandBuilderTests`), reports success or failure the same way, and runs with the production `settings.xml` untouched (no new key, no serialization change, every new tunable is a hard-coded constant). The SQL readiness classification (`NetworkErrorNumbers` deny-list, 300 s success cache) is unchanged and pinned by `SqlReadinessClassificationTests`.
+
+### Added
+- **SQL failure detail**: when a child process exits non-zero, the failure text and the log now carry the exit code, the duration, stderr and the last 40 lines of stdout (`ProcessFailureFormatter`, unit-tested). sqlcmd writes its error messages on stdout without `-r`, so "Process exited with code 1" was all that reached the log on 2026-10-27. The sqlcmd command line is logged; it never contains the password (`SQLCMDPASSWORD`).
+- **SqlReadiness outcome logging**: every probe result is logged (ready / not ready, SqlException number, how the deny-list classified it, duration). A successful probe used to be silent and indistinguishable from a skipped one.
+- **Gate deferral alert**: a task deferred by the SQL readiness gate for more than 15 minutes (hard-coded) sends an `ALERT #N: Task Deferred` e-mail, repeated at `StaleAlertRepeatMinutes`. Alert only; the dispatch decision is unchanged.
+- **E-mail notification robustness** (notifications only, never tasks): retries after 1, 5 and 15 minutes (hard-coded, `NotificationRetryPolicy`, unit-tested) with a per-message `NotBefore` so a waiting message does not block the queue; the innermost exception of `SmtpException` is logged (DNS/socket/TLS reason instead of "Failure sending mail."); an explicit "giving up" line is logged; undeliverable messages and messages still queued at `Dispose` are written to `LiteTaskData\notifications\failed\` as dead-letter files (no replay).
+
+### Fixed
+- **Hot reload during a run re-dispatched the task**: `ReloadTasks` replaces every in-memory `ScheduledTask`, including the one executing; the run then advanced the orphaned copy while `SaveTasks` persisted the reloaded copy with its pre-run `NextRunTime`. `ScheduleAdvancer` (unit-tested) now advances the reloaded copy too, and the reload logs a warning when it refreshes an executing task.
+
+### Out of scope (deliberately not in this release)
+- Readiness allow-list, cache invalidation after a failed action, sqlcmd `-b`/`-r`/`-l`/`-t`, `RetryCount` support, dead-letter replay. See `docs/analysis-4302-litetask.md`.
+
 ## [Unreleased]
 
 ### Security
