@@ -60,9 +60,12 @@ Namespace LiteTask
                         ' Clear active notification batches to release held EmailMessage lists
                         _activeBatches.Clear()
 
-                        ' Clear email queue
-                        While _messageQueue.TryDequeue(Nothing)
-                            ' Just empty the queue
+                        ' Messages still queued at shutdown used to be dropped silently:
+                        ' write them to the dead-letter folder instead.
+                        Dim pending As EmailMessage = Nothing
+                        While _messageQueue.TryDequeue(pending)
+                            pending.LastError = "NotificationManager disposed (service stopping) before the message could be sent"
+                            WriteDeadLetter(pending)
                         End While
 
                         ' Clear settings
@@ -179,63 +182,107 @@ Namespace LiteTask
                                            While Not _cancellationTokenSource.Token.IsCancellationRequested
                                                Try
                                                    Dim message As EmailMessage = Nothing
-                                                   If _messageQueue.TryDequeue(message) Then
-                                                       _isProcessingEmails = True
-                                                       ' Set in the Catch below; awaited after the Try because VB does
-                                                       ' not allow Await inside a Catch block (BC36943).
-                                                       Dim retryDelay As TimeSpan = TimeSpan.Zero
-                                                       Try
-                                                           Using mail As New MailMessage()
-                                                               mail.From = New MailAddress(_emailSettings("EmailFrom"))
-                                                               For Each recipient In _emailSettings("EmailTo").Split(";"c)
-                                                                   mail.To.Add(recipient.Trim())
-                                                               Next
-                                                               mail.Subject = message.Subject
-                                                               mail.Body = $"{message.Body}{Environment.NewLine}{Environment.NewLine}Timestamp: {message.Timestamp}"
-                                                               mail.Priority = If(message.Priority = NotificationPriority.High,
-                                                 MailPriority.High, MailPriority.Normal)
-
-                                                               ' Configure SMTP client for each send operation
-                                                               Using smtp As New SmtpClient(_emailSettings("SmtpServer"), Integer.Parse(_emailSettings("SmtpPort"))) With {
-                                    .EnableSsl = Boolean.Parse(_emailSettings("UseSSL")),
-                                    .DeliveryMethod = SmtpDeliveryMethod.Network,
-                                    .Timeout = 30000
-                                }
-                                                                   Await smtp.SendMailAsync(mail)
-                                                                   _logger.LogInfo($"Email sent successfully: {message.Subject}")
-                                                               End Using
-                                                           End Using
-                                                       Catch ex As Exception
-                                                           _logger.LogError($"Failed to send email: {ex.Message}")
-                                                           If message.RetryCount < 3 Then
-                                                               message.RetryCount += 1
-                                                               _messageQueue.Enqueue(message)
-                                                               ' Back off before retrying (10 s, 20 s, 30 s) instead of
-                                                               ' hammering the SMTP server three times in a row.
-                                                               retryDelay = TimeSpan.FromSeconds(10 * message.RetryCount)
-                                                           End If
-                                                       End Try
-
-                                                       _isProcessingEmails = False
-                                                       If retryDelay > TimeSpan.Zero Then
-                                                           Await Task.Delay(retryDelay, _cancellationTokenSource.Token)
-                                                       End If
-                                                   Else
-                                                       ' Move delay outside of try block
+                                                   If Not _messageQueue.TryDequeue(message) Then
                                                        _isProcessingEmails = False
                                                        Await Task.Delay(1000, _cancellationTokenSource.Token)
+                                                       Continue While
                                                    End If
+
+                                                   ' A message waiting for its retry window goes back to the end
+                                                   ' of the queue so it never holds up the messages behind it.
+                                                   If message.NotBefore > DateTime.Now Then
+                                                       _messageQueue.Enqueue(message)
+                                                       Await Task.Delay(1000, _cancellationTokenSource.Token)
+                                                       Continue While
+                                                   End If
+
+                                                   _isProcessingEmails = True
+                                                   Dim sendError As Exception = Nothing
+                                                   Try
+                                                       Await SendAsync(message)
+                                                       _logger.LogInfo($"Email sent successfully: {message.Subject}{If(message.RetryCount > 0, $" (after {message.RetryCount} retry/retries)", "")}")
+                                                   Catch ex As Exception
+                                                       ' Handled after the Try: VB does not allow Await in a Catch block.
+                                                       sendError = ex
+                                                   End Try
+
+                                                   If sendError IsNot Nothing Then
+                                                       HandleSendFailure(message, sendError)
+                                                   End If
+                                                   _isProcessingEmails = False
                                                Catch ex As Exception When TypeOf ex Is OperationCanceledException
                                                    ' Normal cancellation
                                                    Exit While
                                                Catch ex As Exception
                                                    _logger.LogError($"Error in email processor: {ex.Message}")
-                                                   ' Move delay outside of catch block
                                                    _isProcessingEmails = False
-                                                   Continue While
                                                End Try
                                            End While
                                        End Function, _cancellationTokenSource.Token)
+        End Sub
+
+        Private Async Function SendAsync(message As EmailMessage) As Task
+            Using mail As New MailMessage()
+                mail.From = New MailAddress(_emailSettings("EmailFrom"))
+                For Each recipient In _emailSettings("EmailTo").Split(";"c)
+                    If Not String.IsNullOrWhiteSpace(recipient) Then
+                        mail.To.Add(recipient.Trim())
+                    End If
+                Next
+                mail.Subject = message.Subject
+                mail.Body = $"{message.Body}{Environment.NewLine}{Environment.NewLine}Timestamp: {message.Timestamp}"
+                mail.Priority = If(message.Priority = NotificationPriority.High,
+                                   MailPriority.High, MailPriority.Normal)
+
+                ' One SmtpClient per send: the instance created in InitializeEmailSettings
+                ' is deliberately not reused (SmtpClient is not safe for concurrent or
+                ' repeated async sends and would pin a stale connection).
+                Using smtp As New SmtpClient(_emailSettings("SmtpServer"), Integer.Parse(_emailSettings("SmtpPort"))) With {
+                    .EnableSsl = Boolean.Parse(_emailSettings("UseSSL")),
+                    .DeliveryMethod = SmtpDeliveryMethod.Network,
+                    .Timeout = 30000
+                }
+                    Await smtp.SendMailAsync(mail)
+                End Using
+            End Using
+        End Function
+
+        ''' <summary>
+        ''' Schedules a retry (1 / 5 / 15 min) or, once retries are exhausted,
+        ''' writes the message to the dead-letter folder so it is never lost
+        ''' silently. The logged cause is the innermost exception: SmtpException
+        ''' only says "Failure sending mail.", the DNS/socket/TLS reason is inside.
+        ''' </summary>
+        Private Sub HandleSendFailure(message As EmailMessage, ex As Exception)
+            Dim cause = ex.GetBaseException().Message
+            message.LastError = If(String.Equals(cause, ex.Message, StringComparison.Ordinal), ex.Message, $"{ex.Message} ({cause})")
+
+            If NotificationRetryPolicy.ShouldRetry(message.RetryCount) Then
+                message.RetryCount += 1
+                Dim delay = NotificationRetryPolicy.GetRetryDelay(message.RetryCount)
+                message.NotBefore = DateTime.Now.Add(delay)
+                _messageQueue.Enqueue(message)
+                _logger.LogError($"Failed to send email '{message.Subject}': {message.LastError}. Retry {message.RetryCount}/{NotificationRetryPolicy.MaxRetries} in {delay.TotalMinutes:F0} min")
+            Else
+                _logger.LogError($"Failed to send email '{message.Subject}': {message.LastError}. Giving up after {message.RetryCount + 1} attempts; message written to the dead-letter folder")
+                WriteDeadLetter(message)
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' LiteTaskData\notifications\failed\yyyyMMdd_HHmmss_&lt;guid&gt;.txt: subject,
+        ''' body, attempts and last error of a notification that could not be sent.
+        ''' </summary>
+        Private Sub WriteDeadLetter(message As EmailMessage)
+            Try
+                Dim folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiteTaskData", "notifications", "failed")
+                Directory.CreateDirectory(folder)
+                Dim filePath = Path.Combine(folder, NotificationRetryPolicy.BuildDeadLetterFileName(DateTime.Now, Guid.NewGuid()))
+                File.WriteAllText(filePath, NotificationRetryPolicy.FormatDeadLetter(message.Subject, message.Body, message.Timestamp, message.RetryCount + 1, message.LastError))
+                _logger?.LogWarning($"Undelivered notification saved to {filePath}")
+            Catch ioEx As Exception
+                _logger?.LogError($"Could not write dead-letter file for '{message.Subject}': {ioEx.Message}")
+            End Try
         End Sub
 
         Public Enum NotificationPriority
@@ -251,6 +298,10 @@ Namespace LiteTask
         Public Property Priority As NotificationPriority
         Public Property Timestamp As DateTime
         Public Property RetryCount As Integer = 0
+        ''' <summary>Earliest time the next send attempt may run (retry backoff).</summary>
+        Public Property NotBefore As DateTime = DateTime.MinValue
+        ''' <summary>Reason of the last failed attempt, kept for the dead-letter file.</summary>
+        Public Property LastError As String
     End Class
 
     Public Class NotificationBatch
