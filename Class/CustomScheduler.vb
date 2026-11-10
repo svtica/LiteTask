@@ -47,6 +47,12 @@ Namespace LiteTask
         Private ReadOnly _blockedTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
         Private ReadOnly _skippedRunFirstTime As New ConcurrentDictionary(Of String, DateTime)
         Private ReadOnly _skippedRunCounts As New ConcurrentDictionary(Of String, Integer)
+        ' - _gatedRun* track consecutive deferrals by the SQL readiness gate so a
+        '   task held back for hours raises repeating alerts (GLPI #4302: the gate
+        '   only wrote a per-tick log warning, never an e-mail).
+        Private ReadOnly _gatedRunFirstTime As New ConcurrentDictionary(Of String, DateTime)
+        Private ReadOnly _gatedRunCounts As New ConcurrentDictionary(Of String, Integer)
+        Private ReadOnly _gatedTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
         Private Const STALE_KILL_GRACE_MINUTES As Integer = 10
 
         ' Memory monitoring properties (configurable via Options > Monitoring)
@@ -389,6 +395,9 @@ Namespace LiteTask
             _blockedTaskAlerts.Clear()
             _skippedRunFirstTime.Clear()
             _skippedRunCounts.Clear()
+            _gatedRunFirstTime.Clear()
+            _gatedRunCounts.Clear()
+            _gatedTaskAlerts.Clear()
             _pendingDispatch.Clear()
             _logger.LogInfo("Task states, mutex tracking, and stale alert tracking cleared")
         End Sub
@@ -425,12 +434,14 @@ Namespace LiteTask
                         ' next scheduler tick instead of being marked as executed.
                         If RequiresSqlReadiness(task) AndAlso Not _sqlReadiness.IsReady() Then
                             _logger.LogWarning($"Task {task.Name} deferred: SQL Server is not ready yet")
+                            RecordGatedRun(task.Name)
                             Continue For
                         End If
 
                         ' TryAdd guards against double-dispatch: the launch below may be
                         ' staggered past the next scheduler tick.
                         If _pendingDispatch.TryAdd(task.Name, True) Then
+                            ClearGatedTracking(task.Name)
                             Dim taskToRun = task
                             Dim launchDelayMs = dueIndex * _staggerSeconds * 1000
                             dueIndex += 1
@@ -897,6 +908,82 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Records a dispatch deferred by the SQL readiness gate. A task that stays
+        ''' gated past the stale threshold raises repeating, escalating e-mail
+        ''' alerts so an outage that holds SQL-dependent tasks back for hours
+        ''' cannot stay silent (before: one log warning per 30 s tick, no e-mail).
+        ''' </summary>
+        Private Sub RecordGatedRun(taskName As String)
+            Try
+                Dim now = DateTime.Now
+                Dim firstGated = _gatedRunFirstTime.GetOrAdd(taskName, now)
+                Dim gatedCount = _gatedRunCounts.AddOrUpdate(taskName, 1, Function(k, v) v + 1)
+                Dim gatedFor = now - firstGated
+
+                If gatedFor.TotalMinutes < STALE_TIMEOUT_MINUTES Then Return
+
+                ' Rate-limit repeats to the configured cadence
+                Dim lastAlertTime As DateTime = Nothing
+                If _gatedTaskAlerts.TryGetValue(taskName, lastAlertTime) Then
+                    If (now - lastAlertTime).TotalMinutes < _staleAlertRepeatMinutes Then
+                        Return
+                    End If
+                End If
+
+                Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                If notificationManager Is Nothing Then Return
+
+                Dim alertNumber = _staleAlertCounts.AddOrUpdate(taskName, 1, Function(k, v) v + 1)
+
+                Dim body As New StringBuilder()
+                body.AppendLine($"Task '{taskName}' is due but has been deferred by the SQL Server readiness gate (alert #{alertNumber} for this incident):")
+                body.AppendLine()
+                body.AppendLine($"Deferred Since: {firstGated:yyyy-MM-dd HH:mm:ss}")
+                body.AppendLine($"Deferred Duration: {gatedFor.TotalMinutes:F0} minutes")
+                body.AppendLine($"Deferred Ticks: {gatedCount}")
+                body.AppendLine()
+                body.AppendLine("SQL Server did not answer the readiness probe (see [SqlReadiness] entries in the log).")
+                body.AppendLine("The task runs automatically as soon as a probe succeeds; its schedule is not advanced while deferred.")
+                body.AppendLine()
+                body.AppendLine($"This alert will repeat every {_staleAlertRepeatMinutes} minutes until the task runs again.")
+
+                notificationManager.QueueNotification(
+                    $"ALERT #{alertNumber}: Task Deferred - {taskName} (SQL Server not ready for {gatedFor.TotalMinutes:F0} min)",
+                    body.ToString(),
+                    NotificationManager.NotificationPriority.High)
+
+                _gatedTaskAlerts(taskName) = now
+                _logger.LogWarning($"Gated task alert #{alertNumber} sent for {taskName} ({gatedCount} deferrals over {gatedFor.TotalMinutes:F0} minutes)")
+
+            Catch ex As Exception
+                _logger.LogError($"Error recording gated run for {taskName}: {ex.Message}")
+            End Try
+        End Sub
+
+        ''' Clears readiness-gate tracking once the task is dispatched or removed
+        Private Sub ClearGatedTracking(taskName As String)
+            _gatedRunFirstTime.TryRemove(taskName, Nothing)
+            _gatedRunCounts.TryRemove(taskName, Nothing)
+            _gatedTaskAlerts.TryRemove(taskName, Nothing)
+        End Sub
+
+        ''' <summary>
+        ''' Advances the schedule of a task that just finished (successfully or not).
+        ''' If a hot reload (CMD_RELOAD_TASKS) replaced the in-memory definition while
+        ''' the run was in progress, the live entry in _tasks is a different object
+        ''' from the one being executed. Advancing only the executed copy left the
+        ''' live entry with the pre-run NextRunTime, and SaveTasks (which persists
+        ''' the live entries) then re-dispatched the task on the next tick.
+        ''' </summary>
+        Private Sub AdvanceSchedule(executedTask As ScheduledTask)
+            Dim live As ScheduledTask = Nothing
+            _tasks.TryGetValue(executedTask.Name, live)
+            If ScheduleAdvancer.Advance(executedTask, live) Then
+                _logger.LogInfo($"Task {executedTask.Name} was reloaded during execution; schedule advanced on the reloaded definition (next run {live.NextRunTime:yyyy-MM-dd HH:mm:ss})")
+            End If
+        End Sub
+
         ''' Clears blockage/alert tracking after a successful run
         Private Sub ClearBlockedTracking(taskName As String)
             _skippedRunFirstTime.TryRemove(taskName, Nothing)
@@ -1125,7 +1212,7 @@ Namespace LiteTask
                             End Try
                         Next
 
-                        _task.UpdateNextRunTime()
+                        AdvanceSchedule(_task)
                         SaveTasks()
                         taskState.StatusMessage = "Execution completed successfully"
 
@@ -1186,7 +1273,7 @@ Namespace LiteTask
 
                 ' Always advance the schedule on failure to prevent infinite re-execution
                 Try
-                    _task.UpdateNextRunTime()
+                    AdvanceSchedule(_task)
                     SaveTasks()
                 Catch schedEx As Exception
                     _logger.LogError($"Failed to update next run time for {_task.Name}: {schedEx.Message}")
@@ -1386,6 +1473,7 @@ Namespace LiteTask
                     _activeMutexes.TryRemove(existingName, Nothing)
                     _pendingDispatch.TryRemove(existingName, Nothing)
                     ClearBlockedTracking(existingName)
+                    ClearGatedTracking(existingName)
 
                     Dim removedLock As Object = Nothing
                     If _taskLocks.TryRemove(existingName, removedLock) Then
@@ -1400,6 +1488,14 @@ Namespace LiteTask
                 For Each taskName In newTaskNames
                     Dim task = _xmlManager.LoadTask(taskName)
                     If task IsNot Nothing Then
+                        Dim isExecuting As Boolean = False
+                        _taskRunning.TryGetValue(taskName, isExecuting)
+                        If isExecuting Then
+                            ' The run in progress keeps its own ScheduledTask object; when it
+                            ' completes, AdvanceSchedule also advances this refreshed copy so
+                            ' the persisted NextRunTime cannot fall back to the pre-run value.
+                            _logger.LogWarning($"Hot reload: task '{taskName}' is executing; definition refreshed, schedule will be advanced on the refreshed copy when the run completes")
+                        End If
                         _tasks(taskName) = task
                         refreshed += 1
                     End If
@@ -1450,6 +1546,7 @@ Namespace LiteTask
                 _activeMutexes.TryRemove(taskName, Nothing)
                 _pendingDispatch.TryRemove(taskName, Nothing)
                 ClearBlockedTracking(taskName)
+                ClearGatedTracking(taskName)
 
                 Dim removedLock As Object = Nothing
                 If _taskLocks.TryRemove(taskName, removedLock) Then
