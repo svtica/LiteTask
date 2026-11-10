@@ -92,19 +92,19 @@ Namespace LiteTask
         ' duration and, for SqlException, the error number and how the deny-list
         ' above classified it. The decision itself is unchanged.
         Private Function Probe(server As String, now As DateTime) As Boolean
-            Dim stopwatch = Stopwatch.StartNew()
+            Dim probeTimer = Diagnostics.Stopwatch.StartNew()
             Try
                 _logger?.LogInfo($"[SqlReadiness] Probing SQL Server '{server}' (attempt {_consecutiveFailures + 1})")
                 Using connection As New SqlConnection($"Server={server};Database=master;Integrated Security=True;TrustServerCertificate=True;Connect Timeout={PROBE_CONNECT_TIMEOUT_SECONDS}")
                     connection.Open()
                 End Using
-                _logger?.LogInfo($"[SqlReadiness] SQL Server '{server}' is ready (probe answered in {stopwatch.ElapsedMilliseconds} ms)")
+                _logger?.LogInfo($"[SqlReadiness] SQL Server '{server}' is ready (probe answered in {probeTimer.ElapsedMilliseconds} ms)")
                 Return MarkReady(server, now)
 
             Catch ex As SqlException When Not NetworkErrorNumbers.Contains(ex.Number)
                 ' The server responded but refused this probe (login/database error):
                 ' the engine is up, which is all the readiness gate needs to know.
-                _logger?.LogInfo($"[SqlReadiness] SQL Server '{server}' answered with error {ex.Number} after {stopwatch.ElapsedMilliseconds} ms [classified: not in NetworkErrorNumbers => engine answered] ({ex.Message.Trim()}); treating engine as available")
+                _logger?.LogInfo($"[SqlReadiness] SQL Server '{server}' answered with error {ex.Number} after {probeTimer.ElapsedMilliseconds} ms [classified: not in NetworkErrorNumbers => engine answered] ({ex.Message.Trim()}); treating engine as available")
                 Return MarkReady(server, now)
 
             Catch ex As Exception
@@ -116,7 +116,7 @@ Namespace LiteTask
                 Dim classification = If(sqlEx IsNot Nothing,
                                         $"SqlException {sqlEx.Number} [classified: in NetworkErrorNumbers => server unreachable]",
                                         $"{ex.GetType().Name} [classified: non-SQL exception => server unreachable]")
-                _logger?.LogWarning($"[SqlReadiness] SQL Server '{server}' not ready after {stopwatch.ElapsedMilliseconds} ms (probe {_consecutiveFailures} failed, {classification}: {ex.Message}). Next probe in {backoffSeconds:F0}s")
+                _logger?.LogWarning($"[SqlReadiness] SQL Server '{server}' not ready after {probeTimer.ElapsedMilliseconds} ms (probe {_consecutiveFailures} failed, {classification}: {ex.Message}). Next probe in {backoffSeconds:F0}s")
                 Return False
             End Try
         End Function

@@ -405,7 +405,7 @@ Namespace LiteTask
 
             process.StartInfo.StandardOutputEncoding = Encoding.UTF8
             process.StartInfo.StandardErrorEncoding = Encoding.UTF8
-            Dim stopwatch = Stopwatch.StartNew()
+            Dim runTimer = Diagnostics.Stopwatch.StartNew()
 
             ' Named handlers so they can be removed after execution (prevents closure leaks)
             Dim outputHandler As DataReceivedEventHandler = Sub(sender, e)
@@ -460,7 +460,7 @@ Namespace LiteTask
                     ' unless told otherwise, so the stdout tail is part of the failure
                     ' report. Previously only stderr was returned and "Process exited
                     ' with code 1" was all that reached the log (GLPI #4302).
-                    Return ProcessFailureFormatter.BuildFailureMessage(process.ExitCode, output.ToString(), err.ToString(), stopwatch.Elapsed)
+                    Return ProcessFailureFormatter.BuildFailureMessage(process.ExitCode, output.ToString(), err.ToString(), runTimer.Elapsed)
                 End If
 
                 Return output.ToString()
