@@ -816,16 +816,8 @@ Namespace LiteTask
                             End Try
                         End If
 
-                        ' Force a full GC to reclaim COM interop objects and large ImportExcel/EPPlus
-                        ' object graphs that the non-blocking Optimized collect won't release in time.
-                        ' WaitForPendingFinalizers ensures COM Release() calls complete before we return.
-                        Try
-                            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=True)
-                            GC.WaitForPendingFinalizers()
-                            GC.Collect(2, GCCollectionMode.Forced, blocking:=False)
-                        Catch
-                            ' GC errors should never propagate
-                        End Try
+                        ' Full blocking GC for COM objects created by scripts (Reliability/ForceGcAfterTask)
+                        MemoryDiagnostics.CollectAfterPowerShellTask()
                     End Try
                 End Using
 
