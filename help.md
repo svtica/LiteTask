@@ -98,6 +98,8 @@ Actions can be configured with dependencies:
 
 ### Notification System
 - Smart batching of related notifications
+- Run report in task notifications: real start, end and duration of the run and of each action, with the error of the failed action
+- Optional task log in notifications (Options > Email > Include the task log in notifications; last 200 lines by default, `EmailSettings/TaskLogMaxLines`)
 - Configurable thresholds
 - Email notifications
 - Priority levels

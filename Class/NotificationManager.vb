@@ -230,7 +230,7 @@ Namespace LiteTask
                     End If
                 Next
                 mail.Subject = message.Subject
-                mail.Body = $"{message.Body}{Environment.NewLine}{Environment.NewLine}Timestamp: {message.Timestamp}"
+                mail.Body = $"{message.Body}{Environment.NewLine}{Environment.NewLine}Notification queued: {message.Timestamp:yyyy-MM-dd HH:mm:ss}"
                 mail.Priority = If(message.Priority = NotificationPriority.High,
                                    MailPriority.High, MailPriority.Normal)
 
@@ -333,35 +333,28 @@ Namespace LiteTask
             End If
         End Sub
 
+        ''' <summary>
+        ''' Body of the e-mail for this batch. A single message is sent as-is. For
+        ''' several messages, the header gives the batching window (first message
+        ''' queued / batch sent, at most ~5 s apart): it is NOT the start and end of
+        ''' a task, which each task notification carries in its own body.
+        ''' </summary>
         Public Function GetCombinedBody() As String
-            Dim body As New StringBuilder()
+            If Messages.Count = 1 Then
+                Return Messages(0).Body
+            End If
 
-            ' Add execution summary
-            body.AppendLine($"Execution Summary:")
-            body.AppendLine($"Start Time: {StartTime:yyyy-MM-dd HH:mm:ss}")
-            body.AppendLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
-            body.AppendLine($"Total Messages: {Messages.Count}")
+            Dim body As New StringBuilder()
+            body.AppendLine($"{Messages.Count} notifications grouped in this e-mail")
+            body.AppendLine($"(first queued {StartTime:yyyy-MM-dd HH:mm:ss}, sent {DateTime.Now:yyyy-MM-dd HH:mm:ss})")
             body.AppendLine()
 
-            ' Group messages by type
-            Dim outputs = Messages.Where(Function(m) Not m.Body.StartsWith("Error:")).ToList()
-            Dim errors = Messages.Where(Function(m) m.Body.StartsWith("Error:")).ToList()
-
-            If outputs.Count > 0 Then
-                body.AppendLine("Execution Output:")
-                For Each msg In outputs
-                    body.AppendLine(msg.Body)
-                Next
+            For i = 0 To Messages.Count - 1
+                Dim msg = Messages(i)
+                body.AppendLine($"===== {i + 1}/{Messages.Count} - {msg.Subject} ({msg.Timestamp:HH:mm:ss}) =====")
+                body.AppendLine(msg.Body)
                 body.AppendLine()
-            End If
-
-            If errors.Count > 0 Then
-                body.AppendLine("Errors:")
-                For Each msg In errors
-                    body.AppendLine(msg.Body)
-                Next
-                body.AppendLine()
-            End If
+            Next
 
             Return body.ToString()
         End Function
