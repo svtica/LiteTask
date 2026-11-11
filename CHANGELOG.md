@@ -20,6 +20,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
+- **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
+- **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.
+- `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Hosting.WindowsServices`, `System.ServiceProcess.ServiceController`, `System.Text.Encoding.CodePages` 10.0.14 (were 9.0.0, end of support).
+- CI builds with the .NET 10 SDK.
+- Removed `EnableUnsafeBinaryFormatterSerialization`: BinaryFormatter no longer exists in .NET 9+ and LiteTask does not use it (the form `.resx` hold icons and images as byte arrays, read without BinaryFormatter).
+
 ### Added - update safety before the .NET 10 migration
 - **The updater checks the .NET runtime first**: before any file is replaced, the update reads `LiteTask.runtimeconfig.json` from the downloaded package and verifies that every shared framework it needs (`Microsoft.NETCore.App`, `Microsoft.WindowsDesktop.App`) is installed with the same major version (default roll-forward). When one is missing the update stops with a message naming the .NET Desktop Runtime to install, and nothing is changed (`RuntimeRequirement`, unit-tested). This release must be installed **before** the release built on .NET 10, so that a server whose runtime was not upgraded refuses that update instead of ending up with a LiteTask and a service that no longer start.
 
@@ -42,7 +49,7 @@ All notable changes to this project are documented in this file.
 ### Removed
 - Unused references and files: `lib\System.ServiceModel.dll` (legacy service interaction, no longer used), the duplicate `lib\System.ServiceProcess.ServiceController.dll` (the NuGet package is kept), `PackAsTool`, the `None Remove` entries with a developer's local NuGet paths. `SecurePasswordTextBox.dll`, the only one LiteTask itself references, moved to `lib\`.
 - Dead code: `CustomScheduler.ExecuteTask` (duplicate of `ExecuteTaskAsync`, only called from commented-out code), `CustomScheduler.HandleTaskError` (never called), the duplicate creation of `_enableNotificationsCheckBox` in `OptionsForm`.
-- Kept on purpose: `EnableUnsafeBinaryFormatterSerialization` (7 `.resx` files hold binary-serialized resources) and `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`).
+- Kept on purpose: `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`). (`EnableUnsafeBinaryFormatterSerialization` was also kept here on the wrong assumption that the `.resx` files needed it; it is removed with the .NET 10 migration.)
 
 ### Security
 - `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
