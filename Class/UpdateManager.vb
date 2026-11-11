@@ -150,6 +150,22 @@ Namespace LiteTask
                 End If
                 progressForm.SetProgress(55)
 
+                ' Step 3b: the package must be able to run on this machine. A release built on a
+                ' newer .NET major version needs its desktop runtime installed first; replacing
+                ' the files without it would leave LiteTask and its service unable to start.
+                Dim missingFrameworks = RuntimeRequirement.FindMissingFrameworks(extractPath, ExecutableName)
+                If missingFrameworks.Count > 0 Then
+                    Dim missingText = String.Join(", ", missingFrameworks.Select(Function(f) f.ToString()))
+                    _logger?.LogError($"Update package requires {missingText}, which is not installed. No file was replaced.")
+                    progressForm.AppendLog(String.Format(TranslationManager.Instance.GetTranslation(
+                        "Update.Progress.RuntimeMissing",
+                        "Update aborted: this version requires {0}, which is not installed on this computer. Install the .NET {1} Desktop Runtime (x64) from https://dotnet.microsoft.com/download, then run the update again. No file was replaced."),
+                        missingText, missingFrameworks(0).Version.Major), Drawing.Color.OrangeRed)
+                    progressForm.SetCompleted(False)
+                    CleanupTempFiles(zipPath, extractPath)
+                    Return
+                End If
+
                 ' Step 4: Run PostBuild script with live output
                 If postBuildScript IsNot Nothing Then
                     progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
