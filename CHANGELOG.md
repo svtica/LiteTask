@@ -20,6 +20,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **Task notifications showed the wrong start and end times**: the "Start Time" / "End Time" in the e-mail were the 5-second batching window of `NotificationManager`, not the task run, so a run of several minutes looked like it took a few seconds. Task notifications now carry a run report (`TaskRunReport`, unit-tested): real start, end and duration of the run, then each action with its status, start, end, duration and error, and the actions never reached marked "Not run". A batch of a single message is now sent as-is; a batch of several messages states that its times are the batching window. The footer says "Notification queued" instead of "Timestamp".
+
+### Added
+- **Task log in notifications (optional)**: *Options > Email > Include the task log in notifications* (`EmailSettings/IncludeTaskLog`, off by default) appends the log lines written during that run (Info and above, whatever the configured log level, including child process output) to the e-mail. Only the lines of that run are included, even when several tasks run at the same time (capture scoped to the async flow of the run, `Logger.CurrentCapture`). Last 200 lines by default, `EmailSettings/TaskLogMaxLines` (max 500).
+
+### Changed
+- One e-mail per failed run instead of two: a failing action no longer sends its own "Task Action Failed" e-mail followed by the "FATAL ERROR" e-mail; the "FATAL ERROR" e-mail carries the full report. A failure in an action with `ContinueOnError` is reported once, at the end of the run, as "Task Completed With Errors". A manual run (`RunTaskAsync`) no longer sends a duplicate "Task Failed" e-mail when the run report was already sent, and its "Task Completed" e-mail carries the run report (and the chained task's).
+
 ### Security
 - `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
 - `XMLManager`: every remaining `XmlDocument.Load` now sets `XmlResolver = Nothing` (XXE / external entity hardening), consistent with the task read/write paths.

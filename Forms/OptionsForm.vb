@@ -10,6 +10,7 @@ Namespace LiteTask
         Private ReadOnly _credentialManager As CredentialManager
         Private ReadOnly _errorHandler As ErrorHandler
         Private ReadOnly _settingValidator As SettingsValidator
+        Private _includeTaskLogCheckBox As CheckBox
 
         Public Sub New(xmlManager As XMLManager)
             Try
@@ -78,6 +79,7 @@ Namespace LiteTask
                 _useSSLCheckBox.Text = TranslationManager.Instance.GetTranslation("_useSSLCheckBox")
                 _useCredentialsCheckBox.Text = TranslationManager.Instance.GetTranslation("_useCredentialsCheckBox")
                 _testEmailButton.Text = TranslationManager.Instance.GetTranslation("_testEmailButton")
+                _includeTaskLogCheckBox.Text = TranslationManager.Instance.GetTranslation("_includeTaskLogCheckBox", "Include the task log in notifications")
 
                 ' SQL tab controls
                 _defaultServerLabel.Text = TranslationManager.Instance.GetTranslation("_defaultServerLabel")
@@ -106,6 +108,8 @@ Namespace LiteTask
                 toolTip.SetToolTip(_logFolderTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.LogFolder"))
                 toolTip.SetToolTip(_logLevelComboBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.LogLevel"))
                 toolTip.SetToolTip(_alertLevelComboBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.AlertLevel"))
+                toolTip.SetToolTip(_includeTaskLogCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.IncludeTaskLog",
+                    "Append the log lines written during the run (last 200 by default, EmailSettings/TaskLogMaxLines) to task notifications"))
                 toolTip.SetToolTip(_maxLogSizeNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MaxLogSize"))
                 toolTip.SetToolTip(_logRetentionNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.RetentionDays"))
                 toolTip.SetToolTip(_smtpServerTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.SmtpServer"))
@@ -244,6 +248,11 @@ Namespace LiteTask
             .Dock = DockStyle.Fill
         }
 
+            _includeTaskLogCheckBox = New CheckBox With {
+            .Text = "Include the task log in notifications",
+            .Dock = DockStyle.Fill
+        }
+
             ' Populate credential combo
             _credentialComboBox.Items.Add("(None)")
             For Each cred In _credentialManager.GetAllCredentialTargets()
@@ -266,6 +275,8 @@ Namespace LiteTask
             layout.Controls.Add(_useCredentialsCheckBox, 0, 6)
             layout.Controls.Add(_credentialComboBox, 1, 6)
             layout.Controls.Add(_testEmailButton, 1, 7)
+            layout.Controls.Add(_includeTaskLogCheckBox, 0, 8)
+            layout.SetColumnSpan(_includeTaskLogCheckBox, 2)
 
             emailTab.Controls.Add(layout)
             _tabControl.TabPages.Add(emailTab)
@@ -645,6 +656,7 @@ Namespace LiteTask
                 _useSSLCheckBox.Checked = Boolean.Parse(GetSettingValue(emailSettings, "UseSSL", "True"))
                 _emailFromTextBox.Text = GetSettingValue(emailSettings, "EmailFrom", "")
                 _emailToTextBox.Text = GetSettingValue(emailSettings, "EmailTo", "")
+                _includeTaskLogCheckBox.Checked = Boolean.Parse(GetSettingValue(emailSettings, "IncludeTaskLog", "False"))
 
                 ' Load credential settings if they exist
                 If emailSettings.ContainsKey("UseCredentials") Then
@@ -737,6 +749,7 @@ Namespace LiteTask
                 _xmlManager.WriteValue("EmailSettings", "EmailFrom", _emailFromTextBox.Text)
                 _xmlManager.WriteValue("EmailSettings", "EmailTo", _emailToTextBox.Text)
                 _xmlManager.WriteValue("EmailSettings", "AlertLevel", _alertLevelComboBox.SelectedItem.ToString())
+                _xmlManager.WriteValue("EmailSettings", "IncludeTaskLog", _includeTaskLogCheckBox.Checked.ToString())
 
                 ' Save credential settings
                 _xmlManager.WriteValue("EmailSettings", "UseCredentials", _useCredentialsCheckBox.Checked.ToString())
@@ -795,6 +808,7 @@ Namespace LiteTask
             _useSSLCheckBox.Checked = True
             _emailFromTextBox.Text = ""
             _emailToTextBox.Text = ""
+            _includeTaskLogCheckBox.Checked = False
             _useCredentialsCheckBox.Checked = False
             _credentialComboBox.SelectedIndex = 0
 
@@ -856,6 +870,7 @@ Namespace LiteTask
             _useCredentialsCheckBox.Enabled = enabled
             _credentialComboBox.Enabled = enabled AndAlso _useCredentialsCheckBox.Checked
             _testEmailButton.Enabled = enabled
+            _includeTaskLogCheckBox.Enabled = enabled
         End Sub
 
         Private Sub UpdateCredentialControls(sender As Object, e As EventArgs)

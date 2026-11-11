@@ -233,6 +233,24 @@ Namespace LiteTask
 
         Public Event LogEntryAdded As EventHandler(Of LogEntryEventArgs)
 
+        Private Shared ReadOnly _currentCapture As New AsyncLocal(Of TaskLogCapture)
+
+        ''' <summary>
+        ''' Log capture of the task run executing in the current async flow. Set by the
+        ''' scheduler for the duration of a run; every Info+ entry logged from that flow
+        ''' (scheduler, TaskRunner, child process output) is copied into it, whatever
+        ''' the configured LogLevel, so the e-mail notification can carry the lines that
+        ''' belong to that run only, even when several tasks run at the same time.
+        ''' </summary>
+        Public Shared Property CurrentCapture As TaskLogCapture
+            Get
+                Return _currentCapture.Value
+            End Get
+            Set(value As TaskLogCapture)
+                _currentCapture.Value = value
+            End Set
+        End Property
+
         Public Sub LogDebug(message As String, Optional exception As Exception = Nothing)
             QueueLogEntry(LogLevel.Debug, message, exception)
         End Sub
@@ -393,6 +411,17 @@ Namespace LiteTask
        message.StartsWith("Action type:") OrElse
        message.StartsWith("Action target:") Then
                 level = LogLevel.Debug
+            End If
+
+            Dim capture = _currentCapture.Value
+            If capture IsNot Nothing AndAlso level >= LogLevel.Info Then
+                Try
+                    Dim line = $"{DateTime.Now:HH:mm:ss.fff} [{level}] {message}"
+                    If exception IsNot Nothing Then line &= $" | {exception.Message}"
+                    capture.Add(line)
+                Catch
+                    ' Capture is best effort and must never break logging
+                End Try
             End If
 
             ' Only queue if message level meets or exceeds configured log level
