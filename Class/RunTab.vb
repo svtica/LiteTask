@@ -228,9 +228,8 @@ Namespace LiteTask
                 AddHandlers()
                 PopulateQueryTypeComboBox()
 
-                ' Subscribe to TaskRunner events
-                AddHandler _taskrunner.OutputReceived, AddressOf HandleOutput
-                AddHandler _taskrunner.ErrorReceived, AddressOf HandleError
+                ' TaskRunner output is subscribed per run in RunButton_Click (filtered to this
+                ' tab's run): a permanent subscription also showed every scheduled task's output.
 
                 _logger?.LogInfo("InitializeComponent completed successfully for RunTab")
 
