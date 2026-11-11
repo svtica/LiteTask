@@ -22,6 +22,10 @@ Namespace LiteTask
         Private ReadOnly _mutexBasePath As String = "Global\LiteTask_Task_"
         Private ReadOnly _powerShellPathManager As PowerShellPathManager
         Private ReadOnly _taskStates As New ConcurrentDictionary(Of String, TaskState)
+        ' Timeline + captured log of the last run of each task, used by the e-mail notifications
+        Private ReadOnly _lastRunReports As New ConcurrentDictionary(Of String, TaskRunReport)
+        Private Const NOTIFIED_EXCEPTION_KEY As String = "LiteTask.RunReportNotified"
+        Private Const DEFAULT_NOTIFICATION_LOG_LINES As Integer = 200
         Private Const STALE_TIMEOUT_MINUTES As Integer = 15
         Private ReadOnly _staleTaskAlerts As New ConcurrentDictionary(Of String, DateTime)
         Private _lastStaleCleanupTime As DateTime = DateTime.MinValue
@@ -477,6 +481,8 @@ Namespace LiteTask
                 _logger.LogError($"Error executing task {taskToRun.Name}: {ex.Message}")
             Finally
                 _pendingDispatch.TryRemove(taskToRun.Name, Nothing)
+                ' Scheduled runs already sent their report; don't keep the captured log in memory
+                _lastRunReports.TryRemove(taskToRun.Name, Nothing)
             End Try
         End Function
 
@@ -1094,8 +1100,13 @@ Namespace LiteTask
             Dim hasLock As Boolean = False
             Dim retryCount As Integer = 0
             Dim taskState = _taskStates.GetOrAdd(_task.Name, New TaskState())
+            Dim runLog As New TaskLogCapture()
+            Dim report As TaskRunReport = Nothing
 
             Try
+                ' Capture every log line of this run (this async flow only) for the notification
+                Logger.CurrentCapture = runLog
+
                 ' Record acquisition attempt
                 _activeMutexes.TryAdd(_task.Name, DateTime.Now)
 
@@ -1147,6 +1158,10 @@ Namespace LiteTask
                 taskState.IsRunning = True
                 taskState.LastStartTime = DateTime.Now
                 taskState.StatusMessage = "Starting execution"
+                report = New TaskRunReport(_task.Name, taskState.LastStartTime, runLog)
+                For Each plannedAction In _task.Actions
+                    report.AddAction(plannedAction.Name, plannedAction.Type.ToString())
+                Next
                 _activeMutexes(_task.Name) = DateTime.Now
                 _logger.LogInfo($"Lock acquired for task: {_task.Name}")
                 If _taskRunning.TryAdd(_task.Name, True) Then
@@ -1162,9 +1177,16 @@ Namespace LiteTask
                             credential = _credentialManager.GetCredential(_task.CredentialTarget, _task.AccountType)
                         End If
 
+                        Dim actionIndex = -1
                         For Each action In _task.Actions
                             action.Status = TaskActionStatus.Running
                             action.LastRunTime = DateTime.Now
+                            actionIndex += 1
+                            Dim actionInfo = If(actionIndex < report.Actions.Count,
+                                                report.Actions(actionIndex),
+                                                report.AddAction(action.Name, action.Type.ToString()))
+                            actionInfo.StartTime = action.LastRunTime
+                            actionInfo.Status = "Running"
 
                             Try
                                 ' Backstop timeout: TaskRunner enforces the action's
@@ -1180,6 +1202,7 @@ Namespace LiteTask
 
                                 If finished IsNot executionTask Then
                                     action.Status = TaskActionStatus.TimedOut
+                                    actionInfo.Status = "TimedOut"
                                     Dim killedCount = _taskRunner.KillProcessesForTask(_task.Name)
                                     _logger.LogError($"Action {action.Name} of task {_task.Name} exceeded its {actionTimeout.TotalMinutes:F0}-minute timeout. Killed {killedCount} process(es).")
                                     Throw New System.TimeoutException($"Action {action.Name} exceeded its {actionTimeout.TotalMinutes:F0}-minute timeout (killed {killedCount} process(es))")
@@ -1188,29 +1211,34 @@ Namespace LiteTask
                                 Dim success = Await executionTask
                                 If success Then
                                     action.Status = TaskActionStatus.Completed
+                                    actionInfo.Status = "Completed"
+                                    actionInfo.EndTime = DateTime.Now
                                     _logger.LogInfo($"Action {action.Name} completed successfully")
                                 Else
                                     Throw New Exception($"Action failed: {action.Name}")
                                 End If
                             Catch ex As Exception
                                 action.Status = TaskActionStatus.Failed
+                                If actionInfo.Status <> "TimedOut" Then actionInfo.Status = "Failed"
+                                actionInfo.EndTime = DateTime.Now
+                                actionInfo.ErrorMessage = ex.Message
                                 _logger.LogError($"Action {action.Name} failed: {ex.Message}")
 
-                                Try
-                                    Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                                    notificationManager?.QueueNotification(
-                                $"Task Action Failed: {_task.Name} - {action.Name}",
-                                $"Error: {ex.Message}",
-                                NotificationManager.NotificationPriority.High)
-                                Catch notifyEx As Exception
-                                    _logger.LogError($"Failed to send notification: {notifyEx.Message}")
-                                End Try
-
+                                ' No e-mail here: the run report (real start/end times, every
+                                ' action, optional log) is sent once, when the run ends.
                                 If Not action.ContinueOnError Then
                                     Throw
                                 End If
                             End Try
                         Next
+
+                        report.EndTime = DateTime.Now
+                        _lastRunReports(_task.Name) = report
+                        If report.HasFailures Then
+                            ' Only reached when the failed action(s) had ContinueOnError
+                            SendRunReport($"Task Completed With Errors: {_task.Name}", report,
+                                          NotificationManager.NotificationPriority.High)
+                        End If
 
                         AdvanceSchedule(_task)
                         SaveTasks()
@@ -1280,27 +1308,41 @@ Namespace LiteTask
                 End Try
 
                 ' Send email notification for fatal errors
-                Try
-                    Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                    If notificationManager IsNot Nothing Then
-                        Dim errorBody As New StringBuilder()
-                        errorBody.AppendLine($"A fatal error occurred during task execution:")
-                        errorBody.AppendLine()
-                        errorBody.AppendLine($"Task Name: {_task.Name}")
-                        errorBody.AppendLine($"Error Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
-                        errorBody.AppendLine($"Error Message: {ex.Message}")
-                        errorBody.AppendLine()
-                        errorBody.AppendLine($"Stack Trace:")
-                        errorBody.AppendLine(ex.StackTrace)
+                If report IsNot Nothing Then
+                    If Not report.EndTime.HasValue Then report.EndTime = DateTime.Now
+                    report.FatalError = ex.Message
+                    report.StackTrace = ex.StackTrace
+                    _lastRunReports(_task.Name) = report
+                    SendRunReport($"FATAL ERROR: Task Execution Failed - {_task.Name}", report,
+                                  NotificationManager.NotificationPriority.High)
+                    Try
+                        ' RunTaskAsync must not send a second, poorer e-mail for the same failure
+                        ex.Data(NOTIFIED_EXCEPTION_KEY) = True
+                    Catch
+                    End Try
+                Else
+                    Try
+                        Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                        If notificationManager IsNot Nothing Then
+                            Dim errorBody As New StringBuilder()
+                            errorBody.AppendLine($"A fatal error occurred during task execution:")
+                            errorBody.AppendLine()
+                            errorBody.AppendLine($"Task Name: {_task.Name}")
+                            errorBody.AppendLine($"Error Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+                            errorBody.AppendLine($"Error Message: {ex.Message}")
+                            errorBody.AppendLine()
+                            errorBody.AppendLine($"Stack Trace:")
+                            errorBody.AppendLine(ex.StackTrace)
 
-                        notificationManager.QueueNotification(
-                            $"FATAL ERROR: Task Execution Failed - {_task.Name}",
-                            errorBody.ToString(),
-                            NotificationManager.NotificationPriority.High)
-                    End If
-                Catch notifyEx As Exception
-                    _logger.LogError($"Failed to send fatal error notification: {notifyEx.Message}")
-                End Try
+                            notificationManager.QueueNotification(
+                                $"FATAL ERROR: Task Execution Failed - {_task.Name}",
+                                errorBody.ToString(),
+                                NotificationManager.NotificationPriority.High)
+                        End If
+                    Catch notifyEx As Exception
+                        _logger.LogError($"Failed to send fatal error notification: {notifyEx.Message}")
+                    End Try
+                End If
 
                 Throw
             Finally
@@ -1329,6 +1371,7 @@ Namespace LiteTask
                     End Try
 
                     _activeMutexes.TryRemove(_task.Name, Nothing)
+                    Logger.CurrentCapture = Nothing
                     If taskState.IsRunning Then
                         taskState.IsRunning = False
                         taskState.StatusMessage = "Completed with cleanup"
@@ -1508,6 +1551,38 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ''' <summary>
+        ''' Renders a run report, appending the captured task log when
+        ''' EmailSettings/IncludeTaskLog is enabled (read at send time, so a change
+        ''' in Options applies without restarting the service).
+        ''' </summary>
+        Private Function FormatRunReport(report As TaskRunReport) As String
+            Dim includeLog = False
+            Dim maxLines = DEFAULT_NOTIFICATION_LOG_LINES
+            Try
+                Dim emailSettings = _xmlManager.GetEmailSettings()
+                Dim value As String = Nothing
+                If emailSettings.TryGetValue("IncludeTaskLog", value) Then Boolean.TryParse(value, includeLog)
+                Dim parsedLines As Integer
+                If emailSettings.TryGetValue("TaskLogMaxLines", value) AndAlso
+                   Integer.TryParse(value, parsedLines) AndAlso parsedLines > 0 Then
+                    maxLines = Math.Min(parsedLines, TaskLogCapture.DefaultMaxLines)
+                End If
+            Catch ex As Exception
+                _logger.LogWarning($"Could not read task log notification settings: {ex.Message}")
+            End Try
+            Return report.Format(includeLog, maxLines)
+        End Function
+
+        Private Sub SendRunReport(subject As String, report As TaskRunReport, priority As NotificationManager.NotificationPriority)
+            Try
+                Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
+                notificationManager?.QueueNotification(subject, FormatRunReport(report), priority)
+            Catch notifyEx As Exception
+                _logger.LogError($"Failed to send run report notification for {report.TaskName}: {notifyEx.Message}")
+            End Try
+        End Sub
+
         Private Sub HandleTaskError(task As ScheduledTask, ex As Exception)
             _logger.LogError($"Error executing task {task.Name}: {ex.Message}")
             _logger.LogError($"Stack trace: {ex.StackTrace}")
@@ -1596,13 +1671,31 @@ Namespace LiteTask
                     End If
                 End If
 
-                ' Send success notification if needed
+                ' Send success notification with the real timeline of the run(s)
                 Try
                     Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                    notificationManager?.QueueNotification(
-                        $"Task Completed: {task.Name}",
-                        $"Task executed successfully at {DateTime.Now}",
-                        NotificationManager.NotificationPriority.Normal)
+                    If notificationManager IsNot Nothing Then
+                        Dim body As New StringBuilder()
+                        Dim mainReport As TaskRunReport = Nothing
+                        If _lastRunReports.TryRemove(task.Name, mainReport) Then
+                            body.Append(FormatRunReport(mainReport))
+                        Else
+                            body.AppendLine($"Task executed successfully at {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+                        End If
+                        If task.NextTaskId.HasValue AndAlso task.NextTaskId.Value > 0 Then
+                            Dim chainedReport As TaskRunReport = Nothing
+                            Dim chainedName = GetTask(task.NextTaskId.Value.ToString())?.Name
+                            If chainedName IsNot Nothing AndAlso _lastRunReports.TryRemove(chainedName, chainedReport) Then
+                                body.AppendLine()
+                                body.AppendLine("--- Chained task ---")
+                                body.Append(FormatRunReport(chainedReport))
+                            End If
+                        End If
+                        notificationManager.QueueNotification(
+                            $"Task Completed: {task.Name}",
+                            body.ToString(),
+                            NotificationManager.NotificationPriority.Normal)
+                    End If
                 Catch notifyEx As Exception
                     _logger.LogError($"Failed to send success notification: {notifyEx.Message}")
                 End Try
@@ -1613,10 +1706,12 @@ Namespace LiteTask
 
                 Try
                     Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                    If notificationManager IsNot Nothing Then
+                    ' ExecuteTaskAsync already sent the full run report for this failure
+                    Dim alreadyNotified = ex.Data IsNot Nothing AndAlso ex.Data.Contains(NOTIFIED_EXCEPTION_KEY)
+                    If notificationManager IsNot Nothing AndAlso Not alreadyNotified Then
                         notificationManager.QueueNotification(
                             $"Task Failed: {task.Name}",
-                            $"Error: {ex.Message}{Environment.NewLine}Stack Trace: {ex.StackTrace}",
+                            $"Error time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}Error: {ex.Message}{Environment.NewLine}Stack Trace: {ex.StackTrace}",
                             NotificationManager.NotificationPriority.High)
                     End If
                 Catch notifyEx As Exception
@@ -1624,6 +1719,13 @@ Namespace LiteTask
                 End Try
 
                 Throw
+            Finally
+                ' Release the captured logs of this manual run (and of its chained task)
+                _lastRunReports.TryRemove(task.Name, Nothing)
+                If task.NextTaskId.HasValue AndAlso task.NextTaskId.Value > 0 Then
+                    Dim chained = GetTask(task.NextTaskId.Value.ToString())
+                    If chained IsNot Nothing Then _lastRunReports.TryRemove(chained.Name, Nothing)
+                End If
             End Try
         End Function
 

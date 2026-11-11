@@ -335,7 +335,9 @@ Namespace LiteTask
             {"EmailTo", ""},
             {"UseCredentials", "False"},
             {"CredentialTarget", ""},
-            {"AlertLevel", "Error"}
+            {"AlertLevel", "Error"},
+            {"IncludeTaskLog", "False"},
+            {"TaskLogMaxLines", "200"}
         }
         End Function
 
@@ -406,6 +408,8 @@ Namespace LiteTask
                     settings("UseCredentials") = GetElementValue(emailNode, "UseCredentials", "False")
                     settings("CredentialTarget") = GetElementValue(emailNode, "CredentialTarget", "")
                     settings("AlertLevel") = GetElementValue(emailNode, "AlertLevel", "Error")
+                    settings("IncludeTaskLog") = GetElementValue(emailNode, "IncludeTaskLog", "False")
+                    settings("TaskLogMaxLines") = GetElementValue(emailNode, "TaskLogMaxLines", "200")
                 Else
                     Return GetDefaultEmailSettings()
                 End If
