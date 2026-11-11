@@ -130,6 +130,9 @@ Namespace LiteTask
                     Directory.Delete(extractPath, True)
                 End If
                 ZipFile.ExtractToDirectory(zipPath, extractPath)
+                ' Files copied into the installation must not carry the Mark of the Web
+                ' (the zip may have been obtained through a browser or a proxy that marks it)
+                MarkOfTheWeb.RemoveFromDirectory(extractPath)
                 _logger?.LogInfo("Extraction complete.")
                 progressForm.SetProgress(50)
                 progressForm.AppendLog(TranslationManager.Instance.GetTranslation(

@@ -1,355 +1,163 @@
-#Requires -Version 5.0
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Automated PowerShell module installation script with enhanced NuGet management.
+    Installs PowerShell modules into LiteTask's private module folder.
 
 .DESCRIPTION
-    This script automates the installation of PowerShell modules with robust error handling,
-    logging, and progress reporting. It includes automated NuGet provider installation and
-    verification, and supports custom module lists and installation locations.
+    Downloads the requested modules from the PowerShell Gallery with Save-Module into
+    LiteTaskData\Modules (the folder LiteTask adds to PSModulePath for its tasks),
+    then removes the Mark of the Web from the saved files. Called by
+    Tools > Install PowerShell Modules (ModulesForm) and usable on its own.
 
 .PARAMETER Modules
-    Array of module names to install. If not specified, uses the default list defined at the top of the script.
-
-.PARAMETER LogPath
-    Path to the log file. Defaults to %TEMP%\LiteTask_ModuleInstall.log
+    Module names. Accepts an array or a single comma-separated string ("Az,ImportExcel"),
+    which is how LiteTask passes them. Defaults to $DefaultModules below.
 
 .PARAMETER Destination
-    Installation path for modules. Defaults to .\LiteTaskData\Modules
+    Folder the modules are saved to. Defaults to LiteTaskData\Modules next to this script.
+
+.PARAMETER LogPath
+    Log file. Defaults to LiteTaskData\logs\ModuleInstall_<timestamp>.log.
+
+.PARAMETER Force
+    Saves the module again even if it is already present in Destination (update).
 
 .PARAMETER ShowProgress
-    Switch to show installation progress bar
+    Shows a progress bar.
 
 .EXAMPLE
-    .\InstallModules.ps1
-    Installs default modules with no progress bar
-
-.EXAMPLE
-    .\InstallModules.ps1 -ShowProgress
-    Installs default modules with progress bar
-
-.EXAMPLE
-    .\InstallModules.ps1 -Modules @("Az", "AzureAD") -ShowProgress
-    Installs specific modules with progress bar
+    .\InstallModules.ps1 -Modules "Az.Accounts,ImportExcel" -ShowProgress
 
 .NOTES
-    File Name      : InstallModules.ps1
-    Author         : SVTI
-    Prerequisite   : PowerShell 5.0 or higher
-    Version        : 2.0
-    Last Modified  : 2024-11-12
-    
-.LINK
-    https://www.powershellgallery.com/
+    File Name : InstallModules.ps1
+    Author    : SVTI
+    Version   : 3.0 (2026-11-11)
 #>
-
-# Default module configuration
-# Edit this section to modify the default modules to install
-$DEFAULT_MODULES = @(
-    # Microsoft Azure Modules
-    "Az",                  # Azure Resource Management
-    "AzureAD",            # Azure Active Directory
-    "MSOnline",           # Microsoft 365
-    
-    # System Management
-    "PSWindowsUpdate",     # Windows Update Management
-    
-    # Security
-    "PSBlueTeam",         # Security Best Practices
-    
-    # Add additional modules here
-    # "ModuleName",       # Description
-)
-
-# NuGet configuration
-$NUGET_CONFIG = @{
-    MinimumVersion = "2.8.5.201"
-    Repository = "PSGallery"
-    InstallationPolicy = "Trusted"
-}
-
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory=$false)]
-    [string[]]$Modules = $DEFAULT_MODULES,
-    
-    [Parameter(Mandatory=$false)]
-    [string]$LogPath = ".\LiteTaskData\temp\LiteTask_ModuleInstall.log",
-    
-    [Parameter(Mandatory=$false)]
-    [string]$Destination = ".\LiteTaskData\Modules",
-    
-    [Parameter(Mandatory=$false)]
+    [string[]]$Modules,
+    [string]$Destination,
+    [string]$LogPath,
+    [switch]$Force,
     [switch]$ShowProgress
 )
 
-# Initialize logging with structured output
+$ErrorActionPreference = 'Stop'
+
+# Default modules when -Modules is not given. AzureAD and MSOnline were retired by
+# Microsoft: use Microsoft.Graph instead.
+$DefaultModules = @(
+    'Az',                # Azure
+    'Microsoft.Graph',   # Microsoft 365 / Entra ID
+    'ImportExcel',       # Excel files without Excel
+    'PSWindowsUpdate'    # Windows Update management
+)
+
+$dataRoot = $PSScriptRoot   # the script lives in LiteTaskData\
+if (-not $Destination) { $Destination = Join-Path $dataRoot 'Modules' }
+if (-not $LogPath) {
+    $LogPath = Join-Path (Join-Path $dataRoot 'logs') ("ModuleInstall_{0:yyyyMMddHHmmss}.log" -f (Get-Date))
+}
+
+# LiteTask passes one comma-separated string; split it into names
+if (-not $Modules -or $Modules.Count -eq 0) { $Modules = $DefaultModules }
+$Modules = @($Modules | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
 function Write-LogMessage {
-    param(
-        [string]$Message,
-        [string]$Level = "INFO",
-        [switch]$NoOutput
-    )
-    
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMessage = "$timestamp [$Level] $Message"
-    
-    if (-not $NoOutput) {
-        switch ($Level) {
-            "ERROR"   { Write-Error $Message }
-            "WARNING" { Write-Warning $Message }
-            default   { Write-Host $Message }
-        }
+    param([string]$Message, [ValidateSet('INFO', 'WARNING', 'ERROR')][string]$Level = 'INFO')
+    $line = "{0:yyyy-MM-dd HH:mm:ss} [{1}] {2}" -f (Get-Date), $Level, $Message
+    switch ($Level) {
+        'ERROR'   { [Console]::Error.WriteLine($Message) }
+        'WARNING' { Write-Warning $Message }
+        default   { Write-Host $Message }
     }
-    
     try {
-        if ($LogPath) {
-            $logDir = Split-Path $LogPath -Parent
-            if (-not (Test-Path $logDir)) {
-                New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-            }
-            Add-Content -Path $LogPath -Value $logMessage -ErrorAction Stop
+        $dir = Split-Path $LogPath -Parent
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        Add-Content -Path $LogPath -Value $line
+    } catch { }
+}
+
+function Initialize-Gallery {
+    # TLS 1.2 for Windows PowerShell 5.1
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+        $nuget = Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue |
+            Sort-Object Version -Descending | Select-Object -First 1
+        if (-not $nuget -or $nuget.Version -lt [Version]'2.8.5.201') {
+            Write-LogMessage 'Installing the NuGet package provider...'
+            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force | Out-Null
         }
     }
-    catch {
-        $tempLogPath = ".\LiteTaskData\temp\LiteTask_ModuleInstall.log"
-        Add-Content -Path $tempLogPath -Value $logMessage
-        if ($LogPath -ne $tempLogPath) {
-            Write-Warning "Failed to write to $LogPath, using $tempLogPath instead"
-            $script:LogPath = $tempLogPath
-        }
+    if (-not (Get-Command Save-Module -ErrorAction SilentlyContinue)) {
+        throw 'Save-Module (PowerShellGet) is not available.'
     }
 }
 
-# Enhanced NuGet verification and installation
-function Initialize-NuGetProvider {
-    try {
-        Write-LogMessage "Verifying NuGet package provider..."
-        
-        # Check if NuGet is installed
-        $nuget = Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue
-        
-        $needsInstall = $false
-        if (-not $nuget) {
-            Write-LogMessage "NuGet provider not found. Installing..."
-            $needsInstall = $true
-        }
-        elseif ($nuget.Version -lt [Version]$NUGET_CONFIG.MinimumVersion) {
-            Write-LogMessage "NuGet provider needs update. Current: $($nuget.Version), Required: $($NUGET_CONFIG.MinimumVersion)"
-            $needsInstall = $true
-        }
-        
-        if ($needsInstall) {
-            # Force TLS 1.2
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            
-            # Install/Update NuGet
-            Install-PackageProvider -Name NuGet -MinimumVersion $NUGET_CONFIG.MinimumVersion -Force | Out-Null
-            
-            # Verify installation
-            $nuget = Get-PackageProvider -Name NuGet -ErrorAction Stop
-            if ($nuget.Version -lt [Version]$NUGET_CONFIG.MinimumVersion) {
-                throw "NuGet provider installation failed to meet minimum version requirement"
-            }
-        }
-        
-        # Configure PSGallery
-        if ((Get-PSRepository -Name $NUGET_CONFIG.Repository).InstallationPolicy -ne $NUGET_CONFIG.InstallationPolicy) {
-            Set-PSRepository -Name $NUGET_CONFIG.Repository -InstallationPolicy $NUGET_CONFIG.InstallationPolicy
-            Write-LogMessage "Updated PSGallery installation policy to $($NUGET_CONFIG.InstallationPolicy)"
-        }
-        
-        Write-LogMessage "NuGet provider verified (Version: $($nuget.Version))"
-        return $true
-    }
-    catch {
-        Write-LogMessage "NuGet initialization failed: $_" -Level "ERROR"
-        return $false
-    }
+function Test-ModuleInDestination([string]$Name) {
+    # Only what is already in LiteTask's folder counts: a copy elsewhere on the machine
+    # is not visible to LiteTask's tasks.
+    return Test-Path (Join-Path $Destination $Name)
 }
 
-# Verify and prepare environment
-function Initialize-Environment {
-    try {
-        # Resolve full paths
-        $script:Destination = [System.IO.Path]::GetFullPath($Destination)
-        $script:LogPath = [System.IO.Path]::GetFullPath($LogPath)
-        
-        # Create destination directory
-        if (-not (Test-Path $Destination)) {
-            New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-            Write-LogMessage "Created destination directory: $Destination"
-        }
-        
-        # Verify write permissions
-        $testFile = Join-Path $Destination "test.txt"
+function Save-ModuleWithRetry([string]$Name, [int]$MaxRetries = 3) {
+    for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
         try {
-            [System.IO.File]::WriteAllText($testFile, "test")
-            Remove-Item $testFile -Force
-        }
-        catch {
-            throw "No write permission in destination directory: $Destination"
-        }
-        
-        # Update PSModulePath
-        $currentModulePath = $env:PSModulePath -split [System.IO.Path]::PathSeparator
-        if ($currentModulePath -notcontains $Destination) {
-            $env:PSModulePath = $Destination + [System.IO.Path]::PathSeparator + $env:PSModulePath
-            Write-LogMessage "Added $Destination to PSModulePath"
-        }
-        
-        return $true
-    }
-    catch {
-        Write-LogMessage "Environment initialization failed: $_" -Level "ERROR"
-        return $false
-    }
-}
-
-# Verify and install prerequisites
-function Install-Prerequisites {
-    try {
-        # Check PowerShell version
-        if ($PSVersionTable.PSVersion.Major -lt 5) {
-            throw "PowerShell 5.0 or higher is required"
-        }
-        
-        # Initialize NuGet
-        if (-not (Initialize-NuGetProvider)) {
-            throw "NuGet provider initialization failed"
-        }
-        
-        # Update PowerShellGet if needed
-        $psGet = Get-Module PowerShellGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
-        if ($psGet.Version -lt [Version]"2.0") {
-            Write-LogMessage "Updating PowerShellGet..."
-            Install-Module -Name PowerShellGet -Force -AllowClobber -Scope CurrentUser
-            Write-LogMessage "PowerShellGet updated - please restart PowerShell and run this script again"
-            return $false
-        }
-        
-        return $true
-    }
-    catch {
-        Write-LogMessage "Prerequisites installation failed: $_" -Level "ERROR"
-        return $false
-    }
-}
-
-# Enhanced module installation with progress and verification
-function Install-ModuleWithRetry {
-    param (
-        [string]$ModuleName,
-        [int]$MaxRetries = 3,
-        [int]$CurrentModuleIndex,
-        [int]$TotalModules
-    )
-    
-    for ($i = 1; $i -le $MaxRetries; $i++) {
-        try {
-            if ($ShowProgress) {
-                $progressParams = @{
-                    Activity = "Installing PowerShell Modules"
-                    Status = "Installing $ModuleName (Attempt $i of $MaxRetries)"
-                    PercentComplete = ($CurrentModuleIndex / $TotalModules * 100)
-                }
-                Write-Progress @progressParams
-            }
-            
-            # Check existing installation
-            $existingModule = Get-Module -ListAvailable -Name $ModuleName
-            if ($existingModule) {
-                Write-LogMessage "Module $ModuleName is already installed (Version: $($existingModule.Version))"
+            if (-not $Force -and (Test-ModuleInDestination $Name)) {
+                Write-LogMessage "$Name is already present in $Destination (use -Force to update)."
                 return $true
             }
-            
-            # Install module
-            $installParams = @{
-                Name = $ModuleName
-                Force = $true
-                AllowClobber = $true
-                Scope = 'CurrentUser'
-                ErrorAction = 'Stop'
-                Destination = $Destination
-            }
-            
-            Install-Module @installParams
-            
-            # Verify installation
-            $verifyModule = Get-Module -ListAvailable -Name $ModuleName
-            if (-not $verifyModule) {
-                throw "Module installation verification failed"
-            }
-            
-            Write-LogMessage "Successfully installed $ModuleName (Version: $($verifyModule.Version))"
+            Write-LogMessage "Downloading $Name (attempt $attempt of $MaxRetries)..."
+            Save-Module -Name $Name -Path $Destination -Repository PSGallery -Force
+            if (-not (Test-ModuleInDestination $Name)) { throw "$Name was not found in $Destination after Save-Module." }
+            Write-LogMessage "$Name saved."
             return $true
-        }
-        catch {
-            Write-LogMessage "Attempt $i failed for $ModuleName`: $_" -Level "WARNING" -NoOutput
-            if ($i -eq $MaxRetries) {
-                Write-LogMessage "Failed to install $ModuleName after $MaxRetries attempts" -Level "ERROR"
-                return $false
-            }
-            Start-Sleep -Seconds ([Math]::Pow(2, $i)) # Exponential backoff
+        } catch {
+            Write-LogMessage "Attempt $attempt for $Name failed: $($_.Exception.Message)" -Level WARNING
+            if ($attempt -lt $MaxRetries) { Start-Sleep -Seconds ([Math]::Pow(2, $attempt)) }
         }
     }
+    Write-LogMessage "Failed to install $Name after $MaxRetries attempts." -Level ERROR
     return $false
 }
 
-# Main execution block
+$failed = @()
 try {
-    Write-LogMessage "Starting PowerShell module installation process"
-    
-    # Initialize environment
-    if (-not (Initialize-Environment)) {
-        throw "Environment initialization failed"
-    }
-    
-    # Install prerequisites
-    if (-not (Install-Prerequisites)) {
-        throw "Prerequisites installation failed"
-    }
-    
-    # Install modules
-    $successCount = 0
-    $failureCount = 0
-    $installedModules = @()
-    $failedModules = @()
-    
+    Write-LogMessage "Installing modules into $Destination : $($Modules -join ', ')"
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    Initialize-Gallery
+
     for ($i = 0; $i -lt $Modules.Count; $i++) {
-        $module = $Modules[$i]
-        Write-LogMessage "Processing module: $module"
-        
-        if (Install-ModuleWithRetry -ModuleName $module -CurrentModuleIndex $i -TotalModules $Modules.Count) {
-            $successCount++
-            $installedModules += $module
+        $name = $Modules[$i]
+        if ($ShowProgress) {
+            Write-Progress -Activity 'Installing PowerShell modules' -Status $name -PercentComplete ($i / $Modules.Count * 100)
         }
-        else {
-            $failureCount++
-            $failedModules += $module
+        if (-not (Save-ModuleWithRetry $name)) { $failed += $name }
+    }
+    if ($ShowProgress) { Write-Progress -Activity 'Installing PowerShell modules' -Completed }
+
+    # Remove the Mark of the Web from everything saved, so the modules load under any
+    # execution policy (RemoteSigned refuses unsigned scripts that carry it).
+    $unblocked = 0
+    Get-ChildItem -Path $Destination -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+        if (Get-Item -LiteralPath $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue) {
+            Unblock-File -LiteralPath $_.FullName
+            $unblocked++
         }
     }
-    
-    # Clear progress bar
-    if ($ShowProgress) {
-        Write-Progress -Activity "Installing PowerShell Modules" -Completed
-    }
-    
-    # Report results
-    Write-LogMessage "Installation Summary:"
-    Write-LogMessage "Successfully installed ($successCount): $($installedModules -join ', ')"
-    if ($failedModules.Count -gt 0) {
-        Write-LogMessage "Failed ($failureCount): $($failedModules -join ', ')" -Level "WARNING"
-        exit 1
-    }
-    
-    Write-LogMessage "All modules installed successfully."
-    exit 0
-}
-catch {
-    Write-LogMessage "Critical error during execution: $_" -Level "ERROR"
+    if ($unblocked -gt 0) { Write-LogMessage "Removed the Mark of the Web from $unblocked file(s)." }
+} catch {
+    Write-LogMessage "Module installation failed: $($_.Exception.Message)" -Level ERROR
+    Write-LogMessage "Log file: $LogPath"
     exit 1
 }
-finally {
-    Write-LogMessage "Log file location: $LogPath"
+
+if ($failed.Count -gt 0) {
+    Write-LogMessage "Failed: $($failed -join ', ')" -Level WARNING
+    Write-LogMessage "Log file: $LogPath"
+    exit 1
 }
+Write-LogMessage 'All modules installed successfully.'
+Write-LogMessage "Log file: $LogPath"
+exit 0

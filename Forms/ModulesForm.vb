@@ -128,7 +128,8 @@ Namespace LiteTask
                 Dim logFile = Path.Combine(logsPath, $"ModuleInstall_{DateTime.Now:yyyyMMddHHmmss}.log")
 
                 ' Ensure script exists
-                Dim scriptPath = Path.Combine(Application.StartupPath, "tools", "InstallModules.ps1")
+                ' Shipped as LiteTaskData\InstallModules.ps1 (it was looked up in a "tools" folder that does not exist)
+                Dim scriptPath = Path.Combine(Application.StartupPath, "LiteTaskData", "InstallModules.ps1")
                 If Not File.Exists(scriptPath) Then
                     Throw New FileNotFoundException("Installation script not found", scriptPath)
                 End If

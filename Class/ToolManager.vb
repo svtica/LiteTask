@@ -69,6 +69,10 @@ Namespace LiteTask
                 ' GitHub's REST API rejects requests without a User-Agent
                 _httpClient.DefaultRequestHeaders.Add("User-Agent", "LiteTask-ToolManager")
                 LoadToolSetting()
+
+                ' Tools copied by hand from a browser download carry the Mark of the Web
+                Dim unblocked = MarkOfTheWeb.RemoveFromDirectory(_toolsPath)
+                If unblocked > 0 Then _logger?.LogInfo($"Removed the Mark of the Web from {unblocked} file(s) in {_toolsPath}")
             Catch ex As Exception
                 _logger?.LogError($"Error initializing ToolManager: {ex.Message}")
                 Throw
@@ -235,6 +239,11 @@ Namespace LiteTask
                     TryDeleteFile(Path.Combine(_toolsPath, tool.ExecutableName & ".config"))
                 End If
                 File.WriteAllText(Path.Combine(_toolsPath, tool.Id & VERSION_FILE_SUFFIX), tag)
+                If String.IsNullOrEmpty(tool.InstallFolder) Then
+                    MarkOfTheWeb.RemoveFromFile(Path.Combine(_toolsPath, tool.ExecutableName))
+                Else
+                    MarkOfTheWeb.RemoveFromDirectory(Path.Combine(_toolsPath, tool.InstallFolder))
+                End If
 
                 result.Success = True
                 result.Version = tag
@@ -352,6 +361,8 @@ Namespace LiteTask
                 .UseShellExecute = True
             }
 
+            ' Started through the shell: a marked LitePM would show the security warning
+            MarkOfTheWeb.RemoveFromDirectory(Path.GetDirectoryName(litePmPath))
             Dim proc = Process.Start(startInfo)
             proc?.Dispose()
             Return True
