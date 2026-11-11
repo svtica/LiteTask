@@ -67,6 +67,7 @@ Namespace LiteTask
             Size = New Size(600, 420)
             MinimumSize = New Size(450, 300)
             StartPosition = FormStartPosition.CenterParent
+            Icon = AppIcon.Value
             FormBorderStyle = FormBorderStyle.FixedDialog
             MaximizeBox = False
             MinimizeBox = False

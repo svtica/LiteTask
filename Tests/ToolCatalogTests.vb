@@ -57,6 +57,9 @@ Public Class ToolCatalogTests
         }
         Dim selected = ToolCatalog.SelectAsset(litePm, assets)
         Assert.IsTrue(selected.HasValue)
+        ' Plain "LitePM.zip" (v1.0 naming) is accepted too
+        Assert.IsTrue(ToolCatalog.SelectAsset(litePm, New List(Of KeyValuePair(Of String, String)) From {
+            Asset("LitePM.zip", "https://github.com/svtica/LitePM/releases/download/v1.0/LitePM.zip")}).HasValue)
         Assert.AreEqual("https://github.com/svtica/LitePM/releases/download/v1.2/LitePM-1.2-win-x64.zip", selected.Value.Value)
     End Sub
 
