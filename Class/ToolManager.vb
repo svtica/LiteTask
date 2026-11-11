@@ -152,7 +152,7 @@ Namespace LiteTask
             Await installLock.WaitAsync()
             Dim workDir = Path.Combine(_tempPath, $"tool_{tool.Id}_{Guid.NewGuid():N}")
             Try
-                Report(progress, $"{tool.DisplayName}: querying {tool.Repository} releases...")
+                Report(progress, String.Format(Tr("Tools.Progress.Querying", "{0}: querying {1} releases..."), tool.DisplayName, tool.Repository))
 
                 ' 1. Release metadata
                 Dim tag As String
@@ -183,7 +183,7 @@ Namespace LiteTask
                 ' 2. Download
                 Directory.CreateDirectory(workDir)
                 Dim downloadPath = Path.Combine(workDir, assetName)
-                Report(progress, $"{tool.DisplayName}: downloading {assetName} ({tag})...")
+                Report(progress, String.Format(Tr("Tools.Progress.Downloading", "{0}: downloading {1} ({2})..."), tool.DisplayName, assetName, tag))
                 Using response = Await _httpClient.GetAsync(selected.Value.Value, HttpCompletionOption.ResponseHeadersRead)
                     response.EnsureSuccessStatusCode()
                     Using content = Await response.Content.ReadAsStreamAsync(),
@@ -217,7 +217,7 @@ Namespace LiteTask
                     Throw New InvalidOperationException($"{tool.ExecutableName} signature does not match its content; installation refused")
                 End If
                 If Not signature.IsSignatureValid Then
-                    Report(progress, $"{tool.DisplayName}: warning, {tool.ExecutableName} is not signed ({signature.Status})")
+                    Report(progress, String.Format(Tr("Tools.Progress.NotSigned", "{0}: warning, {1} is not signed ({2})"), tool.DisplayName, tool.ExecutableName, signature.Status))
                 End If
 
                 ' 5. Install
@@ -237,7 +237,7 @@ Namespace LiteTask
 
                 result.Success = True
                 result.Version = tag
-                result.Message = $"{tool.DisplayName} {tag} installed"
+                result.Message = String.Format(Tr("Tools.Progress.Installed", "{0} {1} installed"), tool.DisplayName, tag)
                 _logger?.LogInfo($"Tool {tool.Id} {tag} installed from {selected.Value.Value}")
                 Report(progress, result.Message)
             Catch ex As Exception
@@ -312,6 +312,15 @@ Namespace LiteTask
             Catch
             End Try
         End Sub
+
+        ''' <summary>UI text only (the Manage Tools window); log lines stay in English.</summary>
+        Private Shared Function Tr(key As String, defaultValue As String) As String
+            Try
+                Return TranslationManager.Instance.GetTranslation(key, defaultValue)
+            Catch
+                Return defaultValue
+            End Try
+        End Function
 
         Private Shared Sub Report(progress As Action(Of String), message As String)
             Try

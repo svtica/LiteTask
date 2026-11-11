@@ -439,5 +439,10 @@
 	<translation key="Tools.Description.sqlcmd">Microsoft go-sqlcmd. Requis par les tâches SQL.</translation>
 	<translation key="Tools.Description.LitePM">Lite Process Manager. Utilisé par Outils > Gestionnaire de processus.</translation>
 	<translation key="Tools.Description.LiteDeploy">Utilitaire de déploiement et de gestion à distance (autonome).</translation>
+	<translation key="Tools.Progress.Querying">{0} : consultation des versions de {1}...</translation>
+	<translation key="Tools.Progress.Downloading">{0} : téléchargement de {1} ({2})...</translation>
+	<translation key="Tools.Progress.NotSigned">{0} : attention, {1} n'est pas signé ({2})</translation>
+	<translation key="Tools.Progress.Installed">{0} {1} installé</translation>
+	<translation key="Tools.Manage.OpenError">Erreur à l'ouverture du gestionnaire d'outils : {0}</translation>
 	<translation key="Tools.LitePMMissing">LitePM n'est pas installé. Ouvrir Outils > Gérer les outils pour le télécharger ?</translation>
 </translations>

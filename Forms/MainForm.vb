@@ -2215,7 +2215,7 @@ Namespace LiteTask
                 End Using
             Catch ex As Exception
                 _logger?.LogError($"Error opening tool manager: {ex.Message}")
-                MessageBox.Show($"Error opening tool manager: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(String.Format(TranslationManager.Instance.GetTranslation("Tools.Manage.OpenError", "Error opening tool manager: {0}"), ex.Message), "LiteTask", MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
