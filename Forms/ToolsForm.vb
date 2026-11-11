@@ -111,7 +111,7 @@ Namespace LiteTask
                         .Tag = tool,
                         .Checked = selected.Contains(tool.Id)
                     }
-                    item.SubItems.Add(T(tool.DescriptionKey, tool.DefaultDescription))
+                    item.SubItems.Add(Tr(tool.DescriptionKey, tool.DefaultDescription))
                     item.SubItems.Add(If(installed, Tr("Tools.Manage.Installed", "Installed"), Tr("Tools.Manage.NotInstalled", "Not installed")))
                     item.SubItems.Add(If(installed, If(version = "", "?", version), ""))
                     item.SubItems.Add(tool.Repository)

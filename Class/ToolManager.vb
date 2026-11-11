@@ -298,8 +298,8 @@ Namespace LiteTask
 
         Private Shared Sub CopyDirectory(sourceDir As String, targetDir As String)
             Directory.CreateDirectory(targetDir)
-            For Each dir In Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories)
-                Directory.CreateDirectory(Path.Combine(targetDir, Path.GetRelativePath(sourceDir, dir)))
+            For Each subDir In Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories)
+                Directory.CreateDirectory(Path.Combine(targetDir, Path.GetRelativePath(sourceDir, subDir)))
             Next
             For Each sourceFile In Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories)
                 File.Copy(sourceFile, Path.Combine(targetDir, Path.GetRelativePath(sourceDir, sourceFile)), True)
