@@ -20,6 +20,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed - after 1.2.2.4 testing
+- **LitePM could not be downloaded**: its v1.0 release asset does not follow the `LitePM-<version>-win-x64.zip` name the catalog expected. Any `LitePM*.zip` asset is now accepted, and the "no downloadable asset" message lists the assets found in the release.
+- **Tools > Manage Tools**, **Options** and the update progress window now show the LiteTask icon (`AppIcon`).
+
 ### Changed - lighter user interface
 - **No more 3-second splash screen**: the `Loading` form stayed open for a fixed 3 seconds on every start while the main window was already built behind it. It is removed (form, designer, 400 KB `.resx`).
 - **One shared application icon** (`AppIcon`, loaded once from the embedded `res\ico\logo.ico`): each form embedded its own copy of the 230 KB icon (5 copies in the `.resx` files, about 1 MB in `LiteTask.exe`) and decoded it on every open. The tray icon uses it too. `ModulesForm`, which asked for an icon its own resources did not contain, and `TaskForm`, which had none, now show the LiteTask icon.

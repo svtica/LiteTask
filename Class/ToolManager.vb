@@ -176,7 +176,8 @@ Namespace LiteTask
 
                 Dim selected = ToolCatalog.SelectAsset(tool, assets)
                 If Not selected.HasValue Then
-                    Throw New InvalidOperationException($"Release {tag} of {tool.Repository} has no downloadable asset matching '{tool.AssetPattern}'")
+                    Dim available = If(assets.Count = 0, "none", String.Join(", ", assets.Select(Function(a) a.Key)))
+                    Throw New InvalidOperationException($"Release {tag} of {tool.Repository} has no downloadable asset matching '{tool.AssetPattern}' (assets: {available})")
                 End If
                 Dim assetName = Path.GetFileName(selected.Value.Key)
 
