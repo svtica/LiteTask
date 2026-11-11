@@ -26,7 +26,6 @@ Namespace LiteTask
         'Do not modify it using the code editor.
         <System.Diagnostics.DebuggerStepThrough()>
         Public Sub InitializeComponent()
-            Dim resources As ComponentResourceManager = New ComponentResourceManager(GetType(ActionDialog))
             _nameLabel = New Label()
             _nameTextBox = New TextBox()
             _typeLabel = New Label()
@@ -297,7 +296,7 @@ Namespace LiteTask
             Controls.Add(_typeLabel)
             Controls.Add(_nameTextBox)
             Controls.Add(_nameLabel)
-            Icon = CType(resources.GetObject("$this.Icon"), Icon)
+            Icon = AppIcon.Value
             Margin = New Padding(4, 3, 4, 3)
             MaximizeBox = False
             MinimizeBox = False

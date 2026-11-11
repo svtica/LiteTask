@@ -41,7 +41,6 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeComponent()
-            Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(ModulesForm))
 
             ' Initialize controls
             _moduleChecklist = New CheckedListBox With {
@@ -74,7 +73,7 @@ Namespace LiteTask
             Size = New Size(500, 450)
             MinimumSize = New Size(400, 400)
             StartPosition = FormStartPosition.CenterParent
-            Icon = CType(resources.GetObject("$this.Icon"), Icon)
+            Icon = AppIcon.Value
 
             ' Add modules to checklist
             For Each kvp In _modules

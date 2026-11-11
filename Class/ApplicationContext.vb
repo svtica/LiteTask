@@ -32,7 +32,7 @@ Namespace LiteTask
 
                 ' Create the notify icon  
                 _notifyIcon = New NotifyIcon() With {
-            .Icon = New Icon(Path.Combine(Application.StartupPath, "res", "ico", "logo.ico")),
+            .Icon = AppIcon.Value,
             .Visible = True,
             .Text = TranslationManager.Instance.GetTranslation("NotifyIcon.Text")
         }
@@ -65,11 +65,6 @@ Namespace LiteTask
 
                 ' Double click on tray icon shows main form  
                 AddHandler _notifyIcon.MouseDoubleClick, AddressOf NotifyIcon_MouseDoubleClick
-
-                ' Show loading form  
-                Using loadingForm As New Loading()
-                    loadingForm.ShowDialog()
-                End Using
 
                 ' Load initial settings  
                 LoadSettings()
