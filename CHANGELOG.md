@@ -20,6 +20,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed - lighter user interface
+- **No more 3-second splash screen**: the `Loading` form stayed open for a fixed 3 seconds on every start while the main window was already built behind it. It is removed (form, designer, 400 KB `.resx`).
+- **One shared application icon** (`AppIcon`, loaded once from the embedded `res\ico\logo.ico`): each form embedded its own copy of the 230 KB icon (5 copies in the `.resx` files, about 1 MB in `LiteTask.exe`) and decoded it on every open. The tray icon uses it too. `ModulesForm`, which asked for an icon its own resources did not contain, and `TaskForm`, which had none, now show the LiteTask icon.
+- **PowerShell and SQL tabs built on first use**: they used to be created at start-up, and the SQL tab connected to the default SQL Server to list its databases, on the UI thread, with a 5-second timeout when the server was unreachable. Placeholder tabs are replaced by the real ones the first time they are selected.
+- **Hidden window does no UI work**: while LiteTask is minimised to the notification area, the 30-second status refresh and the task-list refresh are paused (the scheduler keeps running); showing the window refreshes both.
+- `MainForm.vb`: about 230 lines of commented-out code removed (old log panel, old edit/run/delete handlers, `LogMessage`, `ToggleLogVisibility`...) and an empty `CheckForUpdates`.
+
 ### Fixed
 - **Task notifications showed the wrong start and end times**: the "Start Time" / "End Time" in the e-mail were the 5-second batching window of `NotificationManager`, not the task run, so a run of several minutes looked like it took a few seconds. Task notifications now carry a run report (`TaskRunReport`, unit-tested): real start, end and duration of the run, then each action with its status, start, end, duration and error, and the actions never reached marked "Not run". A batch of a single message is now sent as-is; a batch of several messages states that its times are the batching window. The footer says "Notification queued" instead of "Timestamp".
 
