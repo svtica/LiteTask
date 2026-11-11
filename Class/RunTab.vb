@@ -179,7 +179,8 @@ Namespace LiteTask
             .Dock = DockStyle.Fill,
             .DropDownStyle = ComboBoxStyle.DropDownList
         }
-                _executionTypeComboBox.Items.AddRange({"Command", "Batch", "Executable", "PowerShell", "SQL"})
+                ' Only real TaskType values ("Command" used to be listed and made Enum.Parse throw)
+                _executionTypeComboBox.Items.AddRange({TaskType.PowerShell.ToString(), TaskType.Batch.ToString(), TaskType.SQL.ToString(), TaskType.Executable.ToString()})
                 _executionTypeComboBox.SelectedIndex = 0
 
                 _autoDetectCheckBox = New CheckBox With {
@@ -247,7 +248,7 @@ Namespace LiteTask
         End Sub
 
         Private Sub AutoDetectCheckBox_CheckedChanged(sender As Object, e As EventArgs)
-            _executionTypeComboBox.Enabled = Not _autoDetectCheckBox.Checked
+            ' Auto-detect only applies to a target file; the type list stays usable for typed commands
         End Sub
 
         Private Sub AutoDetectExecutionType()
@@ -261,14 +262,49 @@ Namespace LiteTask
             End Try
         End Sub
 
-        Private Function CreateTaskAction() As TaskAction
+        ''' <summary>
+        ''' Builds the action to run. With a target file, the Script box holds its
+        ''' parameters (as before). Without one, the Script box IS the script: it is
+        ''' written to a temporary .ps1/.bat/.sql file (TaskRunner executes files), or
+        ''' passed to cmd /c for the Executable type. Typed commands used to be sent as
+        ''' parameters of a missing file, which made every run fail.
+        ''' </summary>
+        Private Function CreateTaskAction(ByRef tempScriptPath As String) As TaskAction
+            tempScriptPath = Nothing
+            Dim actionType = GetExecutionType()
+            Dim target = If(String.IsNullOrWhiteSpace(_targetTextBox.Text), Nothing, _targetTextBox.Text.Trim())
+            Dim parameters As String = _scriptTextBox.Text
+
+            If target Is Nothing AndAlso actionType <> TaskType.Executable Then
+                Dim extension = ScriptExtension(actionType)
+                Dim tempDir = Path.Combine(Application.StartupPath, "LiteTaskData", "temp")
+                Directory.CreateDirectory(tempDir)
+                tempScriptPath = Path.Combine(tempDir, $"runtab_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}{extension}")
+                ' Batch files are read by cmd.exe with the OEM code page; PowerShell and sqlcmd read UTF-8 with BOM
+                If actionType = TaskType.Batch Then
+                    File.WriteAllText(tempScriptPath, _scriptTextBox.Text, Text.Encoding.GetEncoding(Globalization.CultureInfo.CurrentCulture.TextInfo.OEMCodePage))
+                Else
+                    File.WriteAllText(tempScriptPath, _scriptTextBox.Text, New Text.UTF8Encoding(True))
+                End If
+                target = tempScriptPath
+                parameters = Nothing
+            End If
+
             Return New TaskAction With {
-        .Name = $"RunTab_{DateTime.Now:yyyyMMddHHmmss}",
-        .Type = GetExecutionType(),
-        .Target = If(String.IsNullOrWhiteSpace(_targetTextBox.Text), Nothing, _targetTextBox.Text),
-        .Parameters = _scriptTextBox.Text,
-        .RequiresElevation = _requiresElevationCheckBox.Checked
-    }
+                .Name = $"RunTab_{DateTime.Now:yyyyMMddHHmmss}",
+                .Type = actionType,
+                .Target = target,
+                .Parameters = parameters,
+                .RequiresElevation = _requiresElevationCheckBox.Checked
+            }
+        End Function
+
+        Private Shared Function ScriptExtension(actionType As TaskType) As String
+            Select Case actionType
+                Case TaskType.Batch : Return ".bat"
+                Case TaskType.SQL : Return ".sql"
+                Case Else : Return ".ps1"
+            End Select
         End Function
 
         Private Function DataTableToString(dt As DataTable) As String
@@ -430,22 +466,26 @@ Namespace LiteTask
         End Sub
 
         Private Async Sub RunButton_Click(sender As Object, e As EventArgs)
+            Dim tempScriptPath As String = Nothing
+            ' Show the run's output in the Output box (only events from this ad hoc run:
+            ' scheduled tasks running at the same time carry their task name)
+            Dim onOutput As TaskRunner.OutputReceivedEventHandler = Sub(s, data) If String.IsNullOrEmpty(_taskrunner.CurrentTaskName) Then HandleOutput(s, data)
+            Dim onError As TaskRunner.ErrorReceivedEventHandler = Sub(s, data) If String.IsNullOrEmpty(_taskrunner.CurrentTaskName) Then HandleError(s, data)
             Try
                 _logger.LogInfo("Starting execution")
                 _runButton.Enabled = False
                 _outputTextBox.Clear()
 
-                If Not ValidateInputs() Then
-                    _runButton.Enabled = True
-                    Return
-                End If
+                If Not ValidateInputs() Then Return
 
                 Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), "(None)")
                 Dim credential = If(selectedCredential = "(None)",
                               Nothing,
                               _credentialManager.GetCredential(selectedCredential, "Windows Vault"))
 
-                Dim action = CreateTaskAction()
+                Dim action = CreateTaskAction(tempScriptPath)
+                AddHandler _taskrunner.OutputReceived, onOutput
+                AddHandler _taskrunner.ErrorReceived, onError
                 Dim success = Await ExecuteAction(action, credential)
 
                 If success Then
@@ -458,26 +498,40 @@ Namespace LiteTask
                 _logger.LogError($"Error in RunButton_Click: {ex.Message}")
                 _outputTextBox.AppendText($"Error executing task: {ex.Message}" & Environment.NewLine)
             Finally
+                RemoveHandler _taskrunner.OutputReceived, onOutput
+                RemoveHandler _taskrunner.ErrorReceived, onError
+                If tempScriptPath IsNot Nothing Then
+                    Try
+                        File.Delete(tempScriptPath)
+                    Catch
+                    End Try
+                End If
                 _runButton.Enabled = True
             End Try
         End Sub
 
         Private Function GetExecutionType() As TaskType
-            If _autoDetectCheckBox.Checked Then
+            ' Auto-detect needs a file name; typed commands use the selected type
+            If _autoDetectCheckBox.Checked AndAlso Not String.IsNullOrWhiteSpace(_targetTextBox.Text) Then
                 Return FileTypeDetector.DetectTaskType(_targetTextBox.Text)
             End If
-            Return DirectCast([Enum].Parse(GetType(TaskType), _executionTypeComboBox.SelectedItem.ToString()), TaskType)
+            Dim selected = If(_executionTypeComboBox.SelectedItem?.ToString(), TaskType.PowerShell.ToString())
+            Dim parsed As TaskType
+            Return If([Enum].TryParse(selected, parsed), parsed, TaskType.PowerShell)
         End Function
 
         Private Function ValidateInputs() As Boolean
-            If String.IsNullOrWhiteSpace(_scriptTextBox.Text) Then
-                MessageBox.Show("Please enter a script or command.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Dim hasTarget = Not String.IsNullOrWhiteSpace(_targetTextBox.Text)
+            If Not hasTarget AndAlso String.IsNullOrWhiteSpace(_scriptTextBox.Text) Then
+                MessageBox.Show(TranslationManager.Instance.GetTranslation("RunTab.NothingToRun", "Type a script or command, or choose a target file."),
+                                "LiteTask", MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Return False
             End If
-
-            ' Target is optional for all types - if provided it will be used as the file to execute
-            ' If not provided, the script content will be executed directly
-
+            If hasTarget AndAlso Not File.Exists(_targetTextBox.Text.Trim()) Then
+                MessageBox.Show(String.Format(TranslationManager.Instance.GetTranslation("RunTab.TargetNotFound", "Target file not found: {0}"), _targetTextBox.Text.Trim()),
+                                "LiteTask", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                Return False
+            End If
             Return True
         End Function
 
