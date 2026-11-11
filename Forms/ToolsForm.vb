@@ -86,6 +86,7 @@ Namespace LiteTask
             Size = New Size(760, 420)
             MinimumSize = New Size(600, 340)
             StartPosition = FormStartPosition.CenterParent
+            Icon = AppIcon.Value
             MaximizeBox = False
             MinimizeBox = False
             AddHandler Me.FormClosing, Sub(s, e) e.Cancel = _busy

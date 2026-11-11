@@ -160,6 +160,7 @@ Namespace LiteTask
             Me.MaximizeBox = False
             Me.FormBorderStyle = FormBorderStyle.FixedDialog
             Me.StartPosition = FormStartPosition.CenterParent
+            Me.Icon = AppIcon.Value
 
             ' Configure TabControl
             Me._tabControl.Dock = DockStyle.Fill

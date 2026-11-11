@@ -67,7 +67,7 @@ Namespace LiteTask
                 .DescriptionKey = "Tools.Description.LitePM",
                 .DefaultDescription = "Lite Process Manager. Used by Tools > Monitor LiteTask Processes.",
                 .Repository = "svtica/LitePM",
-                .AssetPattern = "^LitePM-.*-win-x64\.zip$",
+                .AssetPattern = "^LitePM.*\.zip$",
                 .ExecutableName = "LitePM.exe",
                 .InstallFolder = "LitePM"
             },
