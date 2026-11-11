@@ -20,6 +20,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added - memory diagnostics (measure before removing the forced GCs)
+- **Per-task memory line in the log** after every run: `[Memory] Task <name>: private 412.5 MB (+12.5), GC heap 85.0 MB (+3.0), handles 1204 (+6), gen2 GCs +1` (`MemoryDiagnostics`, unit-tested). The task that keeps memory or handles after it ends can now be identified from the log, instead of only seeing the total grow until the auto-restart.
+- **`Reliability/ForceGcAfterTask`** (default `True`, previous behaviour): the three forced full garbage collections (after every task in the scheduler, after every PowerShell task — blocking, with `WaitForPendingFinalizers` — and after every Run tab execution) are now one setting. Set it to `False` in `settings.xml` to compare memory and CPU over a few days; the memory monitor and its auto-restart stay as the safety net.
+- Runspaces are deliberately **not pooled**: every PowerShell task keeps its own fresh runspace (no state, variables or modules leaking from one task to the next). Assemblies loaded by modules stay in the process either way (.NET cannot unload them from the default load context), so a pool would not reduce that part of the memory.
+
 ### Fixed - Run (PowerShell) tab
 - **Typed commands always failed**: without a target file, the Script box was sent as the *parameters* of a missing file (`File.ReadAllText(Nothing)`). Typed commands are now written to a temporary `.ps1` / `.bat` / `.sql` file (deleted after the run) and executed; the Executable type runs them with `cmd /c`. With a target file, the Script box still holds its parameters.
 - **"Command" execution type** was listed but is not a task type: selecting it made the run fail (`Enum.Parse`). The list now holds PowerShell, Batch, SQL, Executable. Auto-detect only applies to a target file, and the type list stays usable for typed commands.

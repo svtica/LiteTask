@@ -315,7 +315,8 @@ Namespace LiteTask
                     ToArray()
                 _staggerSeconds = Math.Max(0, Integer.Parse(If(settings.ContainsKey("TaskLaunchStaggerSeconds"), settings("TaskLaunchStaggerSeconds"), "5")))
                 _staleAlertRepeatMinutes = Math.Max(5, Integer.Parse(If(settings.ContainsKey("StaleAlertRepeatMinutes"), settings("StaleAlertRepeatMinutes"), "60")))
-                _logger.LogInfo($"Reliability settings loaded: SqlReadiness={_sqlReadinessEnabled}, GatedTasks=[{String.Join(", ", _sqlGatedTaskPatterns)}], StaggerSeconds={_staggerSeconds}, StaleAlertRepeatMinutes={_staleAlertRepeatMinutes}")
+                MemoryDiagnostics.ForceGcAfterTask = Boolean.Parse(If(settings.ContainsKey("ForceGcAfterTask"), settings("ForceGcAfterTask"), "True"))
+                _logger.LogInfo($"Reliability settings loaded: SqlReadiness={_sqlReadinessEnabled}, GatedTasks=[{String.Join(", ", _sqlGatedTaskPatterns)}], StaggerSeconds={_staggerSeconds}, StaleAlertRepeatMinutes={_staleAlertRepeatMinutes}, ForceGcAfterTask={MemoryDiagnostics.ForceGcAfterTask}")
             Catch ex As Exception
                 _logger.LogWarning($"Error loading reliability settings, using defaults: {ex.Message}")
                 _sqlReadinessEnabled = True
@@ -1051,6 +1052,7 @@ Namespace LiteTask
             Dim retryCount As Integer = 0
             Dim taskState = _taskStates.GetOrAdd(_task.Name, New TaskState())
             Dim runLog As New TaskLogCapture()
+            Dim memoryBefore As MemorySnapshot? = Nothing
             Dim report As TaskRunReport = Nothing
 
             Try
@@ -1109,6 +1111,7 @@ Namespace LiteTask
                 taskState.LastStartTime = DateTime.Now
                 taskState.StatusMessage = "Starting execution"
                 report = New TaskRunReport(_task.Name, taskState.LastStartTime, runLog)
+                memoryBefore = MemorySnapshot.Capture()
                 For Each plannedAction In _task.Actions
                     report.AddAction(plannedAction.Name, plannedAction.Type.ToString())
                 Next
@@ -1327,10 +1330,12 @@ Namespace LiteTask
                         taskState.StatusMessage = "Completed with cleanup"
                     End If
 
-                    ' Force a GC pass after every task execution to reclaim memory from
-                    ' PowerShell runspaces, ImportExcel COM objects, and process handles.
-                    ' Optimized mode often skips collection, allowing memory to grow unbounded.
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=False)
+                    ' Optional full GC after every task (Reliability/ForceGcAfterTask), then log
+                    ' what the run left behind so a growing task can be identified.
+                    MemoryDiagnostics.CollectAfterTask()
+                    If memoryBefore.HasValue Then
+                        _logger.LogInfo($"[Memory] Task {_task.Name}: {MemoryDiagnostics.FormatDelta(memoryBefore.Value, MemorySnapshot.Capture())}")
+                    End If
                 End Try
             End Try
         End Function
