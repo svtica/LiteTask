@@ -20,6 +20,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed - lighter user interface
+- **No more 3-second splash screen**: the `Loading` form stayed open for a fixed 3 seconds on every start while the main window was already built behind it. It is removed (form, designer, 400 KB `.resx`).
+- **One shared application icon** (`AppIcon`, loaded once from the embedded `res\ico\logo.ico`): each form embedded its own copy of the 230 KB icon (5 copies in the `.resx` files, about 1 MB in `LiteTask.exe`) and decoded it on every open. The tray icon uses it too. `ModulesForm`, which asked for an icon its own resources did not contain, and `TaskForm`, which had none, now show the LiteTask icon.
+- **PowerShell and SQL tabs built on first use**: they used to be created at start-up, and the SQL tab connected to the default SQL Server to list its databases, on the UI thread, with a 5-second timeout when the server was unreachable. Placeholder tabs are replaced by the real ones the first time they are selected.
+- **Hidden window does no UI work**: while LiteTask is minimised to the notification area, the 30-second status refresh and the task-list refresh are paused (the scheduler keeps running); showing the window refreshes both.
+- `MainForm.vb`: about 230 lines of commented-out code removed (old log panel, old edit/run/delete handlers, `LogMessage`, `ToggleLogVisibility`...) and an empty `CheckForUpdates`.
+
 ### Added - update safety before the .NET 10 migration
 - **The updater checks the .NET runtime first**: before any file is replaced, the update reads `LiteTask.runtimeconfig.json` from the downloaded package and verifies that every shared framework it needs (`Microsoft.NETCore.App`, `Microsoft.WindowsDesktop.App`) is installed with the same major version (default roll-forward). When one is missing the update stops with a message naming the .NET Desktop Runtime to install, and nothing is changed (`RuntimeRequirement`, unit-tested). This release must be installed **before** the release built on .NET 10, so that a server whose runtime was not upgraded refuses that update instead of ending up with a LiteTask and a service that no longer start.
 

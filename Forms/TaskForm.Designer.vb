@@ -81,7 +81,6 @@ Namespace LiteTask
         Private Sub InitializeComponent()
             'Try
             '_logger?.LogInfo("Starting TaskForm InitializeComponent")
-            Dim resources As ComponentResourceManager = New ComponentResourceManager(GetType(TaskForm))
 
                 ' Initialize all controls first
                 _tabControl = New TabControl()
@@ -436,6 +435,7 @@ Namespace LiteTask
                 MinimizeBox = False
                 Name = "TaskForm"
             StartPosition = FormStartPosition.CenterParent
+            Icon = AppIcon.Value
 
             ' Create labels with names
             _nameLabel = New Label With {
