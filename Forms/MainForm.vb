@@ -23,7 +23,6 @@ Namespace LiteTask
         Private _taskType As ScheduledTask.TaskType
         Private _taskTabPage As TabPage
         Private _defaultAccountType As String = "Current User"
-        'Private _logTextBox As TextBox
         Private _isGuiMode As Boolean
         Private _contextMenuStrip As ContextMenuStrip
         Private _taskTableLayout As TableLayoutPanel
@@ -78,7 +77,6 @@ Namespace LiteTask
         Private WithEvents _statusLabel As ToolStripStatusLabel
         Private WithEvents _refreshMenuItem As ToolStripMenuItem
         Private WithEvents _openLogMenuItem As ToolStripMenuItem
-        'Private WithEvents _toggleLogMenuItem As ToolStripMenuItem
         Private components As System.ComponentModel.IContainer
 
         Public Sub New()
@@ -95,8 +93,6 @@ Namespace LiteTask
 
                 InitializeComponent()
 
-                ' Add log event handler
-                'AddHandler _logger.LogEntryAdded, AddressOf OnLogEntryAdded
 
                 ' Initialize status update timer
                 _statusTimer = New System.Windows.Forms.Timer With {
@@ -159,7 +155,6 @@ Namespace LiteTask
             AddHandler _uninstallServiceMenuItem.Click, Sub() HandleServiceOperation("uninstall")
             AddHandler _startServiceMenuItem.Click, Sub() HandleServiceOperation("start")
             AddHandler _stopServiceMenuItem.Click, Sub() HandleServiceOperation("stop")
-            'AddHandler _toggleLogMenuItem.Click, AddressOf ToggleLogVisibility
 
             ' View menu
             AddHandler _refreshMenuItem.Click, AddressOf RefreshMenuItem_Click
@@ -177,26 +172,45 @@ Namespace LiteTask
 
         End Sub
 
-        'Public Sub AppendToLog(text As String)
-        '    If _logTextBox.InvokeRequired Then
-        '        _logTextBox.Invoke(Sub() AppendToLog(text))
-        '    Else
-        '        _logTextBox.AppendText(text)
-        '        _logTextBox.AppendText(Environment.NewLine)
-        '        _logTextBox.ScrollToCaret()
-        '    End If
-        'End Sub
+
+        ''' <summary>
+        ''' While the window is hidden in the notification area, the status and list
+        ''' refreshes are paused (nobody sees them); the scheduler timer keeps running.
+        ''' Showing the window again refreshes both at once.
+        ''' </summary>
+        Protected Overrides Sub OnVisibleChanged(e As EventArgs)
+            MyBase.OnVisibleChanged(e)
+            Try
+                If _statusTimer Is Nothing Then Return
+                If Visible Then
+                    _statusTimer.Start()
+                    UpdateStatus(Me, EventArgs.Empty)
+                    If _refreshPending Then
+                        _refreshPending = False
+                        RefreshTaskList()
+                        _lastRefreshTime = DateTime.Now
+                    End If
+                Else
+                    _statusTimer.Stop()
+                    _autoRefreshTimer?.Stop()
+                End If
+            Catch ex As Exception
+                _logger?.LogError($"Error in OnVisibleChanged: {ex.Message}")
+            End Try
+        End Sub
 
         Private Sub AutoRefreshTimer_Tick(sender As Object, e As EventArgs)
+            ' Hidden window: keep the refresh pending until it is shown again
+            If Not Visible Then
+                _autoRefreshTimer.Stop()
+                Return
+            End If
             If _refreshPending AndAlso (DateTime.Now - _lastRefreshTime).TotalMilliseconds >= MIN_REFRESH_INTERVAL_MS Then
                 _refreshPending = False
                 _autoRefreshTimer.Stop()
                 RefreshTaskList()
                 _lastRefreshTime = DateTime.Now
             End If
-        End Sub
-
-        Private Sub CheckForUpdates()
         End Sub
 
         Private Sub CheckTools_Click(sender As Object, e As EventArgs)
@@ -305,16 +319,6 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Async Sub DeleteSelectedTasks(sender As Object, e As EventArgs)
-        '    Try
-        '        _logger.LogInfo("Delete selected tasks menu item clicked")
-        '        DeleteSelectedTasksAsync()
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error in DeleteSelectedTasks: {ex.Message}")
-        '        _logger.LogError($"StackTrace: {ex.StackTrace}")
-        '        MessageBox.Show($"Error deleting task(s): {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '    End Try
-        'End Sub
 
         Private Async Sub DeleteSelectedTasksAsync()
             Try
@@ -390,35 +394,8 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Async Function EditTaskAsync(_task As ScheduledTask) As Task
-        '    Try
-        '        _logger.LogInfo($"Starting task edit for task: {_task.Name}")
 
-        '        ' Create a deep copy of the task for editing
-        '        Dim taskCopy = _task.Clone()
 
-        '        Using taskForm As New TaskForm(_credentialManager, _customScheduler, _logger, taskCopy)
-        '            If taskForm.ShowDialog() = DialogResult.OK Then
-        '                Try
-        '                    Await Task.Run(Sub()
-        '                                       _customScheduler.UpdateTask(taskCopy)
-        '                                       _customScheduler.SaveTasks()
-        '                                   End Sub)
-        '                    Await RefreshUIAsync()
-        '                    _logger.LogInfo($"Task {_task.Name} edited and saved successfully")
-        '                    MessageBox.Show("Task updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
-        '                Catch ex As Exception
-        '                    _logger.LogError($"Error saving edited task {_task.Name}: {ex.Message}")
-        '                    Throw New Exception($"Failed to save task changes: {ex.Message}", ex)
-        '                End Try
-        '            End If
-        '        End Using
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error editing task: {ex.Message}")
-        '        _logger.LogError($"StackTrace: {ex.StackTrace}")
-        '        MessageBox.Show($"Error editing task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '    End Try
-        'End Function
 
         Private Sub EditSelectedTasks_Click(sender As Object, e As EventArgs)
             Try
@@ -453,29 +430,6 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Async Sub EditSelectedTask(sender As Object, e As EventArgs)
-        '    Try
-        '        If _taskListView.SelectedItems.Count <> 1 Then
-        '            MessageBox.Show("Please select a single task to edit.", "Edit Task", MessageBoxButtons.OK, MessageBoxIcon.Information)
-        '            Return
-        '        End If
-
-        '        Dim selectedItem = _taskListView.SelectedItems(0)
-        '        Dim taskName = selectedItem.Text
-        '        Dim task = _customScheduler.GetTask(taskName)
-
-        '        If task IsNot Nothing Then
-        '            Using taskForm As New TaskForm(_credentialManager, _customScheduler, _logger, task)
-        '                If taskForm.ShowDialog() = DialogResult.OK Then
-        '                    Await RefreshUIAsync()
-        '                End If
-        '            End Using
-        '        End If
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error editing task: {ex.Message}")
-        '        MessageBox.Show($"Error editing task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '    End Try
-        'End Sub
 
         Private Sub ElevateMenuItem_Click(sender As Object, e As EventArgs)
             If Not IsElevated() Then
@@ -564,7 +518,6 @@ Namespace LiteTask
                     End If
                 End Using
             Catch ex As Exception
-                'UpdateLog($"Error: {ex.Message}")
                 MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
@@ -798,14 +751,12 @@ Namespace LiteTask
                     End If
                 End Using
             Catch ex As Exception
-                'UpdateLog($"Error: {ex.Message}")
                 MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
         Private Sub InitializeComponent()
             components = New Container()
-            Dim resources As ComponentResourceManager = New ComponentResourceManager(GetType(MainForm))
             _tabControl = New TabControl()
             _taskTabPage = New TabPage()
             _taskTableLayout = New TableLayoutPanel()
@@ -837,7 +788,6 @@ Namespace LiteTask
             _viewMenu = New ToolStripMenuItem()
             _refreshMenuItem = New ToolStripMenuItem()
             _openLogMenuItem = New ToolStripMenuItem()
-            '_toggleLogMenuItem = New ToolStripMenuItem()
             _toolsMenu = New ToolStripMenuItem()
             _checkToolsMenuItem = New ToolStripMenuItem()
             _updateToolsMenuItem = New ToolStripMenuItem()
@@ -847,7 +797,6 @@ Namespace LiteTask
             _aboutMenuItem = New ToolStripMenuItem()
             _checkUpdatesMenuItem = New ToolStripMenuItem()
             _splitContainer = New SplitContainer()
-            '_logTextBox = New TextBox()
             _taskPanel = New Panel()
             _statusStrip = New StatusStrip()
             _statusLabel = New ToolStripStatusLabel()
@@ -859,7 +808,6 @@ Namespace LiteTask
             _menuStrip.SuspendLayout()
             CType(_splitContainer, ISupportInitialize).BeginInit()
             _splitContainer.Panel1.SuspendLayout()
-            '_splitContainer.Panel2.SuspendLayout()
             _splitContainer.SuspendLayout()
             _statusStrip.SuspendLayout()
             SuspendLayout()
@@ -1120,12 +1068,6 @@ Namespace LiteTask
             ' 
             '' _toggleLogMenuItem
             '' 
-            '_toggleLogMenuItem.Name = "_toggleLogMenuItem"
-            '_toggleLogMenuItem.Size = New Size(180, 22)
-            '_toggleLogMenuItem.Text = "Show/Hide Log"
-            '' 
-            ' _toolsMenu
-            ' 
             _toolsMenu.DropDownItems.AddRange(New ToolStripItem() {_checkToolsMenuItem,
                 _updateToolsMenuItem,
                 New ToolStripSeparator(),  ' Spacer
@@ -1190,33 +1132,7 @@ Namespace LiteTask
             _splitContainer.Name = "_splitContainer"
             _splitContainer.Orientation = Orientation.Horizontal
             ' 
-            ' _splitContainer.Panel1
-            ' 
             _splitContainer.Panel1.Controls.Add(_tabControl)
-            ' 
-            '' _splitContainer.Panel2
-            '' 
-            '_splitContainer.Panel2.Controls.Add(_logTextBox)
-            '_splitContainer.Panel2Collapsed = True
-            '_splitContainer.Size = New Size(701, 376)
-            '_splitContainer.SplitterDistance = 38
-            '_splitContainer.SplitterWidth = 3
-            '_splitContainer.TabIndex = 1
-            ' 
-            ' _logTextBox
-            ' 
-            '_logTextBox.Dock = DockStyle.Fill
-            '_logTextBox.Location = New Point(0, 0)
-            '_logTextBox.Margin = New Padding(3, 2, 3, 2)
-            '_logTextBox.Multiline = True
-            '_logTextBox.Name = "_logTextBox"
-            '_logTextBox.ReadOnly = True
-            '_logTextBox.ScrollBars = ScrollBars.Vertical
-            '_logTextBox.Size = New Size(131, 34)
-            '_logTextBox.TabIndex = 0
-            ' 
-            ' _taskPanel
-            ' 
             _taskPanel.Location = New Point(0, 0)
             _taskPanel.Name = "_taskPanel"
             _taskPanel.Size = New Size(200, 100)
@@ -1247,7 +1163,7 @@ Namespace LiteTask
             Controls.Add(_splitContainer)
             Controls.Add(_menuStrip)
             Controls.Add(_statusStrip)
-            Icon = CType(resources.GetObject("$this.Icon"), Icon)
+            Icon = AppIcon.Value
             Margin = New Padding(3, 2, 3, 2)
             MinimumSize = New Size(702, 460)
             Name = "MainForm"
@@ -1261,8 +1177,6 @@ Namespace LiteTask
             _menuStrip.ResumeLayout(False)
             _menuStrip.PerformLayout()
             _splitContainer.Panel1.ResumeLayout(False)
-            '_splitContainer.Panel2.ResumeLayout(False)
-            '_splitContainer.Panel2.PerformLayout()
             CType(_splitContainer, ISupportInitialize).EndInit()
             _splitContainer.Panel2Collapsed = True
             _splitContainer.ResumeLayout(False)
@@ -1313,83 +1227,75 @@ Namespace LiteTask
             AddHandler _customScheduler.TaskCompleted, AddressOf CustomScheduler_TaskCompleted
         End Sub
 
+        ' PowerShell and SQL tabs are built the first time they are selected: the SQL
+        ' tab connects to the default SQL Server to list databases (up to 5 s on the
+        ' UI thread when it is unreachable), which delayed every start-up.
+        Private _runTabPlaceholder As TabPage
+        Private _sqlTabPlaceholder As TabPage
+        Private _loadingTab As Boolean
+
         Private Sub InitializeTabs()
             Try
-                _logger.LogInfo("Initializing tabs")
-
-                If _tabControl Is Nothing Then
-                    _logger.LogError("_tabControl is null")
+                If _tabControl Is Nothing OrElse _taskTabPage Is Nothing Then
+                    _logger.LogError("InitializeTabs: tab control or task tab page is null")
                     Return
                 End If
 
-                ' Add Tabs
-                _logger.LogInfo("Clearing tab pages")
                 _tabControl.TabPages.Clear()
-
-                If _taskTabPage Is Nothing Then
-                    _logger.LogError("_taskTabPage is null")
-                    Return
-                End If
-
-                _logger.LogInfo("Adding task tab page")
                 _tabControl.TabPages.Add(_taskTabPage)
 
-                ' Add PowerShell tab
-                _logger.LogInfo("Attempting to get RunTab service")
-                Dim runTab = ApplicationContainer.GetService(Of RunTab)()
-                If runTab Is Nothing Then
-                    _logger.LogWarning("RunTab service returned null")
-                Else
-                    _logger.LogInfo("Getting RunTab page")
-                    Dim runTabPage = runTab.GetTabPage()
-                    If runTabPage Is Nothing Then
-                        _logger.LogWarning("RunTab.GetTabPage() returned null")
-                    Else
-                        _logger.LogInfo("Adding RunTab page to tabs")
-                        _tabControl.TabPages.Add(runTabPage)
-                        Try
-                            _logger.LogInfo("Attempting to translate RunTab")
-                            runTab.TranslateRunTab()
-                            _logger.LogInfo("RunTab translated successfully")
-                        Catch translationEx As Exception
-                            _logger.LogWarning($"Failed to translate RunTab: {translationEx.Message}")
-                        End Try
-                    End If
-                End If
+                _runTabPlaceholder = New TabPage(TranslationManager.Instance.GetTranslation("RunTab.Text", "Run"))
+                _sqlTabPlaceholder = New TabPage(TranslationManager.Instance.GetTranslation("SQLTab.Text", "SQL"))
+                _tabControl.TabPages.Add(_runTabPlaceholder)
+                _tabControl.TabPages.Add(_sqlTabPlaceholder)
 
-                ' Add SQL tab
-                _logger.LogInfo("Attempting to get SqlTab service")
-                Dim sqlTab = ApplicationContainer.GetService(Of SqlTab)()
-                If sqlTab Is Nothing Then
-                    _logger.LogWarning("SqlTab service returned null")
-                Else
-                    _logger.LogInfo("Getting SqlTab page")
-                    Dim sqlTabPage = sqlTab.GetTabPage()
-                    If sqlTabPage Is Nothing Then
-                        _logger.LogWarning("SqlTab.GetTabPage() returned null")
-                    Else
-                        _logger.LogInfo("Adding SqlTab page to tabs")
-                        _tabControl.TabPages.Add(sqlTabPage)
-                        Try
-                            _logger.LogInfo("Attempting to translate SqlTab")
-                            sqlTab.TranslateSqlTab()
-                            _logger.LogInfo("SqlTab translated successfully")
-                        Catch translationEx As Exception
-                            _logger.LogWarning($"Failed to translate SqlTab: {translationEx.Message}")
-                        End Try
-                    End If
-                End If
-
-                _logger.LogInfo("Tabs initialization completed")
+                AddHandler _tabControl.SelectedIndexChanged, AddressOf TabControl_SelectedIndexChanged
             Catch ex As Exception
                 _logger.LogError($"Error in InitializeTabs: {ex.Message}")
-                _logger.LogError($"Stack Trace: {ex.StackTrace}")
-                If ex.InnerException IsNot Nothing Then
-                    _logger.LogError($"Inner Exception: {ex.InnerException.Message}")
-                    _logger.LogError($"Inner Stack Trace: {ex.InnerException.StackTrace}")
-                End If
                 MessageBox.Show($"An error occurred while initializing tabs: {ex.Message}",
-               "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End Sub
+
+        Private Sub TabControl_SelectedIndexChanged(sender As Object, e As EventArgs)
+            If _loadingTab Then Return
+            Dim placeholder = _tabControl.SelectedTab
+            If placeholder Is Nothing OrElse
+               (placeholder IsNot _runTabPlaceholder AndAlso placeholder IsNot _sqlTabPlaceholder) Then Return
+
+            _loadingTab = True
+            Cursor = Cursors.WaitCursor
+            Try
+                Dim realPage As TabPage = Nothing
+                If placeholder Is _runTabPlaceholder Then
+                    Dim runTab = ApplicationContainer.GetService(Of RunTab)()
+                    realPage = runTab?.GetTabPage()
+                    If realPage IsNot Nothing Then runTab.TranslateRunTab()
+                    _runTabPlaceholder = Nothing
+                Else
+                    Dim sqlTab = ApplicationContainer.GetService(Of SqlTab)()
+                    realPage = sqlTab?.GetTabPage()
+                    If realPage IsNot Nothing Then sqlTab.TranslateSqlTab()
+                    _sqlTabPlaceholder = Nothing
+                End If
+
+                If realPage Is Nothing Then
+                    _logger.LogWarning($"Tab '{placeholder.Text}' could not be created")
+                    Return
+                End If
+
+                Dim index = _tabControl.TabPages.IndexOf(placeholder)
+                _tabControl.TabPages.Insert(index, realPage)
+                _tabControl.TabPages.Remove(placeholder)
+                placeholder.Dispose()
+                _tabControl.SelectedTab = realPage
+            Catch ex As Exception
+                _logger.LogError($"Error loading tab: {ex.Message}")
+                MessageBox.Show($"An error occurred while loading the tab: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Finally
+                Cursor = Cursors.Default
+                _loadingTab = False
             End Try
         End Sub
 
@@ -1497,35 +1403,7 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Sub LogMessage(message As String)
-        '    Dim logEntry = $"[{DateTime.Now}] {message}"
-        '    Try
-        '        ' Log to file
-        '        Dim logPath As String = Path.Combine(Application.StartupPath, "app_log.txt")
-        '        Using writer As New StreamWriter(logPath, True)
-        '            writer.WriteLine(logEntry)
-        '        End Using
 
-        '        ' Log to GUI if in GUI mode
-        '        If _isGuiMode Then
-        '            If _logTextBox.InvokeRequired Then
-        '                _logTextBox.Invoke(Sub() _logTextBox.AppendText(logEntry & Environment.NewLine))
-        '            Else
-        '                _logTextBox.AppendText(logEntry & Environment.NewLine)
-        '            End If
-        '        Else
-        '            ' Log to console if not in GUI mode
-        '            Console.WriteLine(logEntry)
-        '        End If
-        '    Catch ex As Exception
-        '        ' If we can't log, try to show a message box in GUI mode, otherwise write to console
-        '        If _isGuiMode Then
-        '            MessageBox.Show($"Error logging message: {ex.Message}", "Logging Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '        Else
-        '            Console.WriteLine($"Error logging message: {ex.Message}")
-        '        End If
-        '    End Try
-        'End Sub
 
         Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)
             Try
@@ -1555,9 +1433,6 @@ Namespace LiteTask
                     RemoveHandler _customScheduler.TaskCompleted, AddressOf CustomScheduler_TaskCompleted
                 End If
 
-                'If _logger IsNot Nothing Then
-                '    RemoveHandler _logger.LogEntryAdded, AddressOf OnLogEntryAdded
-                'End If
 
                 ' Save any pending changes
                 If _customScheduler IsNot Nothing Then
@@ -1572,29 +1447,8 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Sub OnLogEntryAdded(sender As Object, e As LogEntryEventArgs)
-        '    Try
-        '        If e.LogEntry.Level >= Logger.LogLevel.Warning Then
-        '            UpdateStatusLabel(e.LogEntry.Message, If(e.LogEntry.Level = Logger.LogLevel.Error, Color.Red, Color.Orange))
-        '        End If
 
-        '        ' Add to log text box if visible
-        '        If Not _splitContainer.Panel2Collapsed Then
-        '            AppendToLog($"[{e.LogEntry.Level}] {e.LogEntry.Message}")
-        '        End If
 
-        '        ' Send notification for errors if enabled
-        '        If e.LogEntry.Level >= Logger.LogLevel.Error Then
-        '            _notificationManager.QueueNotification(
-        '                $"LiteTask {e.LogEntry.Level}",
-        '                e.LogEntry.Message,
-        '                If(e.LogEntry.Level = Logger.LogLevel.Critical, NotificationPriority.High, NotificationPriority.Normal))
-        '        End If
-        '    Catch ex As Exception
-        '        ' Use Debug.WriteLine as last resort since we can't use logger here
-        '        Debug.WriteLine($"Error handling log entry: {ex.Message}")
-        '    End Try
-        'End Sub
 
         Private Sub OpenCredentialManager(sender As Object, e As EventArgs)
             If _credentialManager Is Nothing Then
@@ -1685,38 +1539,9 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Sub RunSelectedTasks(sender As Object, e As EventArgs)
-        '    Try
-        '        _logger.LogInfo("Run selected tasks menu item clicked")
-        '        If _taskListView.SelectedItems.Count = 0 Then
-        '            MessageBox.Show("Please select at least one task to run.", "No Task Selected", MessageBoxButtons.OK, MessageBoxIcon.Information)
-        '            Return
-        '        End If
 
-        '        For Each item As ListViewItem In _taskListView.SelectedItems
-        '            Dim taskName = item.Text
-        '            Dim task = _customScheduler.GetTask(taskName)
-        '            If task IsNot Nothing Then
-        '                UpdateStatusLabel($"Running task: {task.Name}")
-        '                _customScheduler.ExecuteTask(task).Wait()
-        '                UpdateStatusLabel($"Task completed: {task.Name}")
-        '            End If
-        '        Next
-
-        '        ' Refresh UI after all tasks complete
-        '        RefreshTaskList()
-        '        _refreshPending = True
-        '        _autoRefreshTimer.Start()
-
-        '    Catch ex As Exception
-        '        _logger.LogError($"Error running selected tasks: {ex.Message}")
-        '        UpdateStatusLabel("Error running tasks", Color.Red)
-        '        MessageBox.Show($"Error running tasks: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '    End Try
-        'End Sub
 
         Private Async Sub RunSelectedTasks_Click(sender As Object, e As EventArgs)
-            '_runButton.Enabled = False
             Try
                 _logger.LogInfo("Run task button clicked")
 
@@ -1760,7 +1585,6 @@ Namespace LiteTask
                 _logger.LogError($"Error in RunTaskButton_Click: {ex.Message}")
                 MessageBox.Show($"Error running task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
             Finally
-                '_runButton.Enabled = True
             End Try
         End Sub
 
@@ -1977,24 +1801,6 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Sub ScriptErrorReceived(sender As Object, e As DataAddedEventArgs)
-        '    Dim psDataCollection = CType(sender, PSDataCollection(Of ErrorRecord))
-        '    Dim data = psDataCollection(e.Index)
-        '    LogMessage($"Error: {data.Exception.Message}")
-        'End Sub
-
-        'Private Sub ScriptOutputReceived(sender As Object, e As DataAddedEventArgs)
-        '    Dim psDataCollection = CType(sender, PSDataCollection(Of InformationRecord))
-        '    Dim data = psDataCollection(e.Index)
-        '    LogMessage($"Output: {data.MessageData}")
-        'End Sub
-
-        'Public Sub SetTaskListView(taskListView As ListView)
-        '    If taskListView Is Nothing Then
-        '        Throw New ArgumentNullException(NameOf(taskListView))
-        '    End If
-        '    _taskListView = taskListView
-        'End Sub
 
         Private Sub SettingsMenuItem_Click(sender As Object, e As EventArgs)
             Using optionsForm As New OptionsForm(_xmlManager)
@@ -2027,43 +1833,12 @@ Namespace LiteTask
             End Try
         End Sub
 
-        'Private Sub ToggleLogVisibility(sender As Object, e As EventArgs)
-        '    Try
-        '        If _splitContainer Is Nothing Then
-        '            MessageBox.Show("Split container is not initialized.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '            Return
-        '        End If
 
-        '        _splitContainer.Panel2Collapsed = Not _splitContainer.Panel2Collapsed
 
-        '        ' Update the menu item text
-        '        If _toggleLogMenuItem IsNot Nothing Then
-        '            _toggleLogMenuItem.Text = If(_splitContainer.Panel2Collapsed, "Show Log", "Hide Log")
-        '        End If
-
-        '        ' Ensure the form layout is updated
-        '        Me.PerformLayout()
-        '    Catch ex As Exception
-        '        _logger?.LogError($"Error in ToggleLogVisibility: {ex.Message}")
-        '        _logger?.LogError($"StackTrace: {ex.StackTrace}")
-        '        MessageBox.Show($"An error occurred while toggling log visibility: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        '    End Try
-        'End Sub
 
         Private Sub UpdateAlertSettings(alertLevel As String, alertEmail As String)
-            ' TODO: Implement alert settings
-            ' For example:
-            ' _alertManager.SetAlertLevel(alertLevel)
-            ' _alertManager.SetAlertEmail(alertEmail)
         End Sub
 
-        'Private Sub UpdateLog(message As String)
-        '    If _logTextBox.InvokeRequired Then
-        '        _logTextBox.Invoke(Sub() UpdateLog(message))
-        '    Else
-        '        _logTextBox.AppendText(message & Environment.NewLine)
-        '    End If
-        'End Sub
 
         Private Sub UpdateStatus(sender As Object, e As EventArgs)
             Try

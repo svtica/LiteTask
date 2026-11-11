@@ -29,7 +29,6 @@ Namespace LiteTask
 
         Private Sub InitializeComponent()
             Dim SecureString1 As SecureString = New SecureString()
-            Dim resources As ComponentResourceManager = New ComponentResourceManager(GetType(CredentialManagerForm))
             _credentialListView = New ListView()
             _targetTextBox = New TextBox()
             _usernameTextBox = New TextBox()
@@ -189,7 +188,7 @@ Namespace LiteTask
             Controls.Add(_deleteButton)
             Controls.Add(_closeButton)
             FormBorderStyle = FormBorderStyle.FixedDialog
-            Icon = CType(resources.GetObject("$this.Icon"), Drawing.Icon)
+            Icon = AppIcon.Value
             Margin = New Padding(3, 2, 3, 2)
             MaximizeBox = False
             MinimizeBox = False
