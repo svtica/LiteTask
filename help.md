@@ -54,6 +54,7 @@ If the selected day exceeds the number of days in a given month (e.g., day 31 in
 ## Service Installation
 
 ### Requirements
+- .NET 10 Desktop Runtime (x64) installed on the machine
 - Administrative privileges for installation
 - User account must have "Log on as a service" rights
 - SeImpersonatePrivilege for certain operations
