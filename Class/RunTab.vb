@@ -346,8 +346,8 @@ Namespace LiteTask
                         Throw New NotSupportedException($"Task type {action.Type} is not supported")
                 End Select
             Finally
-                ' Reclaim memory after task execution to prevent accumulation across runs
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking:=False)
+                ' Reclaim memory after the run (Reliability/ForceGcAfterTask)
+                MemoryDiagnostics.CollectAfterTask()
             End Try
         End Function
 

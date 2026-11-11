@@ -20,6 +20,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added - memory diagnostics (measure before removing the forced GCs)
+- **Per-task memory line in the log** after every run: `[Memory] Task <name>: private 412.5 MB (+12.5), GC heap 85.0 MB (+3.0), handles 1204 (+6), gen2 GCs +1` (`MemoryDiagnostics`, unit-tested). The task that keeps memory or handles after it ends can now be identified from the log, instead of only seeing the total grow until the auto-restart.
+- **`Reliability/ForceGcAfterTask`** (default `True`, previous behaviour): the three forced full garbage collections (after every task in the scheduler, after every PowerShell task — blocking, with `WaitForPendingFinalizers` — and after every Run tab execution) are now one setting. Set it to `False` in `settings.xml` to compare memory and CPU over a few days; the memory monitor and its auto-restart stay as the safety net.
+- Runspaces are deliberately **not pooled**: every PowerShell task keeps its own fresh runspace (no state, variables or modules leaking from one task to the next). Assemblies loaded by modules stay in the process either way (.NET cannot unload them from the default load context), so a pool would not reduce that part of the memory.
+
 ### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
 - **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
 - **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.

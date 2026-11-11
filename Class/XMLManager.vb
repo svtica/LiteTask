@@ -1026,6 +1026,7 @@ Namespace LiteTask
                 settings("SqlReadinessServer") = ReadValue("Reliability", "SqlReadinessServer", "")
                 settings("SqlGatedTasks") = ReadValue("Reliability", "SqlGatedTasks", "GenRTP,Extracteur")
                 settings("StaleAlertRepeatMinutes") = ReadValue("Reliability", "StaleAlertRepeatMinutes", "60")
+                settings("ForceGcAfterTask") = ReadValue("Reliability", "ForceGcAfterTask", "True")
                 Return settings
             Catch ex As Exception
                 _logger?.LogError($"Error reading reliability settings: {ex.Message}")
@@ -1035,7 +1036,8 @@ Namespace LiteTask
                     {"SqlReadinessEnabled", "True"},
                     {"SqlReadinessServer", ""},
                     {"SqlGatedTasks", "GenRTP,Extracteur"},
-                    {"StaleAlertRepeatMinutes", "60"}
+                    {"StaleAlertRepeatMinutes", "60"},
+                    {"ForceGcAfterTask", "True"}
                 }
             End Try
         End Function
