@@ -20,6 +20,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
+- **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
+- **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.
+- `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Hosting.WindowsServices`, `System.ServiceProcess.ServiceController`, `System.Text.Encoding.CodePages` 10.0.14 (were 9.0.0, end of support).
+- CI builds with the .NET 10 SDK.
+- Removed `EnableUnsafeBinaryFormatterSerialization`: BinaryFormatter no longer exists in .NET 9+ and LiteTask does not use it (the form `.resx` hold icons and images as byte arrays, read without BinaryFormatter).
+
 ### Fixed - PowerShell scripts and Mark of the Web
 - **`InstallModules.ps1` could not run**: the `param` block came after other statements, the default module array ended with a trailing comma and the file with an extra `}` (three parse errors), and it called `Install-Module -Destination`, a parameter that does not exist. Rewritten: `Save-Module -Path` into `LiteTaskData\Modules`, modules passed as one comma-separated string (how LiteTask calls it) are split, "already installed" only counts a copy in LiteTask's folder, `-Force` updates, and the Mark of the Web is removed from the saved files. Default list: `Az`, `Microsoft.Graph`, `ImportExcel`, `PSWindowsUpdate` (AzureAD and MSOnline are retired).
 - **Tools > Install PowerShell Modules** looked for the script in a `tools` folder that does not exist; it now uses `LiteTaskData\InstallModules.ps1`.
@@ -60,7 +67,7 @@ All notable changes to this project are documented in this file.
 ### Removed
 - Unused references and files: `lib\System.ServiceModel.dll` (legacy service interaction, no longer used), the duplicate `lib\System.ServiceProcess.ServiceController.dll` (the NuGet package is kept), `PackAsTool`, the `None Remove` entries with a developer's local NuGet paths. `SecurePasswordTextBox.dll`, the only one LiteTask itself references, moved to `lib\`.
 - Dead code: `CustomScheduler.ExecuteTask` (duplicate of `ExecuteTaskAsync`, only called from commented-out code), `CustomScheduler.HandleTaskError` (never called), the duplicate creation of `_enableNotificationsCheckBox` in `OptionsForm`.
-- Kept on purpose: `EnableUnsafeBinaryFormatterSerialization` (7 `.resx` files hold binary-serialized resources) and `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`).
+- Kept on purpose: `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`). (`EnableUnsafeBinaryFormatterSerialization` was also kept here on the wrong assumption that the `.resx` files needed it; it is removed with the .NET 10 migration.)
 
 ### Security
 - `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
