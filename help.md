@@ -107,18 +107,22 @@ Actions can be configured with dependencies:
 
 ## Tool Management
 
-LiteTask includes built-in tool management:
+Optional tools are no longer shipped in the package; they are downloaded from their GitHub releases into `LiteTaskData\tools`:
 
-1. Access the Tools tab in the ribbon menu
-2. Tools are automatically checked and updated
-3. Missing tools are downloaded automatically
-4. Process monitoring available through LitePM
+1. Open **Tools > Manage Tools...**
+2. Check the tools to keep on this computer (saved in `ToolSettings/SelectedTools`)
+3. Click **Download / Update checked tools**; select a tool and click **Remove** to delete it
+4. **Tools > Check Tools** shows which tools are present
 
 Available tools:
-- Process Explorer (procexp.exe)
-- LiteRun
-- OSQL
-- PsExec
+- **sqlcmd** (`microsoft/go-sqlcmd`, pinned release): required by SQL tasks. Downloaded automatically the first time a SQL task needs it.
+- **LitePM** (`svtica/LitePM`): process manager used by **Tools > Monitor LiteTask Processes**.
+- **LiteDeploy** (`svtica/LiteDeploy`): standalone remote deployment utility.
+- **PsExec64**: embedded in LiteTask.exe, extracted on first use.
+
+Downloads must come from `https://github.com/.../releases/download/`. A file whose Authenticode signature does not match its content is refused; an unsigned file is installed with a warning in the log.
+
+Offline computers: copy `sqlcmd.exe` (and the `LitePM` folder) into `LiteTaskData\tools` by hand.
 
 ## PowerShell Module Management
 

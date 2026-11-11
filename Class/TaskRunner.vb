@@ -495,7 +495,12 @@ Namespace LiteTask
                     Await File.WriteAllTextAsync(tempFile, query)
                     _logger.LogInfo($"Created temporary SQL file: {tempFile}")
 
-                    Dim sqlcmdPath = Path.Combine(_toolManager._toolsPath, "sqlcmd.exe")
+                    ' sqlcmd is no longer shipped in the package: download it from GitHub the
+                    ' first time a SQL task needs it (fresh installation or removed tool).
+                    Dim sqlcmdPath = Await _toolManager.EnsureInstalledAsync(ToolCatalog.Find(ToolCatalog.SqlCmdId))
+                    If sqlcmdPath Is Nothing Then
+                        Throw New FileNotFoundException($"sqlcmd.exe is missing from {_toolManager._toolsPath} and could not be downloaded. Install it from Tools > Manage Tools, or copy sqlcmd.exe into that folder.")
+                    End If
                     ' Argument layout is unchanged from 1.2.1.12 and pinned by the
                     ' SqlCmdCommandBuilder unit tests. The password never appears here
                     ' (SQLCMDPASSWORD below), so the line can be logged as is.
@@ -1001,20 +1006,13 @@ Namespace LiteTask
         End Function
 
         Private Sub VerifyRequiredTools()
-            ' Check for required tools
-            Dim requiredTools = New String() {"sqlcmd.exe"}
-            Dim missingTools = New List(Of String)
-
-            For Each tool In requiredTools
-                Dim toolPath = Path.Combine(_toolManager._toolsPath, tool)
-                If Not File.Exists(toolPath) Then
-                    missingTools.Add(tool)
+            ' Tools are downloaded on demand (Tools > Manage Tools, or automatically the
+            ' first time a task needs them), so a missing tool is not a startup error.
+            For Each tool In ToolCatalog.All.Where(Function(t) t.AutoInstallWhenNeeded)
+                If Not _toolManager.IsInstalled(tool) Then
+                    _logger.LogWarning($"{tool.ExecutableName} is not installed in {_toolManager._toolsPath}; it will be downloaded from {tool.Repository} the first time a task needs it")
                 End If
             Next
-
-            If missingTools.Any() Then
-                Throw New Exception($"Required tools missing: {String.Join(", ", missingTools)}. Please ensure all required tools are in the tools directory: {_toolManager._toolsPath}")
-            End If
         End Sub
 
         ''' Cleans up old temporary files from previous runs

@@ -31,7 +31,7 @@
 
 	<translation key="_toolsMenu.Text">Outils</translation>
 	<translation key="_checkToolsMenuItem.Text">Vérifier les outils</translation>
-	<translation key="_updateToolsMenuItem.Text">Mettre à jour les outils</translation>
+	<translation key="_updateToolsMenuItem.Text">Gérer les outils...</translation>
 	<translation key="_executionToolMenu.Text">Sélectionner l'outil d'exécution</translation>
 	<translation key="_monitorTasksMenuItem.Text">Gestionnaire de processus</translation>
 	<translation key="_optionsMenuItem.Text">Options</translation>
@@ -421,4 +421,30 @@
 	<translation key="Validation.Action.DependsOnSelf">L'action '{0}' ne peut pas dépendre d'elle-même</translation>
 	<translation key="Validation.Action.DependsOnUnknown">DependsOn référence une action inconnue : {0}</translation>
 	<translation key="Validation.IntervalRange">Veuillez saisir un intervalle entre 1 et 1440 minutes.</translation>
+	<!-- Outils > Gérer les outils -->
+	<translation key="Tools.Manage.Title">LiteTask - Gérer les outils</translation>
+	<translation key="Tools.Manage.Hint">Les outils cochés sont conservés sur cet ordinateur et mis à jour par « Télécharger / mettre à jour ». sqlcmd est téléchargé automatiquement la première fois qu'une tâche SQL en a besoin.</translation>
+	<translation key="Tools.Manage.ColumnTool">Outil</translation>
+	<translation key="Tools.Manage.ColumnDescription">Description</translation>
+	<translation key="Tools.Manage.ColumnStatus">État</translation>
+	<translation key="Tools.Manage.ColumnVersion">Version</translation>
+	<translation key="Tools.Manage.ColumnSource">Source</translation>
+	<translation key="Tools.Manage.Install">Télécharger / mettre à jour les outils cochés</translation>
+	<translation key="Tools.Manage.Remove">Supprimer</translation>
+	<translation key="Tools.Manage.Installed">Installé</translation>
+	<translation key="Tools.Manage.NotInstalled">Non installé</translation>
+	<translation key="Tools.Manage.Done">Terminé.</translation>
+	<translation key="Tools.Manage.DoneWithErrors">Terminé avec {0} erreur(s) ; voir le journal ci-dessus.</translation>
+	<translation key="Tools.Manage.ConfirmRemove">Supprimer {0} de cet ordinateur ?</translation>
+	<translation key="Tools.Manage.Removed">{0} supprimé.</translation>
+	<translation key="Tools.Manage.RemoveFailed">{0} n'a pas pu être supprimé (en cours d'utilisation ?). Voir le journal de l'application.</translation>
+	<translation key="Tools.Description.sqlcmd">Microsoft go-sqlcmd. Requis par les tâches SQL.</translation>
+	<translation key="Tools.Description.LitePM">Lite Process Manager. Utilisé par Outils > Gestionnaire de processus.</translation>
+	<translation key="Tools.Description.LiteDeploy">Utilitaire de déploiement et de gestion à distance (autonome).</translation>
+	<translation key="Tools.Progress.Querying">{0} : consultation des versions de {1}...</translation>
+	<translation key="Tools.Progress.Downloading">{0} : téléchargement de {1} ({2})...</translation>
+	<translation key="Tools.Progress.NotSigned">{0} : attention, {1} n'est pas signé ({2})</translation>
+	<translation key="Tools.Progress.Installed">{0} {1} installé</translation>
+	<translation key="Tools.Manage.OpenError">Erreur à l'ouverture du gestionnaire d'outils : {0}</translation>
+	<translation key="Tools.LitePMMissing">LitePM n'est pas installé. Ouvrir Outils > Gérer les outils pour le télécharger ?</translation>
 </translations>

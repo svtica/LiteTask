@@ -23,9 +23,9 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 - Remote execution capabilities
 
 ### Tool Management
-- Automatic detection and updates of integrated tools
-- Built-in process monitoring and diagnostic utilities
-- Integrated LiteDeploy and LitePM tools
+- Optional tools (sqlcmd, LitePM, LiteDeploy) downloaded on demand from their GitHub releases (Tools > Manage Tools)
+- sqlcmd downloaded automatically the first time a SQL task needs it
+- Built-in process monitoring through LitePM
 
 ### Notifications & Logging
 - Smart notification batching with email alerts
@@ -73,7 +73,7 @@ LiteTask.exe [options]
 LiteTaskData/
 ├── logs/              # Application and task logs
 ├── Modules/           # PowerShell modules  
-├── tools/             # Integrated utilities (LiteDeploy, LitePM)
+├── tools/             # Downloaded tools (sqlcmd.exe, LitePM\, LiteDeploy\)
 ├── temp/              # Temporary files
 └── settings.xml       # Configuration file
 ```

@@ -187,11 +187,6 @@ Namespace LiteTask
                 .Dock = DockStyle.Fill
             }
 
-            _enableNotificationsCheckBox = New CheckBox With {
-                .Text = "Enable Email Notifications",
-                .Dock = DockStyle.Fill
-            }
-
             _smtpServerLabel = New Label With {
                 .Text = "SMTP Server:",
                 .Dock = DockStyle.Fill

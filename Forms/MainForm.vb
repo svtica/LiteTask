@@ -1147,7 +1147,7 @@ Namespace LiteTask
             ' 
             _updateToolsMenuItem.Name = "_updateToolsMenuItem"
             _updateToolsMenuItem.Size = New Size(215, 22)
-            _updateToolsMenuItem.Text = "Update Tools"
+            _updateToolsMenuItem.Text = "Manage Tools..."
             ' 
             '
             ' _monitorTasksMenuItem
@@ -1667,7 +1667,17 @@ Namespace LiteTask
         Private Sub MonitorTasks_Click(sender As Object, e As EventArgs)
             Try
                 ' Launch LitePM to show processes related to LiteTask
-                _toolManager.LaunchLitePM("LiteTask")
+                If Not _toolManager.LaunchLitePM("LiteTask") Then
+                    ' LitePM is no longer shipped with LiteTask: offer the download
+                    Dim answer = MessageBox.Show(
+                        TranslationManager.Instance.GetTranslation("Tools.LitePMMissing",
+                            "LitePM is not installed. Open Tools > Manage Tools to download it?"),
+                        "LitePM", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+                    If answer = DialogResult.Yes Then
+                        UpdateTools_Click(sender, e)
+                        _toolManager.LaunchLitePM("LiteTask")
+                    End If
+                End If
             Catch ex As Exception
                 _logger.LogError($"Error launching Lite Process Manager: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
@@ -2197,19 +2207,15 @@ Namespace LiteTask
             End If
         End Sub
 
-        Private Async Sub UpdateTools_Click(sender As Object, e As EventArgs)
-            _updateToolsMenuItem.Enabled = False
+        Private Sub UpdateTools_Click(sender As Object, e As EventArgs)
+            ' Tools > Manage Tools: choose, download/update or remove the optional tools
             Try
-                Dim updateResult = Await _toolManager.DownloadAndUpdateAllToolsAsync()
-                Dim message As String = "Update Result:" & Environment.NewLine
-                For Each kvp In updateResult
-                    message &= $"{kvp.Key}: {If(kvp.Value, "Updated", "Failed")}" & Environment.NewLine
-                Next
-                MessageBox.Show(message, "Tool Update Result", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Using form As New ToolsForm(_toolManager)
+                    form.ShowDialog(Me)
+                End Using
             Catch ex As Exception
-                MessageBox.Show($"Error updating tools: {ex.Message}", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-            Finally
-                _updateToolsMenuItem.Enabled = True
+                _logger?.LogError($"Error opening tool manager: {ex.Message}")
+                MessageBox.Show(String.Format(TranslationManager.Instance.GetTranslation("Tools.Manage.OpenError", "Error opening tool manager: {0}"), ex.Message), "LiteTask", MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
