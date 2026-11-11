@@ -20,6 +20,9 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added - update safety before the .NET 10 migration
+- **The updater checks the .NET runtime first**: before any file is replaced, the update reads `LiteTask.runtimeconfig.json` from the downloaded package and verifies that every shared framework it needs (`Microsoft.NETCore.App`, `Microsoft.WindowsDesktop.App`) is installed with the same major version (default roll-forward). When one is missing the update stops with a message naming the .NET Desktop Runtime to install, and nothing is changed (`RuntimeRequirement`, unit-tested). This release must be installed **before** the release built on .NET 10, so that a server whose runtime was not upgraded refuses that update instead of ending up with a LiteTask and a service that no longer start.
+
 ### Fixed
 - **Task notifications showed the wrong start and end times**: the "Start Time" / "End Time" in the e-mail were the 5-second batching window of `NotificationManager`, not the task run, so a run of several minutes looked like it took a few seconds. Task notifications now carry a run report (`TaskRunReport`, unit-tested): real start, end and duration of the run, then each action with its status, start, end, duration and error, and the actions never reached marked "Not run". A batch of a single message is now sent as-is; a batch of several messages states that its times are the batching window. The footer says "Notification queued" instead of "Timestamp".
 

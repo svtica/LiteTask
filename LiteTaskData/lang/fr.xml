@@ -377,6 +377,7 @@
 	<translation key="Update.Progress.Complete">Mise à jour prête. L'application va maintenant redémarrer.</translation>
 	<translation key="Update.Progress.Failed">Échec de la mise à jour. Consultez le journal ci-dessus pour plus de détails.</translation>
 	<translation key="Update.Progress.Verifying">Vérification de la signature du paquet...</translation>
+	<translation key="Update.Progress.RuntimeMissing">Mise à jour annulée : cette version requiert {0}, qui n'est pas installé sur cet ordinateur. Installez le .NET {1} Desktop Runtime (x64) depuis https://dotnet.microsoft.com/download, puis relancez la mise à jour. Aucun fichier n'a été remplacé.</translation>
 	<translation key="Update.Progress.VerifyFailed">Mise à jour annulée : aucun script n'a été exécuté et aucun fichier n'a été remplacé.</translation>
 	<translation key="Update.Progress.ExeNotFound">LiteTask.exe est introuvable dans le paquet de mise à jour.</translation>
 	<translation key="Update.Progress.SignatureValid">Signature valide : signé par {0} (empreinte {1}).</translation>
