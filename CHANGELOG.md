@@ -20,6 +20,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed - PowerShell scripts and Mark of the Web
+- **`InstallModules.ps1` could not run**: the `param` block came after other statements, the default module array ended with a trailing comma and the file with an extra `}` (three parse errors), and it called `Install-Module -Destination`, a parameter that does not exist. Rewritten: `Save-Module -Path` into `LiteTaskData\Modules`, modules passed as one comma-separated string (how LiteTask calls it) are split, "already installed" only counts a copy in LiteTask's folder, `-Force` updates, and the Mark of the Web is removed from the saved files. Default list: `Az`, `Microsoft.Graph`, `ImportExcel`, `PSWindowsUpdate` (AzureAD and MSOnline are retired).
+- **Tools > Install PowerShell Modules** looked for the script in a `tools` folder that does not exist; it now uses `LiteTaskData\InstallModules.ps1`.
+- **`LiteTask-Post-Build.ps1` worked on the current directory**: run from another folder (for example Downloads) it deleted that folder's sub-folders. It now works on its own folder only, does nothing if `LiteTask.exe` is not next to it, and unblocks every file that carries the Mark of the Web (any extension, not only exe/dll/ps1).
+- **Mark of the Web removed by LiteTask itself** (`MarkOfTheWeb`, same effect as `Unblock-File`): on the extracted update package before it is installed, on every downloaded tool, on the tools folder at start-up (tools copied by hand from a browser download), and on LitePM before it is started through the shell (a marked executable shows the "Open File - Security Warning" prompt).
+- `bump-version.ps1` refuses a dirty tree or a branch other than `main`, and fast-forwards `main` before tagging. Stale `Unblock-Files.ps1` entry removed from the project (the file does not exist).
+
 ### Changed - lighter user interface
 - **No more 3-second splash screen**: the `Loading` form stayed open for a fixed 3 seconds on every start while the main window was already built behind it. It is removed (form, designer, 400 KB `.resx`).
 - **One shared application icon** (`AppIcon`, loaded once from the embedded `res\ico\logo.ico`): each form embedded its own copy of the 230 KB icon (5 copies in the `.resx` files, about 1 MB in `LiteTask.exe`) and decoded it on every open. The tray icon uses it too. `ModulesForm`, which asked for an icon its own resources did not contain, and `TaskForm`, which had none, now show the LiteTask icon.
