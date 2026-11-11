@@ -34,6 +34,7 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 
 ## Installation
 
+0. **Prerequisite**: [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) (`Microsoft.WindowsDesktop.App` 10.x)
 1. Download the latest release
 2. Extract files to desired location
 3. On first extraction, run LiteTask-Post-Build.ps1 to remove Mark of the Web on files and remove useless files that were gererated automatically by the compiler
@@ -80,7 +81,7 @@ LiteTaskData/
 
 ## Technology Stack
 
-- **Platform**: .NET 8.0 Windows
+- **Platform**: .NET 10 (LTS) Windows, PowerShell SDK 7.6 (LTS)
 - **Language**: VB.NET
 - **UI**: Windows Forms
 - **Dependencies**: PowerShell SDK, ServiceController
