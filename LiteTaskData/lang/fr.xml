@@ -447,5 +447,7 @@
 	<translation key="Tools.Progress.NotSigned">{0} : attention, {1} n'est pas signé ({2})</translation>
 	<translation key="Tools.Progress.Installed">{0} {1} installé</translation>
 	<translation key="Tools.Manage.OpenError">Erreur à l'ouverture du gestionnaire d'outils : {0}</translation>
+	<translation key="RunTab.NothingToRun">Saisissez un script ou une commande, ou choisissez un fichier cible.</translation>
+	<translation key="RunTab.TargetNotFound">Fichier cible introuvable : {0}</translation>
 	<translation key="Tools.LitePMMissing">LitePM n'est pas installé. Ouvrir Outils > Gérer les outils pour le télécharger ?</translation>
 </translations>

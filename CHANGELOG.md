@@ -20,6 +20,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed - Run (PowerShell) tab
+- **Typed commands always failed**: without a target file, the Script box was sent as the *parameters* of a missing file (`File.ReadAllText(Nothing)`). Typed commands are now written to a temporary `.ps1` / `.bat` / `.sql` file (deleted after the run) and executed; the Executable type runs them with `cmd /c`. With a target file, the Script box still holds its parameters.
+- **"Command" execution type** was listed but is not a task type: selecting it made the run fail (`Enum.Parse`). The list now holds PowerShell, Batch, SQL, Executable. Auto-detect only applies to a target file, and the type list stays usable for typed commands.
+- **Output was never shown**: the tab's output handlers were not connected to `TaskRunner`. The run's output and errors now appear in the Output box (scheduled tasks running at the same time are filtered out).
+- Clear messages when there is nothing to run or the target file does not exist (French translations included).
+
 ### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
 - **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
 - **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.
