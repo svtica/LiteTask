@@ -23,8 +23,9 @@ All notable changes to this project are documented in this file.
 ### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
 - **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
 - **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.
-- `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Hosting.WindowsServices`, `System.ServiceProcess.ServiceController`, `System.Text.Encoding.CodePages` 10.0.14 (were 9.0.0, end of support).
+- `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Hosting.WindowsServices`, `System.ServiceProcess.ServiceController` 10.0.14 (were 9.0.0, end of support).
 - CI builds with the .NET 10 SDK.
+- `System.Text.Encoding.CodePages` package removed (part of .NET 10, NU1510). WinForms analyzer `WFO1000` disabled: it targets designer-serialized forms, LiteTask's forms are built in code.
 - Removed `EnableUnsafeBinaryFormatterSerialization`: BinaryFormatter no longer exists in .NET 9+ and LiteTask does not use it (the form `.resx` hold icons and images as byte arrays, read without BinaryFormatter).
 
 ### Fixed - PowerShell scripts and Mark of the Web

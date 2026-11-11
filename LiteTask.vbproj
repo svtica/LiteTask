@@ -32,6 +32,10 @@
          PowerShell and other packages for 12 other languages (LiteTask-Post-Build.ps1
          used to delete them after installation). -->
     <SatelliteResourceLanguages>en;fr</SatelliteResourceLanguages>
+    <!-- WFO1000 (WinForms analyzer, .NET 9+): designer code-serialization check for public
+         control properties. LiteTask's forms are built in code, and VB exposes WithEvents
+         fields as properties, so every control field would be flagged. -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <EnableUnsafeUTF7Encoding>true</EnableUnsafeUTF7Encoding>
 	  <ServerGarbageCollection>false</ServerGarbageCollection>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
@@ -186,7 +190,6 @@
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.6.9" />
 	  <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.14" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>
