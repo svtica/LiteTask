@@ -16,7 +16,6 @@
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <IncludeSymbols>False</IncludeSymbols>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
-    <PackAsTool>True</PackAsTool>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Lite Task is a Lightweight Alternative to the Windows Task Scheduler</Description>
     <PackageProjectUrl>github.com/svtica/LiteTask</PackageProjectUrl>
@@ -29,6 +28,10 @@
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Only English (neutral) and French resources: drops the satellite folders of
+         PowerShell and other packages for 12 other languages (LiteTask-Post-Build.ps1
+         used to delete them after installation). -->
+    <SatelliteResourceLanguages>en;fr</SatelliteResourceLanguages>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <EnableUnsafeUTF7Encoding>true</EnableUnsafeUTF7Encoding>
 	  <ServerGarbageCollection>false</ServerGarbageCollection>
@@ -89,83 +92,10 @@
     <None Remove="Tests\**" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Host\Microsoft.PowerShell.Host.psd1" />
-    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Management\Microsoft.PowerShell.Management.psd1" />
-    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1" />
-    <None Remove="C:\Users\dricard\.nuget\packages\microsoft.powershell.sdk\7.4.6\contentFiles\any\any\runtimes\unix\lib\net8.0\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1" />
-    <None Remove="lib\Aga.Controls.dll" />
-    <None Remove="lib\LiteWMI.dll" />
-    <None Remove="lib\SecurePasswordTextBox.dll" />
-    <None Remove="lib\System.ServiceModel.dll" />
-    <None Remove="lib\System.ServiceProcess.ServiceController.dll" />
-    <None Remove="lib\System.Windows.Forms.Ribbon.dll" />
-    <None Remove="lib\TaskDialog.dll" />
-    <None Remove="LiteTaskData\InstallModules.ps1" />
-    <None Remove="LiteTaskData\lang\fr.xml" />
-    <None Remove="LiteTaskData\tools\adcache.xml" />
-    <None Remove="LiteTaskData\tools\LiteDeploy.exe" />
-    <None Remove="LiteTaskData\tools\LiteDeploy.exe.config" />
-    <None Remove="LiteTaskData\tools\LitePM.exe" />
-    <None Remove="LiteTaskData\tools\LitePM.exe.config" />
-    <None Remove="LiteTaskData\tools\LitePMService.exe" />
-    <None Remove="LiteTaskData\tools\LitePMService.exe.config" />
-    <None Remove="LiteTaskData\tools\LiteWMI.dll" />
-    <None Remove="LiteTaskData\tools\RDPWInst.exe" />
-    <None Remove="LiteTaskData\tools\SecureChannel.dll" />
-    <None Remove="LiteTaskData\tools\SecurePasswordTextBox.dll" />
-    <None Remove="LiteTaskData\tools\System.Windows.Forms.Ribbon.dll" />
-    <None Remove="LiteTaskData\tools\TaskDialog.dll" />
-    <None Remove="LiteTaskData\tools\Aga.Controls.dll" />
-    <None Remove="LiteTaskData\tools\sqlcmd.exe" />
-    <None Remove="PsExec64.exe" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="lib\System.ServiceModel.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="lib\System.ServiceProcess.ServiceController.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="LiteTaskData\InstallModules.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="LiteTaskData\lang\fr.xml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\LiteDeploy.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\LiteDeploy.exe.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\LitePM.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\LitePM.exe.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\SecurePasswordTextBox.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\Aga.Controls.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\LitePMService.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\LitePMService.exe.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\SecureChannel.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\System.Windows.Forms.Ribbon.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\TaskDialog.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="LiteTaskData\tools\sqlcmd.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="res\ico\logo.ico">
@@ -189,10 +119,7 @@
     <None Update="LiteTask-Post-Build.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-<None Update="LiteTaskData\tools\Logger.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="logo.ico">
+<None Update="logo.ico">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="My Project\Settings.settings">
@@ -273,13 +200,18 @@
     <Reference Include="System.Data.SqlClient">
       <HintPath>lib\System.Data.SqlClient.dll</HintPath>
     </Reference>
-    <Reference Include="System.ServiceModel">
-      <HintPath>lib\System.ServiceModel.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ServiceProcess.ServiceController">
-      <HintPath>lib\System.ServiceProcess.ServiceController.dll</HintPath>
-    </Reference>
   </ItemGroup>
+
+<!-- Non-Windows runtime assets (linux*, osx*, unix, freebsd...) brought by the PowerShell
+     SDK are never loaded on Windows; LiteTask-Post-Build.ps1 used to delete them after
+     installation. Removing them here keeps them out of the release package. -->
+<Target Name="RemoveNonWindowsRuntimes" AfterTargets="Build" Condition="Exists('$(OutDir)runtimes')">
+  <ItemGroup>
+    <_LtRuntimeDir Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes'))" />
+    <_LtNonWindowsRuntimeDir Include="@(_LtRuntimeDir)" Condition="!$([System.String]::Copy('%(Filename)%(Extension)').ToLowerInvariant().StartsWith('win'))" />
+  </ItemGroup>
+  <RemoveDir Directories="@(_LtNonWindowsRuntimeDir)" />
+</Target>
 
 <Target Name="CopyDependencies" AfterTargets="Build">
   <ItemGroup>

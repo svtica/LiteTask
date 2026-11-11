@@ -20,6 +20,18 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed - lighter package, tools on demand
+- **Optional tools are no longer shipped**: `sqlcmd.exe` (23 MB, ~85 % of `LiteTaskData`), LitePM (with LitePMService, Aga.Controls, TaskDialog, SecureChannel, System.Windows.Forms.Ribbon, Logger.dll) and LiteDeploy were removed from the repository and the package. They are downloaded from their GitHub releases (`microsoft/go-sqlcmd` pinned to v1.8.2, `svtica/LitePM`, `svtica/LiteDeploy`) through the new **Tools > Manage Tools...** window: choose the tools to keep (`ToolSettings/SelectedTools`), download/update, remove. French translations included.
+- **sqlcmd is installed automatically** the first time a SQL task needs it (`ToolManager.EnsureInstalledAsync`). A missing sqlcmd is no longer a `TaskRunner` startup error, only a warning. Existing installations keep the copy they already have: an update copies files over and never deletes `LiteTaskData\tools`, and tools already present are selected by default.
+- Downloads accepted only from `https://github.com/.../releases/download/`. A file whose Authenticode signature does not match its content is refused; an unsigned file is installed with a warning. `ToolCatalog` (asset selection, URL check, selection setting) is unit-tested.
+- LitePM and LiteDeploy now install in their own subfolder (`tools\LitePM\`, `tools\LiteDeploy\`); the copy shipped at the tools root by older packages is still found. **Monitor LiteTask Processes** offers to download LitePM when it is missing.
+- **Smaller build output**: only English and French satellite resources (`SatelliteResourceLanguages`), and non-Windows `runtimes\*` folders of the PowerShell SDK are removed at build time (both were already deleted by `LiteTask-Post-Build.ps1` after installation; they are now out of the release zip).
+
+### Removed
+- Unused references and files: `lib\System.ServiceModel.dll` (legacy service interaction, no longer used), the duplicate `lib\System.ServiceProcess.ServiceController.dll` (the NuGet package is kept), `PackAsTool`, the `None Remove` entries with a developer's local NuGet paths. `SecurePasswordTextBox.dll`, the only one LiteTask itself references, moved to `lib\`.
+- Dead code: `CustomScheduler.ExecuteTask` (duplicate of `ExecuteTaskAsync`, only called from commented-out code), `CustomScheduler.HandleTaskError` (never called), the duplicate creation of `_enableNotificationsCheckBox` in `OptionsForm`.
+- Kept on purpose: `EnableUnsafeBinaryFormatterSerialization` (7 `.resx` files hold binary-serialized resources) and `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`).
+
 ### Security
 - `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
 - `XMLManager`: every remaining `XmlDocument.Load` now sets `XmlResolver = Nothing` (XXE / external entity hardening), consistent with the task read/write paths.
