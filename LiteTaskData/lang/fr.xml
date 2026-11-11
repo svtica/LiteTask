@@ -234,6 +234,7 @@
 	<translation key="_useCredentialsCheckBox">Utiliser des identifiants</translation>
 	<translation key="_credentialLabel">Identifiant :</translation>
 	<translation key="_testEmailButton">Envoyer un email test</translation>
+	<translation key="_includeTaskLogCheckBox">Inclure le journal de la tâche dans les notifications</translation>
 
 	<!-- SQL Settings Tab -->
 	<translation key="_sqlTab">Paramètres SQL</translation>
@@ -268,6 +269,7 @@
 	<translation key="Options.Tooltip.LogFolder">Dossier où les fichiers journaux seront stockés</translation>
 	<translation key="Options.Tooltip.LogLevel">Niveau de détail des journaux</translation>
 	<translation key="Options.Tooltip.AlertLevel">Niveau minimal pour l'envoi de notifications</translation>
+	<translation key="Options.Tooltip.IncludeTaskLog">Ajoute aux notifications de tâche les lignes de journal écrites pendant l'exécution (200 dernières par défaut, EmailSettings/TaskLogMaxLines)</translation>
 	<translation key="Options.Tooltip.MaxLogSize">Taille maximale d'un fichier journal avant rotation</translation>
 	<translation key="Options.Tooltip.RetentionDays">Nombre de jours de conservation des journaux</translation>
 	<translation key="Options.Tooltip.SmtpServer">Adresse du serveur SMTP pour l'envoi des emails</translation>
