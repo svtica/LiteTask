@@ -1042,56 +1042,6 @@ Namespace LiteTask
         End Sub
 
 
-        Public Async Function ExecuteTask(task As ScheduledTask) As Task
-            ' Factory lambda prevents creating a new SemaphoreSlim on every call (avoids leak)
-            Dim taskLock = DirectCast(_taskLocks.GetOrAdd(task.Name, Function(key) New SemaphoreSlim(1, 1)), SemaphoreSlim)
-
-            Try
-                Await taskLock.WaitAsync()
-
-                task = GetTask(task.Name) ' Get fresh copy
-                If task Is Nothing Then Return
-
-                _logger.LogInfo($"Executing task: {task.Name}")
-
-                For Each action In task.Actions
-                    Try
-                        Dim credential = If(Not String.IsNullOrEmpty(task.CredentialTarget),
-                                     _credentialManager.GetCredential(task.CredentialTarget, task.AccountType),
-                                     Nothing)
-
-                        Dim success = False
-                        Select Case action.Type
-                            Case TaskType.SQL
-                                success = Await _taskRunner.ExecuteSqlTask(action, credential)
-                            Case TaskType.PowerShell
-                                success = Await _taskRunner.ExecutePowerShellTask(action, credential)
-                            Case TaskType.Batch
-                                success = Await _taskRunner.ExecuteBatchTask(action, credential)
-                            Case TaskType.Executable
-                                success = Await _taskRunner.ExecuteExecutableTask(action, credential)
-                            Case Else
-                                Throw New NotSupportedException($"Task type {action.Type} is not supported")
-                        End Select
-
-                        If Not success AndAlso Not action.ContinueOnError Then
-                            Throw New Exception($"Action failed: {action.Name}")
-                        End If
-                    Catch ex As Exception
-                        _logger.LogError($"Action {action.Name} failed: {ex.Message}")
-                        If Not action.ContinueOnError Then Throw
-                    End Try
-                Next
-
-                task.NextRunTime = task.CalculateNextRunTime()
-                UpdateTask(task)
-                SaveTasks()
-
-            Finally
-                taskLock.Release()
-            End Try
-        End Function
-
         ''' Enhanced internal execution method with improved mutex handling
         ''' Returns True if the task actually executed, False if it was skipped (e.g. lock not acquired).
         Public Async Function ExecuteTaskAsync(_task As ScheduledTask) As Task(Of Boolean)
@@ -1580,21 +1530,6 @@ Namespace LiteTask
                 notificationManager?.QueueNotification(subject, FormatRunReport(report), priority)
             Catch notifyEx As Exception
                 _logger.LogError($"Failed to send run report notification for {report.TaskName}: {notifyEx.Message}")
-            End Try
-        End Sub
-
-        Private Sub HandleTaskError(task As ScheduledTask, ex As Exception)
-            _logger.LogError($"Error executing task {task.Name}: {ex.Message}")
-            _logger.LogError($"Stack trace: {ex.StackTrace}")
-
-            Try
-                Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                notificationManager?.QueueNotification(
-           $"Task Execution Error: {task.Name}",
-           $"Error: {ex.Message}",
-           NotificationManager.NotificationPriority.High)
-            Catch notifyEx As Exception
-                _logger.LogError($"Failed to send error notification: {notifyEx.Message}")
             End Try
         End Sub
 
