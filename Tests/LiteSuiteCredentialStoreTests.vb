@@ -51,7 +51,7 @@ Public Class LiteSuiteCredentialStoreTests
         Finally
             Assert.IsTrue(LiteSuiteCredentialStore.Delete(name))
         End Try
-        Assert.IsNothing(LiteSuiteCredentialStore.Read(name))
+        Assert.IsNull(LiteSuiteCredentialStore.Read(name))
         Assert.IsFalse(LiteSuiteCredentialStore.Delete(name))
     End Sub
 End Class
