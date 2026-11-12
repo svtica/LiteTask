@@ -13,7 +13,7 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 ### Core Scheduling
 - **Multiple Task Types**: PowerShell scripts, batch files, SQL scripts, and executables
 - **Advanced Scheduling**: One-time, interval-based, daily with multiple time slots, monthly, and task chaining
-- **Action System**: Multiple actions per task with dependencies, retry mechanisms, and parallel execution
+- **Action System**: Multiple actions per task, with dependencies between them
 - **Secure Execution**: Credential management, Windows/SQL authentication, and elevation control
 
 ### PowerShell Integration
@@ -37,7 +37,9 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 0. **Prerequisite**: [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) (`Microsoft.WindowsDesktop.App` 10.x)
 1. Download the latest release
 2. Extract files to desired location
-3. On first extraction, run LiteTask-Post-Build.ps1 to remove Mark of the Web on files and remove useless files that were gererated automatically by the compiler
+3. After a manual extraction, run `LiteTask-Post-Build.ps1` once from the LiteTask folder: it removes the Mark of the
+   Web from the extracted files and deletes the build folders LiteTask does not use (the built-in updater runs it
+   automatically)
 4. Run `LiteTask.exe`
 5. **Optional - Install as Windows Service**:
    ```cmd
@@ -58,7 +60,7 @@ LiteTask.exe [options]
   -service          Run as Windows service
   -register         Register Windows service (requires admin)
   -unregister       Unregister Windows service (requires admin)
-  -runtask <n>   Run specified task
+  -runtask <name>   Run the specified task
   -debug            Run in debug mode
 ```
 
@@ -99,6 +101,8 @@ For detailed help and troubleshooting, see [help.md](help.md).
 This tool is part of **LiteSuite** - a comprehensive collection of lightweight Windows administration tools.
 
 ### Other Tools in the Suite:
-- **[LiteTask](https://github.com/svtica/LiteTask)** - Advanced Task Scheduler Alternative  
+- **[LiteTask](https://github.com/svtica/LiteTask)** - Advanced Task Scheduler Alternative
 - **[LitePM](https://github.com/svtica/LitePM)** - Process Manager with System Monitoring
 - **[LiteDeploy](https://github.com/svtica/LiteDeploy)** - Network Deployment and Management
+- **[LiteRun](https://github.com/svtica/LiteRun)** - Remote Command Execution Utility (archived)
+- **[LiteSrv](https://github.com/svtica/LiteSrv)** - Windows Service Wrapper (archived)
