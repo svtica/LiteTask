@@ -1,5 +1,5 @@
 ' -----------------------------------------------------------------------------
-' Copyright (c) svtica. All rights reserved.
+' LiteTask - part of LiteSuite. Released under The Unlicense (see LICENSE).
 ' File:    PsExecCommandBuilder.vb
 ' Author:  LiteTask contributors
 ' Date:    2026-10-28
