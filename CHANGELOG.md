@@ -20,6 +20,9 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed - licensing
+- **Source headers match the license**: the `' Copyright (c) svtica. All rights reserved.` line in 26 `.vb` files (`Class/`, `Forms/`, `Tests/`) contradicted `LICENSE` (The Unlicense, public domain). It now reads `' LiteTask - part of LiteSuite. Released under The Unlicense (see LICENSE).` No other copyright notice was found (no `AssemblyInfo.vb`, no `<Copyright>` in `LiteTask.vbproj`, nothing in the README or the UI). No code change.
+
 ### Added - memory diagnostics (measure before removing the forced GCs)
 - **Per-task memory line in the log** after every run: `[Memory] Task <name>: private 412.5 MB (+12.5), GC heap 85.0 MB (+3.0), handles 1204 (+6), gen2 GCs +1` (`MemoryDiagnostics`, unit-tested). The task that keeps memory or handles after it ends can now be identified from the log, instead of only seeing the total grow until the auto-restart.
 - **`Reliability/ForceGcAfterTask`** (default `True`, previous behaviour): the three forced full garbage collections (after every task in the scheduler, after every PowerShell task — blocking, with `WaitForPendingFinalizers` — and after every Run tab execution) are now one setting. Set it to `False` in `settings.xml` to compare memory and CPU over a few days; the memory monitor and its auto-restart stay as the safety net.
