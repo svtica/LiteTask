@@ -117,7 +117,9 @@ Namespace LiteTask
                 Marshal.Copy(pCredentials, credentialPtrs, 0, count)
                 For i As Integer = 0 To count - 1
                     Dim credential As CREDENTIAL = Marshal.PtrToStructure(Of CREDENTIAL)(credentialPtrs(i))
-                    If credential.Type = CRED_TYPE_GENERIC Then
+                    ' LiteSuite credentials are listed as such below, not twice
+                    If credential.Type = CRED_TYPE_GENERIC AndAlso
+                       Not credential.TargetName.StartsWith(LiteSuiteCredentialStore.Prefix, StringComparison.OrdinalIgnoreCase) Then
                         targets.Add($"(Windows Vault, {credential.TargetName})")
                     End If
                 Next
@@ -144,12 +146,23 @@ Namespace LiteTask
                 End If
             Next
 
+            ' Credentials shared with LiteDeploy and the other LiteSuite tools
+            Try
+                For Each c In LiteSuiteCredentialStore.List()
+                    targets.Add($"({LiteSuiteCredentialStore.AccountType}, {c.Name})")
+                Next
+            Catch ex As Exception
+                _logger?.LogWarning($"LiteSuite credentials could not be listed: {ex.Message}")
+            End Try
+
             Return targets
         End Function
 
         Public Sub DeleteCredential(target As String, accountType As String)
             Try
                 Select Case accountType.ToLower()
+                    Case "litesuite"
+                        LiteSuiteCredentialStore.Delete(target)
                     Case "windows vault"
                         DeleteFromWindowsVault(target)
                     Case "stored account"
@@ -235,6 +248,16 @@ Namespace LiteTask
 
                 ' For other credential types
                 Select Case accountType.ToLower()
+                    Case "litesuite"
+                        Dim sharedCredential = LiteSuiteCredentialStore.Read(target)
+                        If sharedCredential Is Nothing Then Return Nothing
+                        Return New CredentialInfo With {
+                            .Target = target,
+                            .Username = sharedCredential.UserName,
+                            .Password = sharedCredential.Password,
+                            .AccountType = LiteSuiteCredentialStore.AccountType,
+                            .SecurePassword = New NetworkCredential("", sharedCredential.Password).SecurePassword
+                        }
                     Case "stored account"
                         Return GetStoredCredential(target)
                     Case "current user"
@@ -372,6 +395,8 @@ Namespace LiteTask
 
                 SyncLock _credentialLock
                     Select Case credInfo.AccountType.ToLower()
+                        Case "litesuite"
+                            LiteSuiteCredentialStore.Save(credInfo.Target, credInfo.Username, New NetworkCredential(String.Empty, password).Password)
                         Case "windows vault"
                             SaveToWindowsVault(credInfo, password)
                         Case "stored account"

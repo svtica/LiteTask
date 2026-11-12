@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **LiteSuite credentials**: new account type "LiteSuite" (File > Credential Manager and the task
+  credential lists). The accounts live in the Windows Credential Manager of the user, target
+  `LiteSuite:<name>`, the same store as LiteDeploy (Tools > Credentials): an account saved in one
+  tool is usable in the other. Unit-tested with a real round trip (`LiteSuiteCredentialStoreTests`).
+
 ## [1.2.1.13] - 2026-11-10 - diagnostics and alerting only (GLPI #4302)
 
 **No behaviour change.** For a given task and environment, 1.2.1.13 decides to run, defer or skip exactly as 1.2.1.12, launches the same command lines (sqlcmd arguments pinned by `SqlCmdCommandBuilderTests`), reports success or failure the same way, and runs with the production `settings.xml` untouched (no new key, no serialization change, every new tunable is a hard-coded constant). The SQL readiness classification (`NetworkErrorNumbers` deny-list, 300 s success cache) is unchanged and pinned by `SqlReadinessClassificationTests`.

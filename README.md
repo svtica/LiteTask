@@ -68,7 +68,7 @@ LiteTask.exe [options]
 1. **First Launch**: Application creates necessary directories and default configuration
 2. **Tool Setup**: Go to Tools > Check Tools to verify utilities
 3. **PowerShell Modules**: Tools > Install PowerShell Modules for additional functionality
-4. **Credentials**: File > Credential Manager to add authentication details
+4. **Credentials**: File > Credential Manager to add authentication details (account type *LiteSuite*: shared with LiteDeploy)
 
 ## Directory Structure
 
