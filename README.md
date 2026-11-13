@@ -88,6 +88,13 @@ LiteTaskData/
 - **UI**: Windows Forms
 - **Dependencies**: PowerShell SDK, ServiceController
 
+## Releases
+
+*Actions > Release > Run workflow* (`patch` by default): `bump-version.ps1` raises the version
+(patch = last part, e.g. 1.3.0.3 -> 1.3.0.4), commits and tags it on `main`, then the build signs
+and publishes `LiteTask.zip`. Same use as LitePM and LiteDeploy. Locally:
+`.\bump-version.ps1 -Bump patch` (or `-Version 1.3.0.4`).
+
 ## License
 
 This software is released under [The Unlicense](LICENSE) - public domain.

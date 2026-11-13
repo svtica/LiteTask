@@ -12,6 +12,11 @@ All notable changes to this project are documented in this file.
   update it once by hand.
 
 ### Added
+
+- **Release workflow** (Actions > Release > Run workflow), as in LitePM and LiteDeploy:
+  bumps the version (patch / minor / major or an explicit version), commits and tags it on
+  `main`, then builds, signs and publishes the release. `bump-version.ps1` gains `-Bump`,
+  refuses an existing tag or a version that is not greater, and stops on a failed push.
 - **LiteSuite credentials**: new account type "LiteSuite" (File > Credential Manager and the task
   credential lists). The accounts live in the Windows Credential Manager of the user, target
   `LiteSuite:<name>`, the same store as LiteDeploy (Tools > Credentials): an account saved in one
