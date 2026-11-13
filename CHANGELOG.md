@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- File menu: two separators in a row between *Credential Manager* and *Exit* when LiteTask runs
+  as administrator (the separator of the hidden *Run as Administrator* item stayed visible).
+
 ### Changed
 
 - **LiteSuite.Common NuGet package** (svtica/LiteSuite.Common 1.0.1, GitHub Packages, `nuget.config`
