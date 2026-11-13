@@ -48,6 +48,8 @@ Namespace LiteTask
         Friend WithEvents _menuStrip As MenuStrip
         Friend WithEvents _fileMenu As ToolStripMenuItem
         Friend WithEvents _elevateMenuItem As ToolStripMenuItem
+        ' Separator before "Run as Administrator": hidden with it, so no double bar
+        Private ReadOnly _elevateSeparator As New ToolStripSeparator()
         Friend WithEvents _importMenuItem As ToolStripMenuItem
         Friend WithEvents _exportMenuItem As ToolStripMenuItem
         Friend WithEvents _exportAllMenuItem As ToolStripMenuItem
@@ -970,7 +972,7 @@ Namespace LiteTask
                 _exportAllMenuItem,
                 New ToolStripSeparator(),  ' Spacer
                 _credentialManagerMenuItem,
-                New ToolStripSeparator(),  ' Spacer
+                _elevateSeparator,
                 _elevateMenuItem,
                 New ToolStripSeparator(),  ' Spacer
                 _exitMenuItem})
@@ -1215,6 +1217,7 @@ Namespace LiteTask
             ' elevated; hide it once we have admin rights.
             If _elevateMenuItem IsNot Nothing Then
                 _elevateMenuItem.Visible = Not elevated
+                _elevateSeparator.Visible = Not elevated
             End If
         End Sub
 
