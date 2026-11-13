@@ -20,10 +20,15 @@ env:
   RELEASE_REF: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
   CERTIFICATE_BASE64: ${{ secrets.SIGNING_CERTIFICATE }}
   CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+  # NuGet package LiteSuite.Common from GitHub Packages (nuget.config)
+  LITESUITE_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   Create-Release:
     runs-on: windows-latest
+    permissions:
+      contents: write
+      packages: read
     
     steps:
     - uses: actions/checkout@v7
