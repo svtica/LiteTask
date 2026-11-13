@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **LiteSuite.Common NuGet package** (svtica/LiteSuite.Common 1.0.1, GitHub Packages, `nuget.config`
+  with package source mapping; token `LITESUITE_PACKAGES_TOKEN`) replaces the LiteTask copies of
+  `AuthenticodeVerifier` / `UpdateSignaturePolicy`, `MarkOfTheWeb`, `ParameterParser`,
+  `ProcessFailureFormatter`, `PsExecCommandBuilder` (now `PsExecCommandLine`) and
+  `LiteSuiteCredentialStore` (now `CredentialStore`); their tests live in that repository.
+  `LiteSuite.Common.dll` ships next to `LiteTask.exe`. Differences: the failure message writes
+  the duration with the invariant culture (`39.8 s`) and counts the stdout lines kept correctly.
+  PsExec64.exe stays embedded in LiteTask, and passwords stay masked in the task output.
+
 - **New publisher certificate**: the pinned thumbprint is now
   `D21B5D39EA4C7BDC69C94C86FC4602E8A1CA15B4` (the old private key was lost). An installed
   LiteTask signed with the old certificate refuses the first update signed with the new one:
