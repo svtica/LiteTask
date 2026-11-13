@@ -12,7 +12,7 @@ Imports LiteTask.LiteTask
 <TestClass>
 Public Class UpdateSignaturePolicyTests
 
-    Private Const Pinned As String = "EC2B412C4025C2F1C8DB512CEC66632E65C017F0"
+    Private Const Pinned As String = "D21B5D39EA4C7BDC69C94C86FC4602E8A1CA15B4"
     Private Const Other As String = "0123456789ABCDEF0123456789ABCDEF01234567"
 
     Private Shared Function Signed(thumbprint As String, Optional status As AuthenticodeStatus = AuthenticodeStatus.ValidUntrustedRoot) As AuthenticodeResult
