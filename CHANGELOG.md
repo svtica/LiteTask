@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **New publisher certificate**: the pinned thumbprint is now
+  `D21B5D39EA4C7BDC69C94C86FC4602E8A1CA15B4` (the old private key was lost). An installed
+  LiteTask signed with the old certificate refuses the first update signed with the new one:
+  update it once by hand.
+
 ### Added
 - **LiteSuite credentials**: new account type "LiteSuite" (File > Credential Manager and the task
   credential lists). The accounts live in the Windows Credential Manager of the user, target

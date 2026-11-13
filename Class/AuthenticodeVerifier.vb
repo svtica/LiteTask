@@ -8,7 +8,7 @@
 '          the file content, then reads the signer certificate so the caller
 '          can pin the publisher by thumbprint.
 '
-'          The publisher certificate (res\certificate.cer, CN=SVTI.ca) is
+'          The publisher certificate (res\certificate.cer) is
 '          self-signed, so the chain normally terminates in a root that is not
 '          in the machine store. CERT_E_UNTRUSTEDROOT is therefore reported as
 '          a *valid* signature (the digest was verified) and the identity check
