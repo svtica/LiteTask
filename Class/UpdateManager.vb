@@ -16,13 +16,13 @@ Namespace LiteTask
         Private Const PostBuildScriptName As String = "LiteTask-Post-Build.ps1"
 
         ''' <summary>
-        ''' SHA-1 thumbprint of the publisher certificate (res\certificate.cer, CN=SVTI.ca) that the
+        ''' SHA-1 thumbprint of the publisher certificate (res\certificate.cer) that the
         ''' Release workflow signs LiteTask.exe with. An update is only applied when the extracted
         ''' LiteTask.exe carries a valid Authenticode signature from this certificate (or from the
         ''' certificate that signed the running executable). Rotating the signing certificate
         ''' requires updating this constant in a release signed with the previous certificate.
         ''' </summary>
-        Public Const ExpectedPublisherThumbprint As String = "EC2B412C4025C2F1C8DB512CEC66632E65C017F0"
+        Public Const ExpectedPublisherThumbprint As String = "D21B5D39EA4C7BDC69C94C86FC4602E8A1CA15B4"
 
         Public Sub New(logger As Logger)
             _logger = logger
