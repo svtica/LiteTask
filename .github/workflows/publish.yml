@@ -1,0 +1,76 @@
+# Release LiteTask from the GitHub UI: Actions > Release > Run workflow.
+#
+# 1. bump-version.ps1 updates the version (next patch/minor/major, or the
+#    version you type), commits "Bump version to X" on main, tags v<X> and
+#    pushes both;
+# 2. Release.yml (Build and Release) is then called with that tag: it builds,
+#    signs (when the SIGNING_CERTIFICATE secret exists) and publishes the
+#    release asset LiteTask.zip.
+#
+# Same use as LitePM and LiteDeploy. The workflow pushes to main with the
+# default GITHUB_TOKEN. If main is a protected branch that refuses pushes from
+# GitHub Actions, the bump step fails without creating anything; release
+# locally with bump-version.ps1.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version increment (ignored when a version is typed below)'
+        type: choice
+        options: [ patch, minor, major ]
+        default: patch
+      version:
+        description: 'Or an explicit version, 4 parts (e.g. 1.3.0.4)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Bump version, commit, tag and push
+      id: bump
+      shell: pwsh
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_BUMP: ${{ inputs.bump }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        $v = $env:INPUT_VERSION.Trim()
+        if ($v) {
+          ./bump-version.ps1 -Version $v
+        } else {
+          ./bump-version.ps1 -Bump $env:INPUT_BUMP
+        }
+
+    - name: Summary
+      shell: pwsh
+      run: |
+        "Release **${{ steps.bump.outputs.tag }}** (version ${{ steps.bump.outputs.version }}) tagged on main; building and publishing it." >> $env:GITHUB_STEP_SUMMARY
+
+  build:
+    needs: bump
+    uses: ./.github/workflows/Release.yml
+    with:
+      tag: ${{ needs.bump.outputs.tag }}
+    secrets: inherit
