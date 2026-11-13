@@ -238,7 +238,7 @@ Namespace LiteTask
 
                         Await File.WriteAllTextAsync(tempBatFile, modifiedContent.ToString())
 
-                        Dim command = PsExecCommandBuilder.BuildBatchCommand(tempBatFile, batchArgs)
+                        Dim command = PsExecCommandLine.BuildBatchCommand(tempBatFile, batchArgs)
                         Return Await RunThroughPsExec(taskAction, credential, command, Encoding.UTF8)
 
                     Finally
@@ -282,7 +282,7 @@ Namespace LiteTask
                     ' Run the target through PsExec under the selected account. The
                     ' previous implementation started the target itself (as the current
                     ' user) with PsExec arguments, so the credential was never applied.
-                    Dim command = PsExecCommandBuilder.BuildExecutableCommand(taskAction.Target, taskAction.Parameters)
+                    Dim command = PsExecCommandLine.BuildExecutableCommand(taskAction.Target, taskAction.Parameters)
                     Return Await RunThroughPsExec(taskAction, credential, command, Encoding.GetEncoding(863))
                 Else
                     ' Execute without credentials
@@ -328,7 +328,7 @@ Namespace LiteTask
 
             _logger.LogInfo($"Using credentials for user: {credential.Username}")
 
-            Dim fullCommand = PsExecCommandBuilder.BuildArguments(credential.Username,
+            Dim fullCommand = PsExecCommandLine.BuildArguments(credential.Username,
                                                                  password,
                                                                  taskAction.RequiresElevation,
                                                                  Environment.UserInteractive,
@@ -419,7 +419,7 @@ Namespace LiteTask
 
             Dim errorHandler As DataReceivedEventHandler = Sub(sender, e)
                                                                If e.Data IsNot Nothing Then
-                                                                   If PsExecCommandBuilder.IsStatusLine(e.Data) Then
+                                                                   If PsExecCommandLine.IsStatusLine(e.Data) Then
                                                                        _logger.LogInfo($"Process status: {e.Data}")
                                                                    ElseIf Not String.IsNullOrWhiteSpace(e.Data) Then
                                                                        err.AppendLine(e.Data)
@@ -935,7 +935,7 @@ Namespace LiteTask
                                                                Dim line = MaskSensitiveData(e.Data, sensitiveValue)
                                                                ' PsExec separates its progress messages with empty lines
                                                                If String.IsNullOrWhiteSpace(line) Then Return
-                                                               If psExecStatusAsInfo AndAlso PsExecCommandBuilder.IsStatusLine(line) Then
+                                                               If psExecStatusAsInfo AndAlso PsExecCommandLine.IsStatusLine(line) Then
                                                                    _logger.LogInfo($"Process status: {line}")
                                                                    RaiseEvent OutputReceived(Me, line)
                                                                    Return

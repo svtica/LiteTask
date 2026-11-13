@@ -8,6 +8,7 @@
 ' -----------------------------------------------------------------------------
 Imports Microsoft.VisualStudio.TestTools.UnitTesting
 Imports LiteTask.LiteTask
+Imports LiteSuite
 
 <TestClass>
 Public Class UpdateSignaturePolicyTests

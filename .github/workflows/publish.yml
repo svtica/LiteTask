@@ -29,6 +29,8 @@ on:
 
 permissions:
   contents: write
+  # LiteSuite.Common NuGet package (GitHub Packages), restored by the called build
+  packages: read
 
 concurrency:
   group: release

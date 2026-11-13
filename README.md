@@ -86,7 +86,9 @@ LiteTaskData/
 - **Platform**: .NET 10 (LTS) Windows, PowerShell SDK 7.6 (LTS)
 - **Language**: VB.NET
 - **UI**: Windows Forms
-- **Dependencies**: PowerShell SDK, ServiceController
+- **Dependencies**: PowerShell SDK, ServiceController, [LiteSuite.Common](https://github.com/svtica/LiteSuite.Common)
+  (NuGet package from GitHub Packages, shared with LiteDeploy: set the user environment variable
+  `LITESUITE_PACKAGES_TOKEN` to a personal access token with `read:packages` only to build locally)
 
 ## Releases
 

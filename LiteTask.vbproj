@@ -168,6 +168,7 @@
     <Import Include="Microsoft.Management.Infrastructure" />
     <Import Include="Microsoft.PowerShell" />
     <Import Include="Microsoft.Win32" />
+    <Import Include="LiteSuite" />
     <Import Include="System.ComponentModel" />
     <Import Include="System.IO" />
     <Import Include="System.Management.Automation" />
@@ -186,6 +187,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Components shared with LiteDeploy: NuGet package of svtica/LiteSuite.Common (GitHub Packages,
+         see nuget.config); LiteSuite.Common.dll ships next to LiteTask.exe -->
+    <PackageReference Include="LiteSuite.Common" Version="1.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.6.9" />
 	  <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />

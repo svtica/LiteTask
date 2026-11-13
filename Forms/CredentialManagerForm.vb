@@ -86,7 +86,7 @@ Namespace LiteTask
             ' 
             _accountTypeComboBox.DropDownStyle = ComboBoxStyle.DropDownList
             _accountTypeComboBox.FormattingEnabled = True
-            _accountTypeComboBox.Items.AddRange(New Object() {"Current User", "Service Account", "Windows Vault", "Stored Account", LiteSuiteCredentialStore.AccountType})
+            _accountTypeComboBox.Items.AddRange(New Object() {"Current User", "Service Account", "Windows Vault", "Stored Account", CredentialManager.LiteSuiteAccountType})
             _accountTypeComboBox.Location = New System.Drawing.Point(119, 291)
             _accountTypeComboBox.Margin = New Padding(3, 2, 3, 2)
             _accountTypeComboBox.Name = "_accountTypeComboBox"
