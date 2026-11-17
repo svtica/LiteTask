@@ -657,12 +657,20 @@ Namespace LiteTask
 
         Private Sub HandleServiceOperation(operation As String)
             If Not IsElevated() Then
-                RestartAsAdmin($"-{operation}")
+                ' Install/uninstall map to the -register / -unregister command-line
+                ' options, which use the same ServiceRegistration implementation.
+                Select Case operation.ToLower()
+                    Case "install"
+                        RestartAsAdmin("-register")
+                    Case "uninstall"
+                        RestartAsAdmin("-unregister")
+                    Case Else
+                        RestartAsAdmin($"-{operation}")
+                End Select
                 Return
             End If
 
-            Dim serviceName As String = "LiteTaskService"
-            Dim exePath As String = Application.ExecutablePath
+            Dim serviceName As String = ServiceRegistration.ServiceName
             Dim logPath As String = Path.Combine(Application.StartupPath, "LiteTaskData", "logs", "service.log")
 
             ' Ensure log directory exists
@@ -671,11 +679,11 @@ Namespace LiteTask
             Try
                 Select Case operation.ToLower()
                     Case "install"
-                        ExecuteServiceCommand($"sc create {serviceName} binPath= ""{exePath} -service"" start= auto", "Service Installation", logPath)
+                        ServiceRegistration.Install(logPath, _logger)
                         MessageBox.Show($"Service {serviceName} installed.", "Service Installation", MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     Case "uninstall"
-                        ExecuteServiceCommand($"sc delete {serviceName}", "Service Uninstallation", logPath)
+                        ServiceRegistration.Uninstall(logPath, _logger)
                         MessageBox.Show($"Service {serviceName} uninstalled.", "Service Uninstallation", MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     Case "start"

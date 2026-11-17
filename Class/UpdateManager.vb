@@ -216,7 +216,8 @@ Namespace LiteTask
 
                     ' Step 5: the replacement script stops and restarts the services that run this
                     ' LiteTask.exe (found from their ImagePath). LiteTaskService installed with
-                    ' another command line (not found that way) is stopped here, as before.
+                    ' another command line (not found that way: e.g. LiteTask.dll registered by the
+                    ' old -register/InstallUtil path) is stopped here, as before.
                     Dim services = updater.FindServices()
                     _logger?.LogInfo($"Services that run {ExecutableName}: {If(services.Count = 0, "<none>", String.Join(", ", services))}")
                     If Not services.Any(Function(name) String.Equals(name, ServiceName, StringComparison.OrdinalIgnoreCase)) Then
@@ -433,7 +434,8 @@ Namespace LiteTask
         ''' LiteTaskService whose ImagePath does not resolve to this LiteTask.exe (installed with
         ''' another path form or by another means) is not stopped by the replacement script: stop it
         ''' here as before, so that the copy does not fail on locked files. The script does not
-        ''' restart it; the user is told to.
+        ''' restart it; the user is told to reinstall it from the Service menu (or -unregister then
+        ''' -register), which registers "LiteTask.exe" -service so that later updates find it.
         ''' </summary>
         Private Sub StopUnmatchedServiceIfRunning(progressForm As UpdateProgressForm)
             If Not ServiceLocator.IsActive(ServiceName) Then Return
@@ -450,7 +452,7 @@ Namespace LiteTask
                     progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
                         "Update.Progress.ServiceStopped", "Service stopped."), Color.LimeGreen)
                     progressForm.AppendLog(TranslationManager.Instance.GetTranslation(
-                        "Update.Progress.ServiceManualRestart", "LiteTaskService does not run this LiteTask.exe: start it again after the update."), Color.Yellow)
+                        "Update.Progress.ServiceManualRestart", "LiteTaskService does not run this LiteTask.exe: after the update, reinstall it (menu Service > Uninstall Service, then Install Service) and start it."), Color.Yellow)
                 End Using
             Catch ex As Exception
                 _logger?.LogError($"Error stopping service: {ex.Message}")
