@@ -88,7 +88,7 @@ Namespace LiteTask
         ' the engine answered, so the gate must NOT keep blocking tasks.
         Private Shared ReadOnly NetworkErrorNumbers As Integer() = {-1, 2, 40, 53, 258, 1231, 10060, 10061, 11001}
 
-        ' Diagnostics only (GLPI #4302): every probe outcome is logged with its
+        ' Diagnostics only: every probe outcome is logged with its
         ' duration and, for SqlException, the error number and how the deny-list
         ' above classified it. The decision itself is unchanged.
         Private Function Probe(server As String, now As DateTime) As Boolean

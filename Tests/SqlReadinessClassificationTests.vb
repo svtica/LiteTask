@@ -4,7 +4,7 @@
 ' Author:  LiteTask contributors
 ' Date:    2026-11-10
 ' Purpose: Pins the SqlReadinessChecker failure classification to its 1.2.1.12
-'          deny-list (GLPI #4302, "no behaviour change"). v1.2.1.13 only adds
+'          deny-list ("no behaviour change"). v1.2.1.13 only adds
 '          logging around it; changing the list is a separate decision.
 ' -----------------------------------------------------------------------------
 Imports Microsoft.VisualStudio.TestTools.UnitTesting

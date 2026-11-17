@@ -3,7 +3,7 @@
 ' File:    ScheduleAdvancerTests.vb
 ' Author:  LiteTask contributors
 ' Date:    2026-11-10
-' Purpose: Unit tests for LiteTask.ScheduleAdvancer (GLPI #4302): a hot reload
+' Purpose: Unit tests for LiteTask.ScheduleAdvancer: a hot reload
 '          during a run must not leave the reloaded task object with its
 '          pre-run NextRunTime (which re-dispatched the task on the next tick).
 ' -----------------------------------------------------------------------------

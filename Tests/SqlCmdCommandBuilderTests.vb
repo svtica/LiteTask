@@ -4,7 +4,7 @@
 ' Author:  LiteTask contributors
 ' Date:    2026-11-10
 ' Purpose: Pins the sqlcmd argument string to the exact 1.2.1.12 layout for
-'          both authentication modes (GLPI #4302, "no behaviour change").
+'          both authentication modes ("no behaviour change").
 '          The expected strings below are copied from TaskRunner.vb at
 '          commit 540fd27 (v1.2.1.12), lines 504 and 507.
 ' -----------------------------------------------------------------------------
