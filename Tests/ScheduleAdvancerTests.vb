@@ -27,7 +27,7 @@ Public Class ScheduleAdvancerTests
 
     <TestMethod>
     Public Sub Advance_SameObject_AdvancesOnceAndReportsNoLiveCopy()
-        Dim task = DueIntervalTask("Extracteur")
+        Dim task = DueIntervalTask("SqlExport")
         Dim advancedLive = ScheduleAdvancer.Advance(task, task)
         Assert.IsFalse(advancedLive)
         Assert.IsTrue(task.NextRunTime > DateTime.Now, "executed task must be advanced past now")
@@ -35,17 +35,17 @@ Public Class ScheduleAdvancerTests
 
     <TestMethod>
     Public Sub Advance_NoLiveCopy_AdvancesExecutedOnly()
-        Dim task = DueIntervalTask("Extracteur")
+        Dim task = DueIntervalTask("SqlExport")
         Assert.IsFalse(ScheduleAdvancer.Advance(task, Nothing))
         Assert.IsTrue(task.NextRunTime > DateTime.Now)
     End Sub
 
     <TestMethod>
     Public Sub Advance_ReloadedCopy_IsAdvancedToo()
-        ' Simulates ReloadTasks replacing _tasks("Extracteur") while the run is in progress:
+        ' Simulates ReloadTasks replacing _tasks("SqlExport") while the run is in progress:
         ' the executing code holds 'executed', the scheduler dictionary holds 'reloaded'.
-        Dim executed = DueIntervalTask("Extracteur")
-        Dim reloaded = DueIntervalTask("Extracteur")
+        Dim executed = DueIntervalTask("SqlExport")
+        Dim reloaded = DueIntervalTask("SqlExport")
         Assert.IsTrue(reloaded.NextRunTime <= DateTime.Now, "precondition: reloaded copy is still due")
 
         Dim advancedLive = ScheduleAdvancer.Advance(executed, reloaded)

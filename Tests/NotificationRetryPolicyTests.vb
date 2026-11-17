@@ -51,14 +51,14 @@ Public Class NotificationRetryPolicyTests
 
     <TestMethod>
     Public Sub FormatDeadLetter_ContainsSubjectBodyAndError()
-        Dim text = NotificationRetryPolicy.FormatDeadLetter("FATAL ERROR: Task Execution Failed - Extracteur",
-                                                            "Error: Action failed: Extracteur SQL",
+        Dim text = NotificationRetryPolicy.FormatDeadLetter("FATAL ERROR: Task Execution Failed - SqlExport",
+                                                            "Error: Action failed: SqlExport SQL",
                                                             New DateTime(2026, 10, 27, 12, 1, 29), 4,
                                                             "Failure sending mail. (No such host is known.)")
-        Assert.IsTrue(text.Contains("Subject:   FATAL ERROR: Task Execution Failed - Extracteur"), text)
+        Assert.IsTrue(text.Contains("Subject:   FATAL ERROR: Task Execution Failed - SqlExport"), text)
         Assert.IsTrue(text.Contains("Attempts:  4"), text)
         Assert.IsTrue(text.Contains("No such host is known"), text)
-        Assert.IsTrue(text.Contains("Error: Action failed: Extracteur SQL"), text)
+        Assert.IsTrue(text.Contains("Error: Action failed: SqlExport SQL"), text)
     End Sub
 
     <TestMethod>
