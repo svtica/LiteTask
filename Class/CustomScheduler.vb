@@ -34,7 +34,9 @@ Namespace LiteTask
         ' Reliability settings (configurable via the Reliability section of settings.xml)
         Private ReadOnly _sqlReadiness As SqlReadinessChecker
         Private _sqlReadinessEnabled As Boolean = True
-        Private _sqlGatedTaskPatterns As String() = {"GenRTP", "Extracteur"}
+        ' Names of non-SQL tasks that still need SQL Server (Reliability/SqlGatedTasks in
+        ' settings.xml, empty by default: site data stays out of the code)
+        Private _sqlGatedTaskPatterns As String() = Array.Empty(Of String)()
         Private _staggerSeconds As Integer = 5
         Private _staleAlertRepeatMinutes As Integer = 60
 
@@ -236,6 +238,21 @@ Namespace LiteTask
 
                 ' Attempt to cleanup abandoned locks
                 For Each taskName In abandonedLocks
+                    ' A long task still running in this process holds its lock legitimately: say so
+                    ' instead of warning every 5 minutes. Past its timeout, CleanupStaleTasks handles it.
+                    Dim runningHere As Boolean = False
+                    If _taskRunning.TryGetValue(taskName, runningHere) AndAlso runningHere Then
+                        Dim startedAt As DateTime
+                        Dim elapsed = If(_activeMutexes.TryGetValue(taskName, startedAt), now - startedAt, TimeSpan.Zero)
+                        Dim timeout = GetEffectiveTimeout(taskName)
+                        If elapsed <= timeout Then
+                            _logger.LogInfo($"Task {taskName} still running ({CInt(elapsed.TotalMinutes)} min, timeout {CInt(timeout.TotalMinutes)} min)")
+                        Else
+                            _logger.LogWarning($"Task {taskName} still running past its timeout ({CInt(elapsed.TotalMinutes)} min, timeout {CInt(timeout.TotalMinutes)} min)")
+                        End If
+                        Continue For
+                    End If
+
                     _logger.LogWarning($"Attempting to cleanup potentially abandoned lock for task: {taskName}")
 
                     If TryCleanupAbandonedLock(taskName, forceRelease:=True) Then
@@ -320,7 +337,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogWarning($"Error loading reliability settings, using defaults: {ex.Message}")
                 _sqlReadinessEnabled = True
-                _sqlGatedTaskPatterns = {"GenRTP", "Extracteur"}
+                _sqlGatedTaskPatterns = Array.Empty(Of String)()
                 _staggerSeconds = 5
                 _staleAlertRepeatMinutes = 60
             End Try
@@ -329,7 +346,7 @@ Namespace LiteTask
         ''' <summary>
         ''' A task must wait for SQL Server readiness when it contains a SQL action
         ''' or when its name matches one of the configured SQL-gated patterns
-        ''' (covers executables like GenRTP that talk to SQL internally).
+        ''' (covers executables that talk to SQL internally).
         ''' </summary>
         Private Function RequiresSqlReadiness(task As ScheduledTask) As Boolean
             If Not _sqlReadinessEnabled Then Return False
