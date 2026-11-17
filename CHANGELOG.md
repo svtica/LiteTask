@@ -13,6 +13,16 @@ All notable changes to this project are documented in this file.
 - File menu: two separators in a row between *Credential Manager* and *Exit* when LiteTask runs
   as administrator (the separator of the hidden *Run as Administrator* item stayed visible).
 
+- `LiteTask.exe -register` (InstallUtil, which does not exist for .NET 10) and the internal service
+  registration pointed to `LiteTask.dll`, which is not a service executable: the service did not work
+  and the self-update did not recognise it. `-register` / `-unregister` and the *Service > Install /
+  Uninstall Service* menu now share one implementation (`ServiceRegistration`):
+  `sc create LiteTaskService binPath= "\"<folder>\LiteTask.exe\" -service" start= auto` (path from
+  `Environment.ProcessPath`, now quoted), recognised by the self-update. A service registered the old
+  way must be uninstalled and installed again; during an update it is still stopped and the message
+  now says to reinstall it. The unreachable registration code of `LiteTaskService` (NetworkService
+  account, ntrights/subinacl calls) is removed. README and help updated.
+
 ### Changed
 
 - **Self-update based on LiteSuite.Common 1.1.0 (`SelfUpdater`)**; `UpdateManager` keeps only the

@@ -307,42 +307,19 @@ Namespace LiteTask
             End Try
         End Sub
 
+        ' -register: same registration as the "Install service" menu item
+        ' ("<LiteTask.exe>" -service via sc.exe, see ServiceRegistration). The former
+        ' InstallUtil call registered LiteTask.dll and cannot work under .NET 10.
         Private Sub RegisterService()
             Try
-                ' Use InstallUtil to register the service
                 If Not IsUserAdministrator() Then
                     RestartAsAdmin("-register")
                     Return
                 End If
 
-                Dim identity = WindowsIdentity.GetCurrent()
-                Dim currentUser = identity.Name
-                Dim exePath = Assembly.GetExecutingAssembly().Location
-                Dim installUtilPath = Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), "InstallUtil.exe")
+                ServiceRegistration.Install(GetLogPath("service.log"), TryGetService(Of Logger)())
 
-                ' Configure service account and permissions
-                Dim startInfo = New ProcessStartInfo With {
-            .FileName = installUtilPath,
-            .Arguments = $"/ServiceAccount=LocalSystem /elevated ""{exePath}""",
-            .UseShellExecute = False,
-            .RedirectStandardOutput = True,
-            .RedirectStandardError = True,
-            .CreateNoWindow = True,
-            .Verb = "runas"  ' Run elevated
-        }
-
-                Using process As New Process With {.StartInfo = startInfo}
-                    process.Start()
-                    Dim output = process.StandardOutput.ReadToEnd()
-                    Dim err = process.StandardError.ReadToEnd()
-                    process.WaitForExit()
-
-                    If process.ExitCode <> 0 Then
-                        Throw New Exception($"Service installation failed. Error: {err}")
-                    End If
-                End Using
-
-                MessageBox.Show("Service registered successfully.", "Service Installation",
+                MessageBox.Show($"Service {ServiceName} registered.", "Service Installation",
                       MessageBoxButtons.OK, MessageBoxIcon.Information)
 
             Catch ex As Exception
@@ -534,7 +511,7 @@ Namespace LiteTask
         Private Sub ShowHelp()
             Console.WriteLine("LiteTask - Command Line Options:")
             Console.WriteLine("  -service    - Run as Windows service")
-            Console.WriteLine("  -register   - Register the Windows service")
+            Console.WriteLine("  -register   - Register the Windows service (runs LiteTask.exe -service)")
             Console.WriteLine("  -unregister - Unregister the Windows service")
             Console.WriteLine("  -runtask    - Run a specific task (e.g., -runtask TaskName)")
             Console.WriteLine("  -debug      - Run in debug mode")
@@ -563,33 +540,17 @@ Namespace LiteTask
             End Try
         End Function
 
+        ' -unregister: same as the "Uninstall service" menu item (sc.exe delete).
         Private Sub UnregisterService()
             Try
-                ' Use InstallUtil to unregister the service
-                Dim exePath = Assembly.GetExecutingAssembly().Location
-                Dim installUtilPath = Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), "InstallUtil.exe")
+                If Not IsUserAdministrator() Then
+                    RestartAsAdmin("-unregister")
+                    Return
+                End If
 
-                Dim startInfo = New ProcessStartInfo With {
-                    .FileName = installUtilPath,
-                    .Arguments = $"/u ""{exePath}""",
-                    .UseShellExecute = False,
-                    .RedirectStandardOutput = True,
-                    .RedirectStandardError = True,
-                    .CreateNoWindow = True
-                }
+                ServiceRegistration.Uninstall(GetLogPath("service.log"), TryGetService(Of Logger)())
 
-                Using process As New Process With {.StartInfo = startInfo}
-                    process.Start()
-                    Dim output = process.StandardOutput.ReadToEnd()
-                    Dim err = process.StandardError.ReadToEnd()
-                    process.WaitForExit()
-
-                    If process.ExitCode <> 0 Then
-                        Throw New Exception($"Service uninstallation failed. Error: {err}")
-                    End If
-                End Using
-
-                MessageBox.Show("Service unregistered successfully.", "Service Uninstallation",
+                MessageBox.Show($"Service {ServiceName} unregistered.", "Service Uninstallation",
                               MessageBoxButtons.OK, MessageBoxIcon.Information)
 
             Catch ex As Exception
