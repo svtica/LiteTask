@@ -20,6 +20,21 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Self-update based on LiteSuite.Common 1.1.0 (`SelfUpdater`)**; `UpdateManager` keeps only the
+  LiteTask steps. Download limited to the releases of svtica/LiteTask on github.com (asset
+  `LiteTask.zip`, HTTPS redirects only, 512 MB at most), safe extraction (no entry outside the work
+  folder), signature of `LiteTask.exe` checked as before (pinned LiteSuite publisher or signer of the
+  running executable). The new replacement script waits for LiteTask, stops the services that run
+  this `LiteTask.exe` (found from their `ImagePath`, `LiteTaskService` included) and starts them
+  again, copies the new files without deleting anything, **restores the replaced files if a copy
+  fails**, keeps the files of the user (`LiteTaskData\settings.xml`, `backup`, `logs`, `tools`,
+  `modules`, `notifications`, `*Credentials.dat`, `*.log`) and elevates only the copy (UAC) when
+  needed; LiteTask restarts without elevation. Log: `LiteTaskData\temp\LiteTask-update.log`. Still
+  done by LiteTask before the replacement: signature of `LiteTask-Post-Build.ps1` (required when the
+  package is signed), .NET runtime check and the post-build script. A `LiteTaskService` whose
+  `ImagePath` does not point to this `LiteTask.exe` is stopped by LiteTask as before, and must then
+  be started again by hand. New `Update.Progress.*` strings (download, package, script failures).
+
 - **`Reliability/SqlGatedTasks` is empty by default** (it held site task names). Tasks with a SQL
   action are still gated automatically; a task that reaches SQL Server from an executable must now
   be listed in `settings.xml`, e.g. `<Reliability><SqlGatedTasks>TaskName</SqlGatedTasks></Reliability>`.
