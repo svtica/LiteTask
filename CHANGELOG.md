@@ -6,10 +6,19 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- A task running longer than 15 minutes logged "Attempting to cleanup potentially abandoned lock"
+  every 5 minutes although nothing was released. It now logs "still running (N min, timeout M min)",
+  and a warning only past its timeout.
+
 - File menu: two separators in a row between *Credential Manager* and *Exit* when LiteTask runs
   as administrator (the separator of the hidden *Run as Administrator* item stayed visible).
 
 ### Changed
+
+- **`Reliability/SqlGatedTasks` is empty by default** (it held site task names). Tasks with a SQL
+  action are still gated automatically; a task that reaches SQL Server from an executable must now
+  be listed in `settings.xml`, e.g. `<Reliability><SqlGatedTasks>TaskName</SqlGatedTasks></Reliability>`.
+  **Before updating**, add that setting on servers that relied on the former default.
 
 - **LiteSuite.Common NuGet package** (svtica/LiteSuite.Common 1.0.1, GitHub Packages, `nuget.config`
   with package source mapping; token `LITESUITE_PACKAGES_TOKEN`) replaces the LiteTask copies of

@@ -1024,7 +1024,7 @@ Namespace LiteTask
                 settings("TaskLaunchStaggerSeconds") = ReadValue("Reliability", "TaskLaunchStaggerSeconds", "5")
                 settings("SqlReadinessEnabled") = ReadValue("Reliability", "SqlReadinessEnabled", "True")
                 settings("SqlReadinessServer") = ReadValue("Reliability", "SqlReadinessServer", "")
-                settings("SqlGatedTasks") = ReadValue("Reliability", "SqlGatedTasks", "ExampleTask1,ExampleTask2")
+                settings("SqlGatedTasks") = ReadValue("Reliability", "SqlGatedTasks", "")
                 settings("StaleAlertRepeatMinutes") = ReadValue("Reliability", "StaleAlertRepeatMinutes", "60")
                 settings("ForceGcAfterTask") = ReadValue("Reliability", "ForceGcAfterTask", "True")
                 Return settings
@@ -1035,7 +1035,7 @@ Namespace LiteTask
                     {"TaskLaunchStaggerSeconds", "5"},
                     {"SqlReadinessEnabled", "True"},
                     {"SqlReadinessServer", ""},
-                    {"SqlGatedTasks", "ExampleTask1,ExampleTask2"},
+                    {"SqlGatedTasks", ""},
                     {"StaleAlertRepeatMinutes", "60"},
                     {"ForceGcAfterTask", "True"}
                 }
