@@ -5,7 +5,7 @@
 ' Date:    2026-11-10
 ' Purpose: Build the sqlcmd argument list used by TaskRunner for SQL actions.
 '          The layout is byte-for-byte the one shipped in 1.2.1.12 and is
-'          pinned by SqlCmdCommandBuilderTests: v1.2.1.13 (GLPI #4302) is a
+'          pinned by SqlCmdCommandBuilderTests: v1.2.1.13 is a
 '          diagnostics-only release and must launch exactly the same command
 '          lines. Any flag change (-b, -r, -l, -t...) is a separate decision.
 '          The password is never on the command line: TaskRunner passes it via

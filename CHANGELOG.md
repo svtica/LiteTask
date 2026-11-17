@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- `docs/analysis-4302-litetask.md` and the internal ticket references in comments: site data, kept
+  in the ticket system instead of this public repository.
+
 ### Fixed
 
 - A task running longer than 15 minutes logged "Attempting to cleanup potentially abandoned lock"
@@ -70,7 +75,7 @@ All notable changes to this project are documented in this file.
   `LiteSuite:<name>`, the same store as LiteDeploy (Tools > Credentials): an account saved in one
   tool is usable in the other. Unit-tested with a real round trip (`LiteSuiteCredentialStoreTests`).
 
-## [1.2.1.13] - 2026-11-10 - diagnostics and alerting only (GLPI #4302)
+## [1.2.1.13] - 2026-11-10 - diagnostics and alerting only
 
 **No behaviour change.** For a given task and environment, 1.2.1.13 decides to run, defer or skip exactly as 1.2.1.12, launches the same command lines (sqlcmd arguments pinned by `SqlCmdCommandBuilderTests`), reports success or failure the same way, and runs with the production `settings.xml` untouched (no new key, no serialization change, every new tunable is a hard-coded constant). The SQL readiness classification (`NetworkErrorNumbers` deny-list, 300 s success cache) is unchanged and pinned by `SqlReadinessClassificationTests`.
 
@@ -84,7 +89,7 @@ All notable changes to this project are documented in this file.
 - **Hot reload during a run re-dispatched the task**: `ReloadTasks` replaces every in-memory `ScheduledTask`, including the one executing; the run then advanced the orphaned copy while `SaveTasks` persisted the reloaded copy with its pre-run `NextRunTime`. `ScheduleAdvancer` (unit-tested) now advances the reloaded copy too, and the reload logs a warning when it refreshes an executing task.
 
 ### Out of scope (deliberately not in this release)
-- Readiness allow-list, cache invalidation after a failed action, sqlcmd `-b`/`-r`/`-l`/`-t`, `RetryCount` support, dead-letter replay. See `docs/analysis-4302-litetask.md`.
+- Readiness allow-list, cache invalidation after a failed action, sqlcmd `-b`/`-r`/`-l`/`-t`, `RetryCount` support, dead-letter replay.
 
 ## [Unreleased]
 
@@ -180,7 +185,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 - **Credentialed Batch/Executable tasks never ran as the selected account.** Both paths handed PsExec the literal placeholder `-p "%BATCH_PASS_xxx%"` / `-p "%EXEC_PASS_xxx%"` (the child is started with `UseShellExecute = False`, so nothing expanded it) and authentication always failed. The Executable path additionally started the target binary itself (as the LiteTask/service account) with PsExec arguments, so an executable tolerant of unknown arguments could appear to work, just not under the chosen account. Both now launch `LiteTaskData\tools\PsExec64.exe` (extracted from the embedded resource on first use; nothing wrote it to disk before) with `-u <user> -p <password>` through a new testable `PsExecCommandBuilder` module. The password is passed on the PsExec command line because PsExec has no environment or stdin alternative for `-p`: a process command line is readable only by the same user and by local administrators, so under the service (LocalSystem) it is visible to administrators only. The password is never logged; `RunProcessWithTimeout` masks any echo of it in the child's output before logging or raising it to the GUI. The `net use` prelude of credentialed Batch tasks now relies on the PsExec logon session's own credentials instead of writing a (non-expanding) password placeholder into the temp script. Removed the dead `ExecuteSecureProcess` (rundll32/`MemoryStream.ToString()`) and the 1 MB cached PsExec byte array. **Before deploying, inventory production tasks that combine a credential with a Batch or Executable action: they will now really run as that account.**
-- **Startup race after a full-server reboot silently disabling a task for days** (GenRTP incident, 2026-07-10 → 2026-07-15). Root causes addressed:
+- **Startup race after a full-server reboot silently disabling a task for days** (incident of 2026-07-10 → 2026-07-15). Root causes addressed:
   - Per-action `TimeoutMinutes` (persisted since day one but never enforced) is now applied to every execution path: `Executable`/`Batch` child processes and `sqlcmd` run through `RunProcessWithTimeout`, which kills the entire process tree on expiry; the PowerShell in-process timeout now uses the action's configured value instead of a fixed 4 h. A scheduler-level backstop (`action timeout + 2 min`) additionally kills the tracked child processes and releases the task lock if the execution path itself hangs (e.g. output streams never closing).
   - Stale-task recovery now actually recovers: `TaskRunner` tracks child processes by PID per task (`KillProcessesForTask`), and `CleanupStaleTasks` no longer resets the running state at 15 minutes (which caused endless re-dispatch into a held lock); instead it alerts, then at `sum of action timeouts + 10 min` it kills the owning process(es), force-releases the lock, and resets the state so the next schedule fires.
   - Stale/blocked alerts now repeat every `Reliability/StaleAlertRepeatMinutes` (default 60) with an escalating `ALERT #N` counter while the condition persists; a task that keeps being skipped (lock unavailable) also raises repeating alerts instead of logging ~6,700 silent warnings.
@@ -188,7 +193,7 @@ All notable changes to this project are documented in this file.
 - Scheduler tick no longer blocks for up to 30 s per task on lock acquisition: dispatch is offloaded to the thread pool with a pending-dispatch guard against double launch.
 
 ### Added
-- SQL Server readiness gate (`SqlReadinessChecker`): before dispatching SQL-dependent tasks (any task with a SQL action, plus names matching `Reliability/SqlGatedTasks`, default `GenRTP,Extracteur`), the scheduler probes SQL Server with a 5 s connection test. While unavailable, the task is deferred to the next tick (schedule untouched) and probes retry with exponential backoff (15 s → 10 min cap), each attempt logged. Login/database errors count as "engine up" so a permissions issue cannot block tasks forever. Probe server: `Reliability/SqlReadinessServer`, falling back to `SqlConfiguration/DefaultServer`.
+- SQL Server readiness gate (`SqlReadinessChecker`): before dispatching SQL-dependent tasks (any task with a SQL action, plus names matching `Reliability/SqlGatedTasks`, empty by default since 1.3.0.6), the scheduler probes SQL Server with a 5 s connection test. While unavailable, the task is deferred to the next tick (schedule untouched) and probes retry with exponential backoff (15 s → 10 min cap), each attempt logged. Login/database errors count as "engine up" so a permissions issue cannot block tasks forever. Probe server: `Reliability/SqlReadinessServer`, falling back to `SqlConfiguration/DefaultServer`.
 - Configurable post-reboot startup grace: the service waits `Reliability/StartupDelaySeconds` (default 90) before the first dispatch, and simultaneous due tasks are staggered by `Reliability/TaskLaunchStaggerSeconds` (default 5) instead of all launching in the same second.
 - Non-interactive child execution: the service calls `SetErrorMode(SEM_FAILCRITICALERRORS Or SEM_NOGPFAULTERRORBOX Or SEM_NOOPENFILEERRORBOX)` at startup (inherited by children) so Windows hard-error dialogs cannot block a child invisibly, and the PsExec `-i` flag is only used in interactive sessions.
 - New `Reliability` settings section (all keys optional, defaults apply): `StartupDelaySeconds`, `TaskLaunchStaggerSeconds`, `SqlReadinessEnabled`, `SqlReadinessServer`, `SqlGatedTasks`, `StaleAlertRepeatMinutes`.

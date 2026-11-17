@@ -7,7 +7,7 @@
 '          Kept out of NotificationManager so it can be unit-tested without
 '          an SMTP server.
 '
-'          GLPI #4302: on 2026-10-27 12:01 two alerts failed 4 times each
+'          on 2026-10-27 12:01 two alerts failed 4 times each
 '          within one second (immediate retries, v1.2.1.9) and were dropped
 '          without any trace; the SMTP relay was reachable again 30 minutes
 '          later. Retries are now spread over ~21 minutes and a message that
