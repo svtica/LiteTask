@@ -15,13 +15,20 @@ Public Class ScheduleAdvancerTests
 
     ' Interval task whose NextRunTime is in the past: the "due" state a task has
     ' while it executes, before the scheduler advances it.
+    ' Two copies of the same task (executed and reloaded) must be built from the same
+    ' reference time: two DateTime.Now calls differ by a few ticks, and so would their
+    ' next occurrences.
     Private Shared Function DueIntervalTask(name As String) As ScheduledTask
+        Return DueIntervalTask(name, DateTime.Now)
+    End Function
+
+    Private Shared Function DueIntervalTask(name As String, reference As DateTime) As ScheduledTask
         Dim t As New ScheduledTask()
         t.Name = name
         t.Schedule = ScheduledTask.RecurrenceType.Interval
         t.Interval = TimeSpan.FromMinutes(30)
-        t.StartTime = DateTime.Now.AddHours(-5)
-        t.NextRunTime = DateTime.Now.AddMinutes(-2)
+        t.StartTime = reference.AddHours(-5)
+        t.NextRunTime = reference.AddMinutes(-2)
         Return t
     End Function
 
@@ -44,8 +51,9 @@ Public Class ScheduleAdvancerTests
     Public Sub Advance_ReloadedCopy_IsAdvancedToo()
         ' Simulates ReloadTasks replacing _tasks("SqlExport") while the run is in progress:
         ' the executing code holds 'executed', the scheduler dictionary holds 'reloaded'.
-        Dim executed = DueIntervalTask("SqlExport")
-        Dim reloaded = DueIntervalTask("SqlExport")
+        Dim reference As DateTime = DateTime.Now
+        Dim executed = DueIntervalTask("SqlExport", reference)
+        Dim reloaded = DueIntervalTask("SqlExport", reference)
         Assert.IsTrue(reloaded.NextRunTime <= DateTime.Now, "precondition: reloaded copy is still due")
 
         Dim advancedLive = ScheduleAdvancer.Advance(executed, reloaded)
