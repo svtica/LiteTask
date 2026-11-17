@@ -189,7 +189,7 @@
   <ItemGroup>
     <!-- Components shared with LiteDeploy: NuGet package of svtica/LiteSuite.Common (GitHub Packages,
          see nuget.config); LiteSuite.Common.dll ships next to LiteTask.exe -->
-    <PackageReference Include="LiteSuite.Common" Version="1.0.1" />
+    <PackageReference Include="LiteSuite.Common" Version="1.1.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.6.9" />
 	  <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />

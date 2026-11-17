@@ -387,6 +387,11 @@
 	<translation key="Update.Progress.PublisherMismatch">{0} est signé par un éditeur inattendu ({1}, empreinte {2}).</translation>
 	<translation key="Update.Progress.SignatureInvalid">La signature de {0} n'a pas pu être validée (erreur 0x{1}).</translation>
 	<translation key="Update.Progress.ScriptUnsigned">Le script post-compilation du paquet de mise à jour n'est pas signé par l'éditeur attendu.</translation>
+	<translation key="Update.Progress.UnsafeUrl">Le lien de téléchargement du paquet n'est pas une version de svtica/LiteTask sur github.com.</translation>
+	<translation key="Update.Progress.DownloadFailed">Le paquet n'a pas pu être téléchargé : {0}</translation>
+	<translation key="Update.Progress.InvalidPackage">Le paquet est invalide et n'a pas été extrait : {0}</translation>
+	<translation key="Update.Progress.LaunchFailed">Le script de remplacement des fichiers n'a pas pu être démarré : {0}</translation>
+	<translation key="Update.Progress.ServiceManualRestart">LiteTaskService n'exécute pas ce LiteTask.exe : redémarrez-le après la mise à jour.</translation>
 
 	<!-- Backup Tab -->
 	<translation key="_backupTab">Sauvegarde</translation>
