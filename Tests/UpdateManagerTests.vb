@@ -145,7 +145,7 @@ Public Class UpdateManagerTests
 
     ''' <summary>PowerShell -like for the patterns used here ('*' matches anything, '\' included; case ignored).</summary>
     Private Shared Function LikeWildcard(value As String, pattern As String) As Boolean
-        Dim regex = "^" & Regex.Escape(pattern).Replace("\*", ".*").Replace("\?", ".") & "$"
-        Return Regex.IsMatch(value, regex, RegexOptions.IgnoreCase)
+        Dim expression As String = "^" & Regex.Escape(pattern).Replace("\*", ".*").Replace("\?", ".") & "$"
+        Return Regex.IsMatch(value, expression, RegexOptions.IgnoreCase)
     End Function
 End Class
