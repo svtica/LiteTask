@@ -54,7 +54,7 @@ Namespace LiteTask
         Private ReadOnly _skippedRunFirstTime As New ConcurrentDictionary(Of String, DateTime)
         Private ReadOnly _skippedRunCounts As New ConcurrentDictionary(Of String, Integer)
         ' - _gatedRun* track consecutive deferrals by the SQL readiness gate so a
-        '   task held back for hours raises repeating alerts (GLPI #4302: the gate
+        '   task held back for hours raises repeating alerts (the gate
         '   only wrote a per-tick log warning, never an e-mail).
         Private ReadOnly _gatedRunFirstTime As New ConcurrentDictionary(Of String, DateTime)
         Private ReadOnly _gatedRunCounts As New ConcurrentDictionary(Of String, Integer)

@@ -3,7 +3,7 @@
 ' File:    NotificationRetryPolicyTests.vb
 ' Author:  LiteTask contributors
 ' Date:    2026-11-09
-' Purpose: Unit tests for LiteTask.NotificationRetryPolicy (GLPI #4302): the
+' Purpose: Unit tests for LiteTask.NotificationRetryPolicy: the
 '          e-mail retry schedule must spread attempts over minutes, stop after
 '          MaxRetries and produce a readable dead-letter file.
 ' -----------------------------------------------------------------------------

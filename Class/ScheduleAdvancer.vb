@@ -6,7 +6,7 @@
 ' Purpose: Advance the schedule of a task that just finished, including the
 '          reloaded copy when a hot reload (CMD_RELOAD_TASKS) replaced the
 '          in-memory definition during the run. Kept out of CustomScheduler so
-'          the two-object case can be unit-tested (GLPI #4302).
+'          the two-object case can be unit-tested.
 '
 '          Before: CustomScheduler.ReloadTasks replaced every ScheduledTask in
 '          _tasks, including the one executing. At the end of that run only the

@@ -459,7 +459,7 @@ Namespace LiteTask
                     ' sqlcmd (and most console tools) print their error text on stdout
                     ' unless told otherwise, so the stdout tail is part of the failure
                     ' report. Previously only stderr was returned and "Process exited
-                    ' with code 1" was all that reached the log (GLPI #4302).
+                    ' with code 1" was all that reached the log.
                     Return ProcessFailureFormatter.BuildFailureMessage(process.ExitCode, output.ToString(), err.ToString(), runTimer.Elapsed)
                 End If
 
