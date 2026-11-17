@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- `docs/analysis-litetask.md` and the internal ticket references in comments: site data, kept
+  in the ticket system instead of this public repository.
+
 ### Fixed
 
 - A task running longer than 15 minutes logged "Attempting to cleanup potentially abandoned lock"
@@ -59,7 +64,7 @@ All notable changes to this project are documented in this file.
 - **Hot reload during a run re-dispatched the task**: `ReloadTasks` replaces every in-memory `ScheduledTask`, including the one executing; the run then advanced the orphaned copy while `SaveTasks` persisted the reloaded copy with its pre-run `NextRunTime`. `ScheduleAdvancer` (unit-tested) now advances the reloaded copy too, and the reload logs a warning when it refreshes an executing task.
 
 ### Out of scope (deliberately not in this release)
-- Readiness allow-list, cache invalidation after a failed action, sqlcmd `-b`/`-r`/`-l`/`-t`, `RetryCount` support, dead-letter replay. See `docs/analysis-litetask.md`.
+- Readiness allow-list, cache invalidation after a failed action, sqlcmd `-b`/`-r`/`-l`/`-t`, `RetryCount` support, dead-letter replay.
 
 ## [Unreleased]
 
@@ -163,7 +168,7 @@ All notable changes to this project are documented in this file.
 - Scheduler tick no longer blocks for up to 30 s per task on lock acquisition: dispatch is offloaded to the thread pool with a pending-dispatch guard against double launch.
 
 ### Added
-- SQL Server readiness gate (`SqlReadinessChecker`): before dispatching SQL-dependent tasks (any task with a SQL action, plus names matching `Reliability/SqlGatedTasks`, default `ExampleTask1,ExampleTask2`), the scheduler probes SQL Server with a 5 s connection test. While unavailable, the task is deferred to the next tick (schedule untouched) and probes retry with exponential backoff (15 s → 10 min cap), each attempt logged. Login/database errors count as "engine up" so a permissions issue cannot block tasks forever. Probe server: `Reliability/SqlReadinessServer`, falling back to `SqlConfiguration/DefaultServer`.
+- SQL Server readiness gate (`SqlReadinessChecker`): before dispatching SQL-dependent tasks (any task with a SQL action, plus names matching `Reliability/SqlGatedTasks`, empty by default since 1.3.0.6), the scheduler probes SQL Server with a 5 s connection test. While unavailable, the task is deferred to the next tick (schedule untouched) and probes retry with exponential backoff (15 s → 10 min cap), each attempt logged. Login/database errors count as "engine up" so a permissions issue cannot block tasks forever. Probe server: `Reliability/SqlReadinessServer`, falling back to `SqlConfiguration/DefaultServer`.
 - Configurable post-reboot startup grace: the service waits `Reliability/StartupDelaySeconds` (default 90) before the first dispatch, and simultaneous due tasks are staggered by `Reliability/TaskLaunchStaggerSeconds` (default 5) instead of all launching in the same second.
 - Non-interactive child execution: the service calls `SetErrorMode(SEM_FAILCRITICALERRORS Or SEM_NOGPFAULTERRORBOX Or SEM_NOOPENFILEERRORBOX)` at startup (inherited by children) so Windows hard-error dialogs cannot block a child invisibly, and the PsExec `-i` flag is only used in interactive sessions.
 - New `Reliability` settings section (all keys optional, defaults apply): `StartupDelaySeconds`, `TaskLaunchStaggerSeconds`, `SqlReadinessEnabled`, `SqlReadinessServer`, `SqlGatedTasks`, `StaleAlertRepeatMinutes`.
