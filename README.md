@@ -41,11 +41,16 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
    Web from the extracted files and deletes the build folders LiteTask does not use (the built-in updater runs it
    automatically)
 4. Run `LiteTask.exe`
-5. **Optional - Install as Windows Service**:
+5. **Optional - Install as Windows Service**: menu *Service > Install Service* (LiteTask run as administrator),
+   or from an elevated prompt in the LiteTask folder:
    ```cmd
    LiteTask.exe -register
    ```
-   *Requires administrative privileges and "Log on as a service" rights*
+   Both register `LiteTaskService` with `sc.exe` to run `"<folder>\LiteTask.exe" -service`, automatic start,
+   LocalSystem account (equivalent to
+   `sc create LiteTaskService binPath= "\"C:\Program Files\LiteTask\LiteTask.exe\" -service" start= auto`).
+   The built-in updater stops and restarts the service it finds this way. `LiteTask.exe -unregister` (or
+   *Service > Uninstall Service*) removes it. InstallUtil is not used (it does not exist for .NET 10).
 
 ## Usage
 

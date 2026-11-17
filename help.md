@@ -56,20 +56,26 @@ If the selected day exceeds the number of days in a given month (e.g., day 31 in
 ### Requirements
 - .NET 10 Desktop Runtime (x64) installed on the machine
 - Administrative privileges for installation
-- User account must have "Log on as a service" rights
-- SeImpersonatePrivilege for certain operations
 
 ### Installation Steps
-1. Open command prompt as Administrator
-2. Navigate to LiteTask directory
-3. Run `LiteTask.exe -register`
-4. Enter your Windows password when prompted
-5. Service runs under your user account
+Either:
+- Run LiteTask as administrator and use the menu *Service > Install Service*, or
+- Open a command prompt as Administrator, go to the LiteTask folder and run `LiteTask.exe -register`
+
+Both do the same thing: `LiteTaskService` is created with `sc.exe` to run `"<folder>\LiteTask.exe" -service`,
+automatic start, LocalSystem account. Equivalent manual command (adapt the path):
+
+```cmd
+sc create LiteTaskService binPath= "\"C:\Program Files\LiteTask\LiteTask.exe\" -service" start= auto
+```
+
+The built-in updater finds the service from this command line (`ImagePath`) and stops/restarts it during an
+update. InstallUtil is not used: it does not exist for .NET 10. A service registered by an older version with
+`-register` (pointing to `LiteTask.dll`) does not work: uninstall it and install it again as above.
 
 ### Service Operation
-- Start: `LiteTask.exe -start`
-- Stop: `LiteTask.exe -stop`
-- Uninstall: `LiteTask.exe -unregister`
+- Start / Stop: menu *Service > Start Service* / *Stop Service*, or `sc start LiteTaskService` / `sc stop LiteTaskService`
+- Uninstall: menu *Service > Uninstall Service* or `LiteTask.exe -unregister` (as Administrator)
 
 ## Actions System
 
@@ -147,9 +153,11 @@ LiteTask now includes PowerShell module management capabilities:
 Common issues and solutions:
 
 ### Service Issues
-1. Verify user account has "Log on as a service" rights
+1. Check that the service runs LiteTask.exe: `sc qc LiteTaskService` must show
+   `BINARY_PATH_NAME : "<folder>\LiteTask.exe" -service`. Otherwise uninstall and install it again
+   (menu *Service* or `-unregister` then `-register`)
 2. Check Windows Event Log for service errors
-3. Verify SeImpersonatePrivilege is granted
+3. Check `LiteTaskData\logs\service.log` (output of the sc.exe commands)
 4. Check service account permissions
 
 ### Task Execution Issues

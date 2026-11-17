@@ -391,7 +391,7 @@
 	<translation key="Update.Progress.DownloadFailed">Le paquet n'a pas pu être téléchargé : {0}</translation>
 	<translation key="Update.Progress.InvalidPackage">Le paquet est invalide et n'a pas été extrait : {0}</translation>
 	<translation key="Update.Progress.LaunchFailed">Le script de remplacement des fichiers n'a pas pu être démarré : {0}</translation>
-	<translation key="Update.Progress.ServiceManualRestart">LiteTaskService n'exécute pas ce LiteTask.exe : redémarrez-le après la mise à jour.</translation>
+	<translation key="Update.Progress.ServiceManualRestart">LiteTaskService n'exécute pas ce LiteTask.exe : après la mise à jour, réinstallez-le (menu Service &gt; Désinstaller le service, puis Installer le service) et démarrez-le.</translation>
 
 	<!-- Backup Tab -->
 	<translation key="_backupTab">Sauvegarde</translation>
