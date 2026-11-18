@@ -73,6 +73,7 @@ Namespace LiteTask
             AddHandler _queryTypeComboBox.SelectedIndexChanged, AddressOf QueryTypeComboBox_SelectedIndexChanged
             AddHandler _objectListComboBox.SelectedIndexChanged, AddressOf ObjectListComboBox_SelectedIndexChanged
             AddHandler _connectButton.Click, AddressOf ConnectButton_Click
+            AddHandler _databaseComboBox.SelectedIndexChanged, AddressOf DatabaseComboBox_SelectedIndexChanged
         End Sub
 
         Private Sub ConnectButton_Click(sender As Object, e As EventArgs) Handles _connectButton.Click
@@ -80,7 +81,9 @@ Namespace LiteTask
         End Sub
 
         Private Sub DatabaseComboBox_SelectedIndexChanged(sender As Object, e As EventArgs)
-            If _databaseComboBox.SelectedIndex > 0 Then
+            ' The object list belongs to the selected database: rebuild it when the database changes,
+            ' otherwise a table picked from the previous database is queried in the new one.
+            If _databaseComboBox.SelectedIndex > 0 AndAlso _queryTypeComboBox IsNot Nothing AndAlso _queryTypeComboBox.SelectedIndex > 0 Then
                 PopulateObjectListComboBox()
             End If
         End Sub
@@ -154,6 +157,12 @@ Namespace LiteTask
                                 displayData.Dispose()
                             End If
                         End Try
+                    ElseIf result.Data IsNot Nothing Then
+                        ' The query ran but returned no row: say where it ran so an empty table, or a
+                        ' query sent to another database than expected, is visible at once.
+                        Dim message = $"Query returned no rows on {server}.{database} ({result.Data.Columns.Count} column(s))."
+                        _outputTextBox.Text = message & Environment.NewLine & DataTableToString(result.Data)
+                        _logger.LogInfo(message)
                     Else
                         _outputTextBox.Text = "Query executed successfully with no output"
                         _logger.LogInfo("Query executed successfully with no output")
@@ -585,9 +594,9 @@ Namespace LiteTask
 
                     Select Case queryType.ToLower()
                         Case "table", "tableau"
-                            query = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
+                            query = "SELECT QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_SCHEMA, TABLE_NAME"
                         Case "view", "vue"
-                            query = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS ORDER BY TABLE_NAME"
+                            query = "SELECT QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME) FROM INFORMATION_SCHEMA.VIEWS ORDER BY TABLE_SCHEMA, TABLE_NAME"
                         Case "stored procedure", "procédure stockée"
                             query = "SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE' ORDER BY ROUTINE_NAME"
                         Case Else
