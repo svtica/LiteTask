@@ -9,8 +9,9 @@ Namespace LiteTask
         Private _disposed As Boolean
         Private ReadOnly _logger As Logger
         Private ReadOnly _xmlManager As XMLManager
+        ' Re-read from settings.xml at each notification: a change made in Options
+        ' applies without restarting LiteTaskService. Replaced, never mutated.
         Private _emailSettings As Dictionary(Of String, String)
-        Private _smtpClient As SmtpClient
         Private _isInitialized As Boolean = False
         Private ReadOnly _messageQueue As New ConcurrentQueue(Of EmailMessage)
         Private _processingTask As Task
@@ -51,12 +52,6 @@ Namespace LiteTask
                             _processingTask = Nothing
                         End If
 
-                        ' Dispose of SMTP client
-                        If _smtpClient IsNot Nothing Then
-                            _smtpClient.Dispose()
-                            _smtpClient = Nothing
-                        End If
-
                         ' Clear active notification batches to release held EmailMessage lists
                         _activeBatches.Clear()
 
@@ -68,11 +63,7 @@ Namespace LiteTask
                             WriteDeadLetter(pending)
                         End While
 
-                        ' Clear settings
-                        If _emailSettings IsNot Nothing Then
-                            _emailSettings.Clear()
-                            _emailSettings = Nothing
-                        End If
+                        _emailSettings = Nothing
                     Catch ex As Exception
                         _logger?.LogError($"Error during NotificationManager disposal: {ex.Message}")
                     End Try
@@ -88,39 +79,52 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeEmailSettings()
+            RefreshSettings()
+            If _isInitialized Then
+                _logger.LogInfo("Email notification system initialized successfully")
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' Reloads EmailSettings from settings.xml. Logs only when notifications
+        ''' are switched on or off, so the log shows from when e-mails are sent.
+        ''' </summary>
+        Private Sub RefreshSettings()
             Try
-                _emailSettings = _xmlManager.GetEmailSettings()
-                If Boolean.Parse(_emailSettings("NotificationsEnabled")) Then
-                    _smtpClient = New SmtpClient(_emailSettings("SmtpServer"), Integer.Parse(_emailSettings("SmtpPort"))) With {
-                        .EnableSsl = True,
-                        .DeliveryMethod = SmtpDeliveryMethod.Network,
-                        .Timeout = 10000
-                    }
-                    _isInitialized = True
-                    _logger.LogInfo("Email notification system initialized successfully")
+                Dim settings = _xmlManager.GetEmailSettings()
+                Dim enabled = NotificationLevelPolicy.ParseFlag(settings("NotificationsEnabled"), False)
+                Dim wasEnabled = _isInitialized
+                _emailSettings = settings
+                _isInitialized = enabled
+                If _emailSettings IsNot Nothing AndAlso enabled <> wasEnabled AndAlso _processingTask IsNot Nothing Then
+                    _logger.LogInfo($"Email notifications {If(enabled, "enabled", "disabled")} (settings reloaded, threshold {NotificationLevelPolicy.ParseThreshold(settings("AlertLevel"))})")
                 End If
             Catch ex As Exception
-                _logger.LogError($"Failed to initialize email settings: {ex.Message}")
-                _isInitialized = False
+                _logger.LogError($"Failed to load email settings: {ex.Message}")
             End Try
         End Sub
 
-        Public Sub QueueNotification(subject As String, body As String, priority As NotificationPriority)
+        ''' <summary>
+        ''' Queues an e-mail for an event logged at <paramref name="level"/>. It is
+        ''' sent when level is at or above EmailSettings/AlertLevel, as a log line
+        ''' is written when its level is at or above the log level. The mail
+        ''' priority is High for Error and Critical.
+        ''' </summary>
+        Public Sub QueueNotification(subject As String, body As String, level As Logger.LogLevel)
             ThrowIfDisposed()
 
             Try
-                If Not _isInitialized OrElse Not Boolean.Parse(_emailSettings("NotificationsEnabled")) Then
+                RefreshSettings()
+                If Not _isInitialized Then
                     Return
                 End If
 
-                ' Check if message meets notification level threshold
-                Dim threshold = DirectCast([Enum].Parse(GetType(Logger.LogLevel), _emailSettings("AlertLevel")), Logger.LogLevel)
-                Dim messageLevel = If(priority = NotificationPriority.High,
-                                Logger.LogLevel.Critical,
-                                Logger.LogLevel.Error)
-                If messageLevel < threshold Then
+                Dim threshold = NotificationLevelPolicy.ParseThreshold(_emailSettings("AlertLevel"))
+                If Not NotificationLevelPolicy.ShouldSend(level, threshold) Then
+                    _logger.LogDebug($"Email notification not sent ({level} below AlertLevel {threshold}): {subject}")
                     Return
                 End If
+                Dim priority = NotificationLevelPolicy.PriorityFor(level)
 
                 Dim message = New EmailMessage With {
                 .Subject = subject,
@@ -165,7 +169,7 @@ Namespace LiteTask
                                                   End Sub)
                 End If
 
-                _logger.LogInfo($"Email notification queued: {subject}")
+                _logger.LogInfo($"Email notification queued ({level}): {subject}")
             Catch ex As Exception
                 _logger.LogError($"Error queueing notification: {ex.Message}")
             End Try
@@ -222,9 +226,12 @@ Namespace LiteTask
         End Sub
 
         Private Async Function SendAsync(message As EmailMessage) As Task
+            ' Current settings: a retry uses a server or credential fixed in the meantime
+            RefreshSettings()
+            Dim settings = _emailSettings
             Using mail As New MailMessage()
-                mail.From = New MailAddress(_emailSettings("EmailFrom"))
-                For Each recipient In _emailSettings("EmailTo").Split(";"c)
+                mail.From = New MailAddress(settings("EmailFrom"))
+                For Each recipient In settings("EmailTo").Split(";"c)
                     If Not String.IsNullOrWhiteSpace(recipient) Then
                         mail.To.Add(recipient.Trim())
                     End If
@@ -234,14 +241,9 @@ Namespace LiteTask
                 mail.Priority = If(message.Priority = NotificationPriority.High,
                                    MailPriority.High, MailPriority.Normal)
 
-                ' One SmtpClient per send: the instance created in InitializeEmailSettings
-                ' is deliberately not reused (SmtpClient is not safe for concurrent or
+                ' One SmtpClient per send (SmtpClient is not safe for concurrent or
                 ' repeated async sends and would pin a stale connection).
-                Using smtp As New SmtpClient(_emailSettings("SmtpServer"), Integer.Parse(_emailSettings("SmtpPort"))) With {
-                    .EnableSsl = Boolean.Parse(_emailSettings("UseSSL")),
-                    .DeliveryMethod = SmtpDeliveryMethod.Network,
-                    .Timeout = 30000
-                }
+                Using smtp = SmtpClientFactory.Create(settings, _logger)
                     Await smtp.SendMailAsync(mail)
                 End Using
             End Using

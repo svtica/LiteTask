@@ -581,9 +581,7 @@ Namespace LiteTask
                                     notificationManager.QueueNotification(
                                         $"LiteTask {level}: Memory usage at {privateMemoryMB} MB{If(willRestart, " - SERVICE RESTARTING", "")}",
                                         body.ToString(),
-                                        If(level = "CRITICAL",
-                                           NotificationManager.NotificationPriority.High,
-                                           NotificationManager.NotificationPriority.Normal))
+                                        If(level = "CRITICAL", Logger.LogLevel.Critical, Logger.LogLevel.Warning))
 
                                     ' Give the notification manager a moment to flush the email before we restart
                                     If willRestart Then
@@ -735,7 +733,7 @@ Namespace LiteTask
                             notificationManager.QueueNotification(
                                 "LiteTask: Scheduled Daily Restart",
                                 body.ToString(),
-                                NotificationManager.NotificationPriority.Normal)
+                                Logger.LogLevel.Info)
 
                             ' Give the notification manager a moment to flush
                             Thread.Sleep(3000)
@@ -865,12 +863,12 @@ Namespace LiteTask
                 body.AppendLine("  4. Consider increasing timeout if task legitimately needs longer")
 
                 ' Queue the notification
-                notificationManager.QueueNotification(subject, body.ToString(), NotificationManager.NotificationPriority.High)
+                notificationManager.QueueNotification(subject, body.ToString(), Logger.LogLevel.Error)
 
                 ' Update alert tracking
                 _staleTaskAlerts(taskName) = now
 
-                _logger.LogInfo($"Stale task alert #{alertNumber} sent for {taskName}")
+                _logger.LogError($"Stale task alert #{alertNumber} sent for {taskName}")
 
             Catch ex As Exception
                 _logger.LogError($"Error sending stale task alert for {taskName}: {ex.Message}")
@@ -922,10 +920,10 @@ Namespace LiteTask
                 notificationManager.QueueNotification(
                     $"ALERT #{alertNumber}: Task Blocked - {taskName} ({skipCount} runs skipped)",
                     body.ToString(),
-                    NotificationManager.NotificationPriority.High)
+                    Logger.LogLevel.Error)
 
                 _blockedTaskAlerts(taskName) = now
-                _logger.LogWarning($"Blocked task alert #{alertNumber} sent for {taskName} ({skipCount} skipped runs over {blockedFor.TotalMinutes:F0} minutes)")
+                _logger.LogError($"Blocked task alert #{alertNumber} sent for {taskName} ({skipCount} skipped runs over {blockedFor.TotalMinutes:F0} minutes)")
 
             Catch ex As Exception
                 _logger.LogError($"Error recording skipped run for {taskName}: {ex.Message}")
@@ -975,10 +973,10 @@ Namespace LiteTask
                 notificationManager.QueueNotification(
                     $"ALERT #{alertNumber}: Task Deferred - {taskName} (SQL Server not ready for {gatedFor.TotalMinutes:F0} min)",
                     body.ToString(),
-                    NotificationManager.NotificationPriority.High)
+                    Logger.LogLevel.Error)
 
                 _gatedTaskAlerts(taskName) = now
-                _logger.LogWarning($"Gated task alert #{alertNumber} sent for {taskName} ({gatedCount} deferrals over {gatedFor.TotalMinutes:F0} minutes)")
+                _logger.LogError($"Gated task alert #{alertNumber} sent for {taskName} ({gatedCount} deferrals over {gatedFor.TotalMinutes:F0} minutes)")
 
             Catch ex As Exception
                 _logger.LogError($"Error recording gated run for {taskName}: {ex.Message}")
@@ -1207,7 +1205,7 @@ Namespace LiteTask
                         If report.HasFailures Then
                             ' Only reached when the failed action(s) had ContinueOnError
                             SendRunReport($"Task Completed With Errors: {_task.Name}", report,
-                                          NotificationManager.NotificationPriority.High)
+                                          Logger.LogLevel.Error)
                         End If
 
                         AdvanceSchedule(_task)
@@ -1284,7 +1282,7 @@ Namespace LiteTask
                     report.StackTrace = ex.StackTrace
                     _lastRunReports(_task.Name) = report
                     SendRunReport($"FATAL ERROR: Task Execution Failed - {_task.Name}", report,
-                                  NotificationManager.NotificationPriority.High)
+                                  Logger.LogLevel.Error)
                     Try
                         ' RunTaskAsync must not send a second, poorer e-mail for the same failure
                         ex.Data(NOTIFIED_EXCEPTION_KEY) = True
@@ -1307,7 +1305,7 @@ Namespace LiteTask
                             notificationManager.QueueNotification(
                                 $"FATAL ERROR: Task Execution Failed - {_task.Name}",
                                 errorBody.ToString(),
-                                NotificationManager.NotificationPriority.High)
+                                Logger.LogLevel.Error)
                         End If
                     Catch notifyEx As Exception
                         _logger.LogError($"Failed to send fatal error notification: {notifyEx.Message}")
@@ -1546,10 +1544,10 @@ Namespace LiteTask
             Return report.Format(includeLog, maxLines)
         End Function
 
-        Private Sub SendRunReport(subject As String, report As TaskRunReport, priority As NotificationManager.NotificationPriority)
+        Private Sub SendRunReport(subject As String, report As TaskRunReport, level As Logger.LogLevel)
             Try
                 Dim notificationManager = ApplicationContainer.GetService(Of NotificationManager)()
-                notificationManager?.QueueNotification(subject, FormatRunReport(report), priority)
+                notificationManager?.QueueNotification(subject, FormatRunReport(report), level)
             Catch notifyEx As Exception
                 _logger.LogError($"Failed to send run report notification for {report.TaskName}: {notifyEx.Message}")
             End Try
@@ -1651,7 +1649,7 @@ Namespace LiteTask
                         notificationManager.QueueNotification(
                             $"Task Completed: {task.Name}",
                             body.ToString(),
-                            NotificationManager.NotificationPriority.Normal)
+                            Logger.LogLevel.Info)
                     End If
                 Catch notifyEx As Exception
                     _logger.LogError($"Failed to send success notification: {notifyEx.Message}")
@@ -1669,7 +1667,7 @@ Namespace LiteTask
                         notificationManager.QueueNotification(
                             $"Task Failed: {task.Name}",
                             $"Error time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}Error: {ex.Message}{Environment.NewLine}Stack Trace: {ex.StackTrace}",
-                            NotificationManager.NotificationPriority.High)
+                            Logger.LogLevel.Error)
                     End If
                 Catch notifyEx As Exception
                     _logger.LogError($"Failed to send error notification: {notifyEx.Message}")

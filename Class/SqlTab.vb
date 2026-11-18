@@ -168,7 +168,7 @@ Namespace LiteTask
                         notificationManager?.QueueNotification(
                             "LiteTask Error",
                             $"Error executing query on {server}.{database}: {result.Message}",
-                            NotificationManager.NotificationPriority.High)
+                            Logger.LogLevel.Error)
                     Catch notifyEx As Exception
                         _logger.LogError($"Failed to send error notification: {notifyEx.Message}")
                     End Try
