@@ -11,6 +11,12 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **SQL tab: Last entry / Select All (CSV) on a table.** The object list now carries schema-qualified,
+  bracketed names (`[schema].[table]`), so tables outside `dbo` or with reserved names are found. The
+  object list is rebuilt when the database changes; before, a table picked in one database could be
+  queried in another one. A query that returns no row now says so, with the server, database and
+  column headers, instead of "Query executed successfully with no output".
+
 - **E-mail notifications follow the log levels.** Each notification now carries the level of the
   log line of its event, and `EmailSettings/AlertLevel` works like the log level: an e-mail is sent
   when its level is at or above the threshold (`NotificationLevelPolicy`, unit-tested). Levels:
