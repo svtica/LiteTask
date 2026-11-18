@@ -11,6 +11,34 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **E-mail notifications follow the log levels.** Each notification now carries the level of the
+  log line of its event, and `EmailSettings/AlertLevel` works like the log level: an e-mail is sent
+  when its level is at or above the threshold (`NotificationLevelPolicy`, unit-tested). Levels:
+  successful run and daily restart = Info; memory warning = Warning; failed run, run completed with
+  errors, stale / blocked / deferred task alerts and SQL tab errors = Error; critical memory =
+  Critical. The mail priority is High from Error. Before, the level was derived from the mail
+  priority (Normal = Error, High = Critical): every successful run was e-mailed with the default
+  threshold and only `Critical` changed anything. **Behaviour change**: with the default threshold
+  (`Error`), successful runs are no longer e-mailed; set *Alert level* to `Info` to keep them. The
+  "alert sent" log lines of stale, blocked and deferred tasks are now logged at Error, as their
+  e-mail. A notification under the threshold is logged at Debug.
+- *Options > Logging > Alert level* showed `Logging/AlertLevel` but saved `EmailSettings/AlertLevel`,
+  which `NotificationManager` reads: a saved value showed as `Error` and the next save overwrote it.
+  It is now loaded from `EmailSettings/AlertLevel`.
+- **SMTP authentication**: *Use credentials* and the selected credential were saved but never used
+  (only an anonymous relay could work). Notifications and the test e-mail now authenticate with the
+  user name and password of `EmailSettings/CredentialTarget` (`SmtpClientFactory`), with `UseSSL`.
+  The credential must be readable by the account that sends: a *Current User* or *Windows Vault*
+  credential is only visible to the account that saved it, so the service account may not see it;
+  the failure is then logged with the account name.
+- E-mail settings were read once, when `NotificationManager` started: a change made in *Options* had
+  no effect on `LiteTaskService` until it restarted (and nothing was sent if notifications were off
+  at startup). They are now re-read from `settings.xml` for each notification and each send attempt;
+  switching notifications on or off is logged.
+- *Options > Send Test Email* used the saved settings, without SSL nor credentials, and always said
+  "sent successfully" (the error was only logged). It now uses the values on screen through the
+  same SMTP client as the notifications and shows the error.
+
 - A task running longer than 15 minutes logged "Attempting to cleanup potentially abandoned lock"
   every 5 minutes although nothing was released. It now logs "still running (N min, timeout M min)",
   and a warning only past its timeout.

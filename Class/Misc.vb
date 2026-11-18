@@ -1,3 +1,4 @@
+Imports System.Net
 Imports System.Net.Mail
 
 Namespace LiteTask
@@ -26,33 +27,88 @@ Namespace LiteTask
             _xmlManager = xmlManager
         End Sub
 
+        ''' <summary>
+        ''' Sends an e-mail now with the saved EmailSettings (server, port, SSL and
+        ''' optional credentials, as the notifications). Failures are logged.
+        ''' </summary>
         Public Sub SendEmailReport(subject As String, body As String)
             Try
-                Dim emailSettings = _xmlManager.GetEmailSettings()
-                Dim smtpServer = emailSettings("SmtpServer")
-                Dim smtpPort = Integer.Parse(emailSettings("SmtpPort"))
-                Dim emailFrom = emailSettings("EmailFrom")
-                Dim emailTo = emailSettings("EmailTo")
-
-                Using mail As New MailMessage()
-                    mail.From = New MailAddress(emailFrom)
-                    For Each recipient In emailTo.Split(";"c)
-                        mail.To.Add(recipient.Trim())
-                    Next
-                    mail.Subject = subject
-                    mail.Body = body
-
-                    Using smtp As New SmtpClient(smtpServer, smtpPort)
-                        smtp.Send(mail)
-                    End Using
-                End Using
-
+                Send(_xmlManager.GetEmailSettings(), subject, body)
                 _logger.LogInfo($"Email report sent: {subject}")
             Catch ex As Exception
-                _logger.LogError($"Failed to send email report: {ex.Message}")
-                _logger.LogError($"StackTrace: {ex.StackTrace}")
+                _logger.LogError($"Failed to send email report: {ex.Message} ({ex.GetBaseException().Message})")
             End Try
         End Sub
+
+        ''' <summary>
+        ''' Sends an e-mail with the given EmailSettings (Options > Test uses the
+        ''' values on screen, not yet saved). Failures are raised to the caller.
+        ''' </summary>
+        Public Sub Send(settings As Dictionary(Of String, String), subject As String, body As String)
+            Using mail As New MailMessage()
+                mail.From = New MailAddress(settings("EmailFrom"))
+                For Each recipient In settings("EmailTo").Split(";"c)
+                    If Not String.IsNullOrWhiteSpace(recipient) Then
+                        mail.To.Add(recipient.Trim())
+                    End If
+                Next
+                mail.Subject = subject
+                mail.Body = body
+
+                Using smtp = SmtpClientFactory.Create(settings, _logger)
+                    smtp.Send(mail)
+                End Using
+            End Using
+        End Sub
+    End Class
+
+    '-------------------------------------------------------------------------------
+    ''' <summary>
+    ''' Builds the SmtpClient of LiteTask e-mails from EmailSettings: server, port,
+    ''' UseSSL and, when UseCredentials is set, the user name and password of
+    ''' CredentialTarget (before, UseCredentials and CredentialTarget were saved
+    ''' but never used: only an anonymous relay could work).
+    ''' </summary>
+    Public NotInheritable Class SmtpClientFactory
+        Private Sub New()
+        End Sub
+
+        Public Shared Function Create(settings As Dictionary(Of String, String), logger As Logger, Optional timeoutMs As Integer = 30000) As SmtpClient
+            Dim smtp As New SmtpClient(settings("SmtpServer"), Integer.Parse(settings("SmtpPort"))) With {
+                .EnableSsl = NotificationLevelPolicy.ParseFlag(settings("UseSSL"), True),
+                .DeliveryMethod = SmtpDeliveryMethod.Network,
+                .Timeout = timeoutMs
+            }
+
+            Dim useCredentials = settings.ContainsKey("UseCredentials") AndAlso
+                                 NotificationLevelPolicy.ParseFlag(settings("UseCredentials"), False)
+            If Not useCredentials Then
+                Return smtp
+            End If
+
+            Try
+                Dim target = If(settings.ContainsKey("CredentialTarget"), settings("CredentialTarget"), "")
+                If String.IsNullOrWhiteSpace(target) Then
+                    Throw New InvalidOperationException("EmailSettings/UseCredentials is set but no credential is selected (CredentialTarget is empty)")
+                End If
+
+                Dim credentialManager = ApplicationContainer.GetService(Of CredentialManager)()
+                Dim credential = credentialManager?.GetCredential(target, "Windows Vault")
+                If credential Is Nothing OrElse String.IsNullOrEmpty(credential.Username) OrElse String.IsNullOrEmpty(credential.Password) Then
+                    ' A Current User or Windows Vault credential is only readable by the
+                    ' account that saved it: the service account may not see it.
+                    Throw New InvalidOperationException($"SMTP credential '{target}' not found or without a password for this account ({Environment.UserName})")
+                End If
+
+                smtp.UseDefaultCredentials = False
+                smtp.Credentials = New NetworkCredential(credential.Username, credential.Password)
+                logger?.LogDebug($"SMTP authentication with credential '{target}'")
+                Return smtp
+            Catch
+                smtp.Dispose()
+                Throw
+            End Try
+        End Function
     End Class
 
     '-------------------------------------------------------------------------------

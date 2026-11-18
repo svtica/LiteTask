@@ -641,10 +641,14 @@ Namespace LiteTask
                 _logLevelComboBox.SelectedItem = GetSettingValue(logSettings, "LogLevel", "Info")
                 _maxLogSizeNumeric.Value = Integer.Parse(GetSettingValue(logSettings, "MaxLogSize", "10"))
                 _logRetentionNumeric.Value = Integer.Parse(GetSettingValue(logSettings, "LogRetentionDays", "30"))
-                _alertLevelComboBox.SelectedItem = GetSettingValue(logSettings, "AlertLevel", "Error")
 
                 ' Load email settings
                 Dim emailSettings = _xmlManager.GetEmailSettings()
+                ' The threshold is saved in EmailSettings/AlertLevel and read from there by
+                ' NotificationManager (it was loaded from Logging/AlertLevel, so a saved
+                ' value showed as "Error" and was overwritten by the next save).
+                _alertLevelComboBox.SelectedItem = NotificationLevelPolicy.ParseThreshold(
+                    GetSettingValue(emailSettings, "AlertLevel", GetSettingValue(logSettings, "AlertLevel", "Error"))).ToString()
                 _enableNotificationsCheckBox.Checked = Boolean.Parse(GetSettingValue(emailSettings, "NotificationsEnabled", "False"))
                 _smtpServerTextBox.Text = GetSettingValue(emailSettings, "SmtpServer", "")
                 _smtpPortNumeric.Value = Integer.Parse(GetSettingValue(emailSettings, "SmtpPort", "25"))
@@ -837,13 +841,21 @@ Namespace LiteTask
                 Dim testMessage = TranslationManager.Instance.GetTranslation("Options.TestEmail.Body", "This is a test email from LiteTask.")
                 Dim subject = TranslationManager.Instance.GetTranslation("Options.TestEmail.Subject", "LiteTask Test Email")
 
-                Dim credential As CredentialInfo = Nothing
-                If _useCredentialsCheckBox.Checked AndAlso _credentialComboBox.SelectedIndex > 0 Then
-                    credential = _credentialManager.GetCredential(_credentialComboBox.SelectedItem.ToString(), "Windows Vault")
-                End If
-
-                ' Create test notification
-                emailUtils.SendEmailReport(subject, testMessage)
+                ' Sent with the values on screen (server, SSL, credentials), through the
+                ' same SMTP client as the notifications. A failure is shown instead of
+                ' the former false "sent successfully" (the error was only logged).
+                Dim screenSettings As New Dictionary(Of String, String) From {
+                    {"SmtpServer", _smtpServerTextBox.Text},
+                    {"SmtpPort", _smtpPortNumeric.Value.ToString()},
+                    {"UseSSL", _useSSLCheckBox.Checked.ToString()},
+                    {"EmailFrom", _emailFromTextBox.Text},
+                    {"EmailTo", _emailToTextBox.Text},
+                    {"UseCredentials", _useCredentialsCheckBox.Checked.ToString()},
+                    {"CredentialTarget", If(_useCredentialsCheckBox.Checked AndAlso _credentialComboBox.SelectedIndex > 0,
+                                            _credentialComboBox.SelectedItem.ToString(), "")}
+                }
+                emailUtils.Send(screenSettings, subject, testMessage)
+                _logger.LogInfo($"Test email sent: {subject}")
                 MessageBox.Show(TranslationManager.Instance.GetTranslation("Options.TestEmail.Success", "Test email sent successfully."),
                                 TranslationManager.Instance.GetTranslation("Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
 
