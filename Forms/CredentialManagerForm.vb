@@ -25,6 +25,7 @@ Namespace LiteTask
             PopulateCredentialList()
             SetupEventHandlers()
             Me.Translate()
+            Theme.Apply(Me)
         End Sub
 
         Private Sub InitializeComponent()
@@ -100,7 +101,7 @@ Namespace LiteTask
             _addButton.Name = "_addButton"
             _addButton.Size = New System.Drawing.Size(93, 36)
             _addButton.TabIndex = 9
-            _addButton.Text = "Add"
+            _addButton.Text = TranslationManager.T("_addButton.Text", "Add")
             _addButton.UseVisualStyleBackColor = True
             ' 
             ' _updateButton
@@ -110,7 +111,7 @@ Namespace LiteTask
             _updateButton.Name = "_updateButton"
             _updateButton.Size = New System.Drawing.Size(93, 39)
             _updateButton.TabIndex = 10
-            _updateButton.Text = "Update"
+            _updateButton.Text = TranslationManager.T("_updateButton.Text", "Update")
             _updateButton.UseVisualStyleBackColor = True
             ' 
             ' _deleteButton
@@ -120,7 +121,7 @@ Namespace LiteTask
             _deleteButton.Name = "_deleteButton"
             _deleteButton.Size = New System.Drawing.Size(93, 35)
             _deleteButton.TabIndex = 11
-            _deleteButton.Text = "Delete"
+            _deleteButton.Text = TranslationManager.T("_deleteButton.Text", "Delete")
             _deleteButton.UseVisualStyleBackColor = True
             ' 
             ' _closeButton
@@ -130,7 +131,7 @@ Namespace LiteTask
             _closeButton.Name = "_closeButton"
             _closeButton.Size = New System.Drawing.Size(96, 25)
             _closeButton.TabIndex = 12
-            _closeButton.Text = "Close"
+            _closeButton.Text = TranslationManager.T("_closeButton.Text", "Close")
             _closeButton.UseVisualStyleBackColor = True
             ' 
             ' _targetLabel
@@ -140,7 +141,7 @@ Namespace LiteTask
             _targetLabel.Name = "_targetLabel"
             _targetLabel.Size = New System.Drawing.Size(42, 15)
             _targetLabel.TabIndex = 1
-            _targetLabel.Text = "Target:"
+            _targetLabel.Text = TranslationManager.T("_targetLabel.Text", "Target:")
             ' 
             ' _usernameLabel
             ' 
@@ -149,7 +150,7 @@ Namespace LiteTask
             _usernameLabel.Name = "_usernameLabel"
             _usernameLabel.Size = New System.Drawing.Size(63, 15)
             _usernameLabel.TabIndex = 3
-            _usernameLabel.Text = "Username:"
+            _usernameLabel.Text = TranslationManager.T("_usernameLabel.Text", "Username:")
             ' 
             ' _passwordLabel
             ' 
@@ -158,7 +159,7 @@ Namespace LiteTask
             _passwordLabel.Name = "_passwordLabel"
             _passwordLabel.Size = New System.Drawing.Size(60, 15)
             _passwordLabel.TabIndex = 5
-            _passwordLabel.Text = "Password:"
+            _passwordLabel.Text = TranslationManager.T("_passwordLabel.Text", "Password:")
             ' 
             ' _accountTypeLabel
             ' 
@@ -167,7 +168,7 @@ Namespace LiteTask
             _accountTypeLabel.Name = "_accountTypeLabel"
             _accountTypeLabel.Size = New System.Drawing.Size(82, 15)
             _accountTypeLabel.TabIndex = 7
-            _accountTypeLabel.Text = "Account Type:"
+            _accountTypeLabel.Text = TranslationManager.T("_accountTypeLabel.Text", "Account Type:")
             ' 
             ' CredentialManagerForm
             ' 
@@ -215,11 +216,11 @@ Namespace LiteTask
             }, _passwordTextBox.SecureText)
                     PopulateCredentialList()
                     ClearFields()
-                    MessageBox.Show("Credential added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("CredentialManagerForm.CredentialAddedSuccessfully", "Credential added successfully."), TranslationManager.T("CredentialManagerForm.Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Catch ex As ArgumentException
-                    MessageBox.Show(ex.Message, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(ex.Message, TranslationManager.T("CredentialManagerForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Catch ex As Exception
-                    MessageBox.Show($"Failed to add credential: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.F("CredentialManagerForm.FailedAddCredential", "Failed to add credential: {0}", ex.Message), TranslationManager.T("CredentialManagerForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End Try
             End If
         End Sub
@@ -251,18 +252,18 @@ Namespace LiteTask
             If _credentialListView.SelectedItems.Count > 0 Then
                 Dim accountType = _credentialListView.SelectedItems(0).Text
                 Dim target = _credentialListView.SelectedItems(0).SubItems(1).Text
-                If MessageBox.Show($"Are you sure you want to delete the credential for '{target}' ({accountType})?", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
+                If MessageBox.Show(TranslationManager.F("CredentialManagerForm.AreSureWantDeleteCredential", "Are you sure you want to delete the credential for '{0}' ({1})?", target, accountType), TranslationManager.T("CredentialManagerForm.ConfirmDelete", "Confirm Delete"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
                     Try
                         _credentialManager.DeleteCredential(target, accountType)
                         PopulateCredentialList()
                         ClearFields()
-                        MessageBox.Show("Credential deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.T("CredentialManagerForm.CredentialDeletedSuccessfully", "Credential deleted successfully."), TranslationManager.T("CredentialManagerForm.Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Catch ex As Exception
-                        MessageBox.Show($"Failed to delete credential: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                        MessageBox.Show(TranslationManager.F("CredentialManagerForm.FailedDeleteCredential", "Failed to delete credential: {0}", ex.Message), TranslationManager.T("CredentialManagerForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                     End Try
                 End If
             Else
-                MessageBox.Show("Please select a credential to delete.", "Delete Credential", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                MessageBox.Show(TranslationManager.T("CredentialManagerForm.SelectCredentialDelete", "Please select a credential to delete."), TranslationManager.T("CredentialManagerForm.DeleteCredential", "Delete Credential"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
             End If
         End Sub
 
@@ -270,9 +271,9 @@ Namespace LiteTask
             Try
                 _credentialListView.Items.Clear()
                 _credentialListView.Columns.Clear()
-                _credentialListView.Columns.Add("Account Type", 100)
-                _credentialListView.Columns.Add("Target", 150)
-                _credentialListView.Columns.Add("Username", 150)
+                _credentialListView.Columns.Add(TranslationManager.T("CredentialManagerForm.AccountType", "Account Type"), 100)
+                _credentialListView.Columns.Add(TranslationManager.T("CredentialManagerForm.Target", "Target"), 150)
+                _credentialListView.Columns.Add(TranslationManager.T("CredentialManagerForm.Username", "Username"), 150)
 
                 Dim credentials = _credentialManager.GetAllCredentialTargets()
 
@@ -298,10 +299,10 @@ Namespace LiteTask
                 Next
 
                 If _credentialListView.Items.Count = 0 Then
-                    MessageBox.Show("No credentials found or unable to retrieve credentials.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("CredentialManagerForm.NoCredentialsFoundUnableRetrieve", "No credentials found or unable to retrieve credentials."), TranslationManager.T("CredentialManagerForm.Information", "Information"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 End If
             Catch ex As Exception
-                MessageBox.Show($"Error populating credential list: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("CredentialManagerForm.ErrorPopulatingCredentialList", "Error populating credential list: {0}", ex.Message), TranslationManager.T("CredentialManagerForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -329,32 +330,32 @@ Namespace LiteTask
                     _credentialManager.SaveCredential(credInfo, securePassword)
                     PopulateCredentialList()
                     ClearFields()
-                    MessageBox.Show("Credential updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("CredentialManagerForm.CredentialUpdatedSuccessfully", "Credential updated successfully."), TranslationManager.T("CredentialManagerForm.Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Catch ex As ArgumentException
-                    MessageBox.Show(ex.Message, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(ex.Message, TranslationManager.T("CredentialManagerForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Catch ex As Exception
-                    MessageBox.Show($"Failed to update credential: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.F("CredentialManagerForm.FailedUpdateCredential", "Failed to update credential: {0}", ex.Message), TranslationManager.T("CredentialManagerForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End Try
             Else
-                MessageBox.Show("Please select a credential to update.", "Update Credential", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                MessageBox.Show(TranslationManager.T("CredentialManagerForm.SelectCredentialUpdate", "Please select a credential to update."), TranslationManager.T("CredentialManagerForm.UpdateCredential", "Update Credential"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
             End If
         End Sub
 
         Private Function ValidateInput() As Boolean
             If String.IsNullOrWhiteSpace(_targetTextBox.Text) Then
-                MessageBox.Show("Target is required.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("CredentialManagerForm.TargetRequired", "Target is required."), TranslationManager.T("CredentialManagerForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
             If String.IsNullOrWhiteSpace(_usernameTextBox.Text) Then
-                MessageBox.Show("Username is required.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("CredentialManagerForm.UsernameRequired", "Username is required."), TranslationManager.T("CredentialManagerForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
             If String.IsNullOrWhiteSpace(_passwordTextBox.Text) Then
-                MessageBox.Show("Password is required.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("CredentialManagerForm.PasswordRequired", "Password is required."), TranslationManager.T("CredentialManagerForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
             If _accountTypeComboBox.SelectedIndex = -1 Then
-                MessageBox.Show("Please select an account type.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("CredentialManagerForm.SelectAccountType", "Please select an account type."), TranslationManager.T("CredentialManagerForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
             Return True

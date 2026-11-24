@@ -37,8 +37,8 @@ Public Class ErrorHandler
             ' Show message to user if requested
             If notifyUser Then
                 MessageBox.Show(
-                    $"An error occurred in {source}:{Environment.NewLine}{Environment.NewLine}{ex.Message}",
-                    "Error",
+                    TranslationManager.F("ErrorHandler.ErrorOccurred", "An error occurred in {0}:{1}{2}{3}", source, Environment.NewLine, Environment.NewLine, ex.Message),
+                    TranslationManager.T("ErrorHandler.Error", "Error"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error)
             End If
@@ -48,8 +48,8 @@ Public Class ErrorHandler
             Debug.WriteLine($"Critical error in error handler: {criticalEx.Message}")
             If notifyUser Then
                 MessageBox.Show(
-                    "A critical error occurred. Please check the application logs.",
-                    "Critical Error",
+                    TranslationManager.T("ErrorHandler.CriticalErrorOccurredCheckApplication", "A critical error occurred. Please check the application logs."),
+                    TranslationManager.T("ErrorHandler.CriticalError", "Critical Error"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error)
             End If
@@ -77,7 +77,7 @@ Public Class ErrorHandler
 
         For Each field In requiredFields
             If Not settings.ContainsKey(field) OrElse String.IsNullOrWhiteSpace(settings(field)) Then
-                errors.Add($"Required setting '{field}' is missing or empty")
+                errors.Add(TranslationManager.F("ErrorHandler.RequiredSettingMissingEmpty", "Required setting '{0}' is missing or empty", field))
             End If
         Next
 

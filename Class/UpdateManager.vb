@@ -254,7 +254,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger?.LogError($"Error applying update: {ex.Message}")
-                progressForm.AppendLog($"Error: {ex.Message}", Color.OrangeRed)
+                progressForm.AppendLog(TranslationManager.F("UpdateManager.Error", "Error: {0}", ex.Message), Color.OrangeRed)
                 progressForm.SetCompleted(False)
                 ' The work folder belongs to the replacement script once it is started
                 If Not applied Then update?.Discard()
@@ -426,7 +426,7 @@ Namespace LiteTask
                 End Using
             Catch ex As Exception
                 _logger?.LogError($"Error running PostBuild script: {ex.Message}")
-                progressForm.AppendLog($"PostBuild error: {ex.Message}", Color.OrangeRed)
+                progressForm.AppendLog(TranslationManager.F("UpdateManager.PostBuildError", "PostBuild error: {0}", ex.Message), Color.OrangeRed)
             End Try
         End Function
 
@@ -456,7 +456,7 @@ Namespace LiteTask
                 End Using
             Catch ex As Exception
                 _logger?.LogError($"Error stopping service: {ex.Message}")
-                progressForm.AppendLog($"Service error: {ex.Message}", Color.OrangeRed)
+                progressForm.AppendLog(TranslationManager.F("UpdateManager.ServiceError", "Service error: {0}", ex.Message), Color.OrangeRed)
             End Try
         End Sub
 

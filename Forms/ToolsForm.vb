@@ -27,6 +27,7 @@ Namespace LiteTask
             _toolManager = toolManager
             InitializeComponent()
             LoadTools()
+            Theme.Apply(Me)
         End Sub
 
         Private Shared Function Tr(key As String, defaultValue As String) As String

@@ -17,35 +17,35 @@ Namespace LiteTask
                 If Boolean.Parse(settings("NotificationsEnabled")) Then
                     ' SMTP Server
                     If String.IsNullOrWhiteSpace(settings("SmtpServer")) Then
-                        errors.Add("SMTP Server is required when notifications are enabled")
+                        errors.Add(TranslationManager.T("SettingsValidator.SMTPServerRequiredWhenNotifications", "SMTP Server is required when notifications are enabled"))
                     End If
 
                     ' SMTP Port
                     Dim port As Integer
                     If Not Integer.TryParse(settings("SmtpPort"), port) OrElse port < 1 OrElse port > 65535 Then
-                        errors.Add("SMTP Port must be between 1 and 65535")
+                        errors.Add(TranslationManager.T("SettingsValidator.SMTPPortMustBetween", "SMTP Port must be between 1 and 65535"))
                     End If
 
                     ' Email Addresses
                     If String.IsNullOrWhiteSpace(settings("EmailFrom")) Then
-                        errors.Add("From email address is required")
+                        errors.Add(TranslationManager.T("SettingsValidator.FromEmailAddressRequired", "From email address is required"))
                     ElseIf Not IsValidEmail(settings("EmailFrom")) Then
-                        errors.Add("Invalid From email address format")
+                        errors.Add(TranslationManager.T("SettingsValidator.InvalidFromEmailAddressFormat", "Invalid From email address format"))
                     End If
 
                     If String.IsNullOrWhiteSpace(settings("EmailTo")) Then
-                        errors.Add("To email address is required")
+                        errors.Add(TranslationManager.T("SettingsValidator.EmailAddressRequired", "To email address is required"))
                     Else
                         For Each email In settings("EmailTo").Split(";"c)
                             If Not IsValidEmail(email.Trim()) Then
-                                errors.Add($"Invalid To email address format: {email}")
+                                errors.Add(TranslationManager.F("SettingsValidator.InvalidEmailAddressFormat", "Invalid To email address format: {0}", email))
                             End If
                         Next
                     End If
                 End If
             Catch ex As Exception
                 _logger.LogError("Error validating email settings", ex)
-                errors.Add($"Error validating email settings: {ex.Message}")
+                errors.Add(TranslationManager.F("SettingsValidator.ErrorValidatingEmailSettings", "Error validating email settings: {0}", ex.Message))
             End Try
 
             Return errors
@@ -57,7 +57,7 @@ Namespace LiteTask
             Try
                 ' Log Folder
                 If String.IsNullOrWhiteSpace(settings("LogFolder")) Then
-                    errors.Add("Log folder path is required")
+                    errors.Add(TranslationManager.T("SettingsValidator.LogFolderPathRequired", "Log folder path is required"))
                 Else
                     Try
                         ' Check if path is valid and accessible
@@ -70,30 +70,30 @@ Namespace LiteTask
                         File.WriteAllText(testFile, "Test")
                         File.Delete(testFile)
                     Catch ex As Exception
-                        errors.Add($"Log folder is not accessible: {ex.Message}")
+                        errors.Add(TranslationManager.F("SettingsValidator.LogFolderNotAccessible", "Log folder is not accessible: {0}", ex.Message))
                     End Try
                 End If
 
                 ' Log Level
                 If Not [Enum].TryParse(Of Logger.LogLevel)(settings("LogLevel"), True, Nothing) Then
-                    errors.Add("Invalid log level specified")
+                    errors.Add(TranslationManager.T("SettingsValidator.InvalidLogLevelSpecified", "Invalid log level specified"))
                 End If
 
                 ' Max Log Size
                 Dim maxSize As Integer
                 If Not Integer.TryParse(settings("MaxLogSize"), maxSize) OrElse maxSize < 1 Then
-                    errors.Add("Max log size must be greater than 0 MB")
+                    errors.Add(TranslationManager.T("SettingsValidator.MaxLogSizeMustGreater", "Max log size must be greater than 0 MB"))
                 End If
 
                 ' Retention Days
                 Dim retentionDays As Integer
                 If Not Integer.TryParse(settings("LogRetentionDays"), retentionDays) OrElse retentionDays < 1 Then
-                    errors.Add("Log retention days must be greater than 0")
+                    errors.Add(TranslationManager.T("SettingsValidator.LogRetentionDaysMustGreater", "Log retention days must be greater than 0"))
                 End If
 
             Catch ex As Exception
                 _logger.LogError("Error validating log settings", ex)
-                errors.Add($"Error validating log settings: {ex.Message}")
+                errors.Add(TranslationManager.F("SettingsValidator.ErrorValidatingLogSettings", "Error validating log settings: {0}", ex.Message))
             End Try
 
             Return errors
@@ -111,23 +111,23 @@ Namespace LiteTask
 
             Try
                 If action Is Nothing Then
-                    errors.Add("Action is null")
+                    errors.Add(TranslationManager.T("SettingsValidator.ActionNull", "Action is null"))
                     Return errors
                 End If
 
                 If String.IsNullOrWhiteSpace(action.Name) Then
-                    errors.Add("Action name is required")
+                    errors.Add(TranslationManager.T("SettingsValidator.ActionNameRequired", "Action name is required"))
                 End If
 
                 If String.IsNullOrWhiteSpace(action.Target) Then
-                    errors.Add("Action target is required")
+                    errors.Add(TranslationManager.T("SettingsValidator.ActionTargetRequired", "Action target is required"))
                 Else
                     Select Case action.Type
                         Case ScheduledTask.TaskType.PowerShell,
                              ScheduledTask.TaskType.Batch,
                              ScheduledTask.TaskType.Executable
                             If Not File.Exists(action.Target) Then
-                                errors.Add($"Target file does not exist: {action.Target}")
+                                errors.Add(TranslationManager.F("SettingsValidator.TargetFileDoesNotExist", "Target file does not exist: {0}", action.Target))
                             End If
                         Case ScheduledTask.TaskType.SQL
                             ' Target holds the SQL string or path; require non-empty (already covered above)
@@ -137,15 +137,15 @@ Namespace LiteTask
                 End If
 
                 If action.TimeoutMinutes < 1 Then
-                    errors.Add("Timeout must be at least 1 minute")
+                    errors.Add(TranslationManager.T("SettingsValidator.TimeoutMustMinute", "Timeout must be at least 1 minute"))
                 End If
 
                 If action.RetryCount < 0 Then
-                    errors.Add("Retry count cannot be negative")
+                    errors.Add(TranslationManager.T("SettingsValidator.RetryCountCannotNegative", "Retry count cannot be negative"))
                 End If
 
                 If action.RetryDelayMinutes < 0 Then
-                    errors.Add("Retry delay cannot be negative")
+                    errors.Add(TranslationManager.T("SettingsValidator.RetryDelayCannotNegative", "Retry delay cannot be negative"))
                 End If
 
                 If Not String.IsNullOrWhiteSpace(action.DependsOn) AndAlso siblingActions IsNot Nothing Then
@@ -156,15 +156,15 @@ Namespace LiteTask
                         .Where(Function(n) Not String.IsNullOrWhiteSpace(n))
 
                     If String.Equals(action.DependsOn, selfName, StringComparison.OrdinalIgnoreCase) Then
-                        errors.Add($"Action '{selfName}' cannot depend on itself")
+                        errors.Add(TranslationManager.F("SettingsValidator.ActionCannotDependItself", "Action '{0}' cannot depend on itself", selfName))
                     ElseIf Not known.Any(Function(n) String.Equals(n, action.DependsOn, StringComparison.OrdinalIgnoreCase)) Then
-                        errors.Add($"DependsOn references unknown action: {action.DependsOn}")
+                        errors.Add(TranslationManager.F("SettingsValidator.DependsOnReferencesUnknownAction", "DependsOn references unknown action: {0}", action.DependsOn))
                     End If
                 End If
 
             Catch ex As Exception
                 _logger?.LogError("Error validating task action", ex)
-                errors.Add($"Error validating task action: {ex.Message}")
+                errors.Add(TranslationManager.F("SettingsValidator.ErrorValidatingTaskAction", "Error validating task action: {0}", ex.Message))
             End Try
 
             Return errors

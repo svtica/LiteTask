@@ -7,13 +7,13 @@
 	<translation key="_exportAllMenuItem.Text">Exporter toutes les tâches</translation>
 	<translation key="_credentialManagerMenuItem.Text">Gestionnaire d'identifiants</translation>
 	<translation key="_elevateMenuItem.Text">Exécuter en tant qu'administrateur</translation>
-	<translation key="ElevateConfirm.Message">L'exécution en tant qu'administrateur redémarrera l'application. Continuer?</translation>
+	<translation key="ElevateConfirm.Message">L'exécution en tant qu'administrateur redémarrera l'application. Continuer ?</translation>
 	<translation key="ElevateConfirm.Title">Élévation requise</translation>
 	<translation key="ElevateError.Title">Erreur d'élévation</translation>
-	<translation key="ElevateError.Message">Échec du redémarrage avec élévation: {0}</translation>
+	<translation key="ElevateError.Message">Échec du redémarrage avec élévation : {0}</translation>
 	<translation key="_exitMenuItem.Text">Quitter LiteTask</translation>
 	<translation key="FileMenu.Exit">Quitter LiteTask</translation>
-	<translation key="ExitConfirm.Message">Êtes-vous sûr de vouloir quitter LiteTask ?</translation>
+	<translation key="ExitConfirm.Message">Êtes-vous sûr de vouloir quitter LiteTask ?</translation>
 	<translation key="ExitConfirm.Title">Confirmation de sortie</translation>
 
 	<translation key="_serviceMenu.Text">Service</translation>
@@ -26,7 +26,7 @@
 	<translation key="_refreshMenuItem.Text">Actualiser</translation>
 	<translation key="_openLogMenuItem.Text">Ouvrir le journal</translation>
 	<translation key="NoLogAvailable">Aucun journal disponible pour le moment. Le fichier journal sera créé lorsque l'application enregistrera sa première entrée.</translation>
-	<translation key="OpenLog.Error">Impossible d'ouvrir le journal : {0}</translation>
+	<translation key="OpenLog.Error">Impossible d'ouvrir le journal : {0}</translation>
 	<translation key="_toggleLogMenuItem.Text">Afficher/Masquer le journal</translation>
 
 	<translation key="_toolsMenu.Text">Outils</translation>
@@ -54,68 +54,49 @@
 
 	<!-- MainForm GridView -->
 	<translation key="OrderColumn.HeaderText">Ordre</translation>
-	<translation key="NameColumn.HeaderText">Nom</translation>
-	<translation key="DescriptionColumn.HeaderText">Description</translation>
-	<translation key="NextRunColumn.HeaderText">Prochaine exécution</translation>
-	<translation key="ScheduleTypeColumn.HeaderText">Type de planification</translation>
-	<translation key="ActionsColumn.HeaderText">Actions</translation>
-	<translation key="StatusColumn.HeaderText">État</translation>
 
 	<!-- MainForm Grid Columns -->
-	<translation key="NameColumn.HeaderText">Nom</translation>
-	<translation key="DescriptionColumn.HeaderText">Description</translation>
-	<translation key="NextRunColumn.HeaderText">Prochaine exécution</translation>
-	<translation key="ScheduleTypeColumn.HeaderText">Type de planification</translation>
-	<translation key="ActionsColumn.HeaderText">Actions</translation>
-	<translation key="StatusColumn.HeaderText">État</translation>
 	
 	<!-- Task Details Form -->
 	<translation key="TaskForm">Détails de la tâche</translation>
 
 	<!-- General Tab -->
-	<translation key="_nameLabel.Text">Nom :</translation>
-	<translation key="_descriptionLabel.Text">Description :</translation>
-	<translation key="_credentialLabel.TaskGeneral.Text">Identifiant :</translation>
+	<translation key="_credentialLabel.TaskGeneral.Text">Identifiant :</translation>
 	<translation key="_requiresElevationCheckBox.Text">Nécessite une élévation de privilèges</translation>
 
 	<translation key="_generalTab.Text">Général</translation>
-	<translation key="_nameLabel.Text">Nom :</translation>
-	<translation key="_descriptionLabel.Text">Description :</translation>
-	<translation key="_targetLabel.Text">Cible :</translation>
-	<translation key="_credentialLabel.Text">Identifiant :</translation>
+	<translation key="_nameLabel.Text">Nom :</translation>
+	<translation key="_descriptionLabel.Text">Description :</translation>
+	<translation key="_targetLabel.Text">Cible :</translation>
+	<translation key="_credentialLabel.Text">Identifiant :</translation>
 	
 	<!-- TaskForm Grid Columns -->
-	<translation key="TargetColumn.HeaderText">Cible</translation>
-	<translation key="DependsOnColumn.HeaderText">Dépend de</translation>
 	
 	<!-- TaskForm General Tab Labels -->
-	<translation key="_nameLabel">Nom :</translation>
-	<translation key="_descriptionLabel">Description :</translation>
-	<translation key="_credentialLabel">Identifiant :</translation>
 	
 	<!-- Schedule Tab -->
 	<translation key="_scheduleTab.Text">Planification</translation>
-	<translation key="_startDateLabel">Date de début :</translation>
-	<translation key="_startTimeLabel">Heure de début :</translation>
+	<translation key="_startDateLabel">Date de début :</translation>
+	<translation key="_startTimeLabel">Heure de début :</translation>
 	<translation key="_recurringLabel">Récurrent</translation>
-	<translation key="_recurrenceTypeLabel">Type de récurrence :</translation>
+	<translation key="_recurrenceTypeLabel">Type de récurrence :</translation>
 	<translation key="Daily">Quotidien</translation>
 	<translation key="Interval">Intervalle</translation>
 	<translation key="Monthly">Mensuel</translation>
-	<translation key="_intervalLabel.Text">Intervalle :</translation>
+	<translation key="_intervalLabel.Text">Intervalle :</translation>
 	<translation key="_intervalUnitLabel.Text">minutes (1-1440)</translation>
-	<translation key="_monthlyDayLabel.Text">Jour du mois :</translation>
-	<translation key="_monthlyTimeLabel.Text">Heure :</translation>
+	<translation key="_monthlyDayLabel.Text">Jour du mois :</translation>
+	<translation key="_monthlyTimeLabel.Text">Heure :</translation>
 	<translation key="_addTimeButton.Text">Ajouter</translation>
 	<translation key="_removeTimeButton.Text">Supprimer</translation>
 
 	<!-- Actions Tab -->
 	<translation key="_actionsTab">Actions</translation>
-	<translation key="_actionNameLabel">Nom :</translation>
-	<translation key="_actionTypeLabel">Type :</translation>
-	<translation key="_actionTargetLabel">Cible :</translation>
-	<translation key="_parametersLabel.Text">Paramètres :</translation>
-	<translation key="_dependsOnLabel.Text">Dépend de :</translation>
+	<translation key="_actionNameLabel">Nom :</translation>
+	<translation key="_actionTypeLabel">Type :</translation>
+	<translation key="_actionTargetLabel">Cible :</translation>
+	<translation key="_parametersLabel.Text">Paramètres :</translation>
+	<translation key="_dependsOnLabel.Text">Dépend de :</translation>
 	<translation key="_waitForCompletionCheck.Text">Attendre la fin de l'exécution</translation>
 	<translation key="_continueOnErrorCheck.Text">Continuer en cas d'erreur</translation>
 	<translation key="_timeoutLabel.Text">Délai expiration</translation>
@@ -143,11 +124,11 @@
 	<translation key="NotifyIcon.BalloonTipText">Application minimisée dans la barre des tâches</translation>
 
 	<!-- Dialog Messages -->
-	<translation key="ConfirmDelete">Êtes-vous sûr de vouloir supprimer cette tâche ?</translation>
-	<translation key="ConfirmDeleteMultiple">Êtes-vous sûr de vouloir supprimer ces {0} tâches ?</translation>
-	<translation key="ConfirmExit">Êtes-vous sûr de vouloir quitter LiteTask ?</translation>
+	<translation key="ConfirmDelete">Êtes-vous sûr de vouloir supprimer cette tâche ?</translation>
+	<translation key="ConfirmDeleteMultiple">Êtes-vous sûr de vouloir supprimer ces {0} tâches ?</translation>
+	<translation key="ConfirmExit">Êtes-vous sûr de vouloir quitter LiteTask ?</translation>
 	<translation key="ConfirmExitTitle">Confirmer la fermeture</translation>
-	<translation key="SaveChanges">Voulez-vous enregistrer les modifications avant de quitter ?</translation>
+	<translation key="SaveChanges">Voulez-vous enregistrer les modifications avant de quitter ?</translation>
 	<translation key="SaveChangesTitle">Enregistrer les modifications</translation>
 
 	<!-- Status Messages -->
@@ -163,8 +144,8 @@
 	<translation key="Due">À échéance</translation>
 
 	<!-- Status Bar Messages -->
-	<translation key="Status.RunningTask">Exécution de la tâche : {0}</translation>
-	<translation key="Status.TaskCompleted">Tâche terminée : {0}</translation>
+	<translation key="Status.RunningTask">Exécution de la tâche : {0}</translation>
+	<translation key="Status.TaskCompleted">Tâche terminée : {0}</translation>
 	<translation key="Status.ErrorRunningTask">Erreur lors de l'exécution de la tâche</translation>
 	<translation key="Status.Ready">Prêt - {0} tâche(s) en attente, {1} tâche(s) à échéance</translation>
 	<translation key="Status.ServiceActive">service actif</translation>
@@ -194,25 +175,24 @@
 
 	<!-- CredentialManager -->
 	<translation key="CredentialManagerForm.Text">Gestionnaire d'identifiants</translation>
-	<translation key="_targetLabel.Credential.Text">Cible :</translation>
-	<translation key="_usernameLabel.Text">Nom d'utilisateur :</translation>
-	<translation key="_passwordLabel.Text">Mot de passe :</translation>
-	<translation key="_accountTypeLabel.Text">Type de compte :</translation>
+	<translation key="_targetLabel.Credential.Text">Cible :</translation>
+	<translation key="_usernameLabel.Text">Nom d'utilisateur :</translation>
+	<translation key="_passwordLabel.Text">Mot de passe :</translation>
+	<translation key="_accountTypeLabel.Text">Type de compte :</translation>
 	<translation key="_addButton.Text">Ajouter</translation>
 	<translation key="_updateButton.Text">Mettre à jour</translation>
 	<translation key="_deleteButton.Text">Supprimer</translation>
-	<translation key="_closeButton.Text">Fermer</translation>
 
 	<!-- Options Form -->
 	<translation key="OptionsForm">Options</translation>
 
 	<!-- Logging Tab -->
 	<translation key="_loggingTab">Journalisation</translation>
-	<translation key="_logFolderLabel">Dossier des journaux :</translation>
-	<translation key="_logLevelLabel">Niveau de journalisation :</translation>
-	<translation key="_alertLevelLabel">Niveau d'alerte :</translation>
-	<translation key="_maxLogSizeLabel">Taille maximale du journal (Mo) :</translation>
-	<translation key="_logRetentionLabel">Jours de conservation :</translation>
+	<translation key="_logFolderLabel">Dossier des journaux :</translation>
+	<translation key="_logLevelLabel">Niveau de journalisation :</translation>
+	<translation key="_alertLevelLabel">Niveau d'alerte :</translation>
+	<translation key="_maxLogSizeLabel">Taille maximale du journal (Mo) :</translation>
+	<translation key="_logRetentionLabel">Jours de conservation :</translation>
 	<translation key="_browseLogFolderButton">Parcourir...</translation>
 
 	<!-- Log Levels -->
@@ -223,25 +203,24 @@
 	<translation key="LogLevel.Critical">Critique</translation>
 
 	<!-- Email Notifications Tab -->
-	<translation key="_notificationsTab">Notifications par email</translation>
+	<translation key="_notificationsTab">Notifications par courriel</translation>
 	<translation key="_emailNotificationsLabel">Paramètres de notification</translation>
-	<translation key="_enableNotificationsCheckBox">Activer les notifications par email</translation>
-	<translation key="_smtpServerLabel">Serveur SMTP :</translation>
-	<translation key="_smtpPortLabel">Port SMTP :</translation>
-	<translation key="_emailFromLabel">Email de :</translation>
-	<translation key="_emailToLabel">Email à :</translation>
+	<translation key="_enableNotificationsCheckBox">Activer les notifications par courriel</translation>
+	<translation key="_smtpServerLabel">Serveur SMTP :</translation>
+	<translation key="_smtpPortLabel">Port SMTP :</translation>
+	<translation key="_emailFromLabel">Courriel de l'expéditeur :</translation>
+	<translation key="_emailToLabel">Courriel du destinataire :</translation>
 	<translation key="_useSSLCheckBox">Utiliser SSL</translation>
 	<translation key="_useCredentialsCheckBox">Utiliser des identifiants</translation>
-	<translation key="_credentialLabel">Identifiant :</translation>
-	<translation key="_testEmailButton">Envoyer un email test</translation>
+	<translation key="_testEmailButton">Envoyer un courriel d'essai</translation>
 	<translation key="_includeTaskLogCheckBox">Inclure le journal de la tâche dans les notifications</translation>
 
 	<!-- SQL Settings Tab -->
 	<translation key="_sqlTab">Paramètres SQL</translation>
-	<translation key="_defaultServerLabel">Serveur par défaut :</translation>
-	<translation key="_defaultDatabaseLabel">Base de données par défaut :</translation>
-	<translation key="_commandTimeoutLabel">Délai d'expiration (secondes) :</translation>
-	<translation key="_maxBatchSizeLabel">Taille maximale du lot :</translation>
+	<translation key="_defaultServerLabel">Serveur par défaut :</translation>
+	<translation key="_defaultDatabaseLabel">Base de données par défaut :</translation>
+	<translation key="_commandTimeoutLabel">Délai d'expiration (secondes) :</translation>
+	<translation key="_maxBatchSizeLabel">Taille maximale du lot :</translation>
 
 	<!-- Options Form Messages -->
 	<translation key="Options.SaveSuccess">Options enregistrées avec succès</translation>
@@ -249,18 +228,18 @@
 	<translation key="Options.LoadError">Erreur lors du chargement des options</translation>
 	<translation key="Options.ValidationError">Erreur de validation des options</translation>
 	<translation key="Options.BrowseLogFolder">Sélectionner le dossier des journaux</translation>
-	<translation key="Options.TestEmail.Success">Email test envoyé avec succès</translation>
-	<translation key="Options.TestEmail.Error">Erreur lors de l'envoi de l'email test</translation>
-	<translation key="Options.TestEmail.Subject">LiteTask - Email test</translation>
-	<translation key="Options.TestEmail.Body">Ceci est un email test de LiteTask. Si vous recevez cet email, la configuration est correcte.</translation>
+	<translation key="Options.TestEmail.Success">Courriel d'essai envoyé</translation>
+	<translation key="Options.TestEmail.Error">Erreur lors de l'envoi du courriel d'essai</translation>
+	<translation key="Options.TestEmail.Subject">LiteTask - Courriel d'essai</translation>
+	<translation key="Options.TestEmail.Body">Ceci est un courriel d'essai de LiteTask. Si vous le recevez, la configuration est correcte.</translation>
 
 	<!-- Options Form Validation Messages -->
 	<translation key="Options.Validation.LogFolder">Le dossier des journaux est requis</translation>
 	<translation key="Options.Validation.SmtpServer">Le serveur SMTP est requis quand les notifications sont activées</translation>
 	<translation key="Options.Validation.SmtpPort">Le port SMTP doit être entre 1 et 65535</translation>
-	<translation key="Options.Validation.EmailFrom">L'adresse email expéditeur est requise et doit être valide</translation>
-	<translation key="Options.Validation.EmailTo">Au moins une adresse email destinataire valide est requise</translation>
-	<translation key="Options.Validation.InvalidEmail">Adresse email invalide : {0}</translation>
+	<translation key="Options.Validation.EmailFrom">L'adresse de l'expéditeur est obligatoire et doit être valide</translation>
+	<translation key="Options.Validation.EmailTo">Au moins une adresse de destinataire valide est obligatoire</translation>
+	<translation key="Options.Validation.InvalidEmail">Adresse de courriel non valide : {0}</translation>
 	<translation key="Options.Validation.CredentialRequired">Veuillez sélectionner un identifiant ou désactiver l'utilisation des identifiants</translation>
 	<translation key="Options.Validation.MaxLogSize">La taille maximale du journal doit être supérieure à 0 Mo</translation>
 	<translation key="Options.Validation.RetentionDays">Les jours de conservation doivent être supérieurs à 0</translation>
@@ -272,10 +251,10 @@
 	<translation key="Options.Tooltip.IncludeTaskLog">Ajoute aux notifications de tâche les lignes de journal écrites pendant l'exécution (200 dernières par défaut, EmailSettings/TaskLogMaxLines)</translation>
 	<translation key="Options.Tooltip.MaxLogSize">Taille maximale d'un fichier journal avant rotation</translation>
 	<translation key="Options.Tooltip.RetentionDays">Nombre de jours de conservation des journaux</translation>
-	<translation key="Options.Tooltip.SmtpServer">Adresse du serveur SMTP pour l'envoi des emails</translation>
+	<translation key="Options.Tooltip.SmtpServer">Adresse du serveur SMTP qui envoie les courriels</translation>
 	<translation key="Options.Tooltip.SmtpPort">Port du serveur SMTP (généralement 25 ou 587)</translation>
-	<translation key="Options.Tooltip.EmailFrom">Adresse email utilisée comme expéditeur</translation>
-	<translation key="Options.Tooltip.EmailTo">Adresses email des destinataires (séparées par des points-virgules)</translation>
+	<translation key="Options.Tooltip.EmailFrom">Adresse de courriel de l'expéditeur</translation>
+	<translation key="Options.Tooltip.EmailTo">Adresses de courriel des destinataires (séparées par des points-virgules)</translation>
 	<translation key="Options.Tooltip.Server">Spécifiez le serveur SQL par défaut</translation>
 	<translation key="Options.Tooltip.Database">Spécifiez la base de données par défaut</translation>
 	<translation key="Options.Tooltip.Timeout">Délai maximum pour l'exécution des commandes</translation>
@@ -287,10 +266,10 @@
 
 	<!-- TaskForm General Tab -->
 	<translation key="_generalTab">Général</translation>
-	<translation key="_nameLabel">Nom :</translation>
-	<translation key="_descriptionLabel">Description :</translation>
-	<translation key="_targetLabel">Cible :</translation>
-	<translation key="_credentialLabel">Identifiant :</translation>
+	<translation key="_nameLabel">Nom :</translation>
+	<translation key="_descriptionLabel">Description :</translation>
+	<translation key="_targetLabel">Cible :</translation>
+	<translation key="_credentialLabel">Identifiant :</translation>
 
 	<!-- MainForm Grid Columns -->
 	<translation key="NameColumn.HeaderText">Nom</translation>
@@ -311,28 +290,28 @@
 
 	<!-- RunTab -->
 	<translation key="RunTab.Text">Exécution</translation>
-	<translation key="RunTab.ScriptLabel">Script :</translation>
-	<translation key="RunTab.OutputLabel">Sortie :</translation>
-	<translation key="RunTab.TargetLabel">Cible :</translation>
-	<translation key="RunTab.CredentialLabel">Identifiant :</translation>
-	<translation key="RunTab.ExecutionTypeLabel">Mode d'exécution :</translation>
+	<translation key="RunTab.ScriptLabel">Script :</translation>
+	<translation key="RunTab.OutputLabel">Sortie :</translation>
+	<translation key="RunTab.TargetLabel">Cible :</translation>
+	<translation key="RunTab.CredentialLabel">Identifiant :</translation>
+	<translation key="RunTab.ExecutionTypeLabel">Mode d'exécution :</translation>
 	<translation key="RunTab.RequiresElevation">Nécessite une élévation</translation>
 	<translation key="RunTab.AutoDetect">Détection automatique du type d'exécution</translation>
 	<translation key="RunTab.RunButton">Exécuter le script</translation>
 
 	<!-- SQLTab -->
 	<translation key="SQLTab.Text">SQL</translation>
-	<translation key="SQLTab.QueryLabel">Requête :</translation>
-	<translation key="SQLTab.OutputLabel">Sortie :</translation>
-	<translation key="SQLTab.ServerLabel">Serveur :</translation>
-	<translation key="SQLTab.DatabaseLabel">Base de données :</translation>
-	<translation key="SQLTab.CredentialLabel">Identifiant :</translation>
+	<translation key="SQLTab.QueryLabel">Requête :</translation>
+	<translation key="SQLTab.OutputLabel">Sortie :</translation>
+	<translation key="SQLTab.ServerLabel">Serveur :</translation>
+	<translation key="SQLTab.DatabaseLabel">Base de données :</translation>
+	<translation key="SQLTab.CredentialLabel">Identifiant :</translation>
 	<translation key="SQLTab.Connect">Connecter</translation>
 	<translation key="SQLTab.SelectAll">Tout sélectionner (CSV)</translation>
 	<translation key="SQLTab.LastEntry">Dernière entrée</translation>
-	<translation key="SQLTab.ObjectListLabel.Text">Objet :</translation>
+	<translation key="SQLTab.ObjectListLabel.Text">Objet :</translation>
 	<translation key="SQLTab.RunButton.Text">Exécuter</translation>
-	<translation key="SQLTab.QueryTypeLabel.Text">Type de requête :</translation>
+	<translation key="SQLTab.QueryTypeLabel.Text">Type de requête :</translation>
 	<translation key="SQLTab.QueryType.Select">Sélectionner le type de requête</translation>
 	<translation key="SQLTab.QueryType.Table">Table</translation>
 	<translation key="SQLTab.QueryType.View">Vue</translation>
@@ -354,10 +333,10 @@
 	<translation key="Update.LatestVersion">Vous utilisez déjà la dernière version ({0}).</translation>
 	<translation key="Update.NoUpdateTitle">Aucune mise à jour disponible</translation>
 	<translation key="Update.NoUpdates">Aucune mise à jour disponible.</translation>
-	<translation key="Update.Available">Une nouvelle version est disponible !{0}{0}Version actuelle : {1}{0}Nouvelle version : {2}</translation>
+	<translation key="Update.Available">Une nouvelle version est disponible !{0}{0}Version actuelle : {1}{0}Nouvelle version : {2}</translation>
 	<translation key="Update.AvailableTitle">Mise à jour disponible</translation>
 	<translation key="Update.NoPackage">Aucun paquet de téléchargement trouvé dans la version. Veuillez télécharger manuellement depuis GitHub.</translation>
-	<translation key="Update.ConfirmInstall">Voulez-vous télécharger et installer la mise à jour ? L'application redémarrera après la mise à jour.</translation>
+	<translation key="Update.ConfirmInstall">Voulez-vous télécharger et installer la mise à jour ? L'application redémarrera après la mise à jour.</translation>
 	<translation key="Update.ErrorTitle">Erreur de mise à jour</translation>
 	<translation key="Update.CheckFailed">Échec de la vérification des mises à jour.</translation>
 	<translation key="Update.Progress.Starting">Démarrage de la mise à jour vers la version {0}...</translation>
@@ -377,28 +356,28 @@
 	<translation key="Update.Progress.Complete">Mise à jour prête. L'application va maintenant redémarrer.</translation>
 	<translation key="Update.Progress.Failed">Échec de la mise à jour. Consultez le journal ci-dessus pour plus de détails.</translation>
 	<translation key="Update.Progress.Verifying">Vérification de la signature du paquet...</translation>
-	<translation key="Update.Progress.RuntimeMissing">Mise à jour annulée : cette version requiert {0}, qui n'est pas installé sur cet ordinateur. Installez le .NET {1} Desktop Runtime (x64) depuis https://dotnet.microsoft.com/download, puis relancez la mise à jour. Aucun fichier n'a été remplacé.</translation>
-	<translation key="Update.Progress.VerifyFailed">Mise à jour annulée : aucun script n'a été exécuté et aucun fichier n'a été remplacé.</translation>
+	<translation key="Update.Progress.RuntimeMissing">Mise à jour annulée : cette version requiert {0}, qui n'est pas installé sur cet ordinateur. Installez le .NET {1} Desktop Runtime (x64) depuis https://dotnet.microsoft.com/download, puis relancez la mise à jour. Aucun fichier n'a été remplacé.</translation>
+	<translation key="Update.Progress.VerifyFailed">Mise à jour annulée : aucun script n'a été exécuté et aucun fichier n'a été remplacé.</translation>
 	<translation key="Update.Progress.ExeNotFound">LiteTask.exe est introuvable dans le paquet de mise à jour.</translation>
-	<translation key="Update.Progress.SignatureValid">Signature valide : signé par {0} (empreinte {1}).</translation>
-	<translation key="Update.Progress.UnsignedAllowed">AVERTISSEMENT : le paquet de mise à jour n'est pas signé. Poursuite uniquement parce que le LiteTask.exe en cours d'exécution est lui-même une version de développement non signée.</translation>
+	<translation key="Update.Progress.SignatureValid">Signature valide : signé par {0} (empreinte {1}).</translation>
+	<translation key="Update.Progress.UnsignedAllowed">AVERTISSEMENT : le paquet de mise à jour n'est pas signé. Poursuite uniquement parce que le LiteTask.exe en cours d'exécution est lui-même une version de développement non signée.</translation>
 	<translation key="Update.Progress.UnsignedRejected">Le paquet de mise à jour n'est pas signé par l'éditeur attendu.</translation>
 	<translation key="Update.Progress.SignatureTampered">La signature de {0} ne correspond pas à son contenu (fichier altéré ou corrompu).</translation>
 	<translation key="Update.Progress.PublisherMismatch">{0} est signé par un éditeur inattendu ({1}, empreinte {2}).</translation>
 	<translation key="Update.Progress.SignatureInvalid">La signature de {0} n'a pas pu être validée (erreur 0x{1}).</translation>
 	<translation key="Update.Progress.ScriptUnsigned">Le script post-compilation du paquet de mise à jour n'est pas signé par l'éditeur attendu.</translation>
 	<translation key="Update.Progress.UnsafeUrl">Le lien de téléchargement du paquet n'est pas une version de svtica/LiteTask sur github.com.</translation>
-	<translation key="Update.Progress.DownloadFailed">Le paquet n'a pas pu être téléchargé : {0}</translation>
-	<translation key="Update.Progress.InvalidPackage">Le paquet est invalide et n'a pas été extrait : {0}</translation>
-	<translation key="Update.Progress.LaunchFailed">Le script de remplacement des fichiers n'a pas pu être démarré : {0}</translation>
-	<translation key="Update.Progress.ServiceManualRestart">LiteTaskService n'exécute pas ce LiteTask.exe : après la mise à jour, réinstallez-le (menu Service &gt; Désinstaller le service, puis Installer le service) et démarrez-le.</translation>
+	<translation key="Update.Progress.DownloadFailed">Le paquet n'a pas pu être téléchargé : {0}</translation>
+	<translation key="Update.Progress.InvalidPackage">Le paquet est invalide et n'a pas été extrait : {0}</translation>
+	<translation key="Update.Progress.LaunchFailed">Le script de remplacement des fichiers n'a pas pu être démarré : {0}</translation>
+	<translation key="Update.Progress.ServiceManualRestart">LiteTaskService n'exécute pas ce LiteTask.exe : après la mise à jour, réinstallez-le (menu Service &gt; Désinstaller le service, puis Installer le service) et démarrez-le.</translation>
 
 	<!-- Backup Tab -->
 	<translation key="_backupTab">Sauvegarde</translation>
 	<translation key="_enableBackupCheckBox">Activer la sauvegarde automatique</translation>
 	<translation key="_enableBackupRotationCheckBox">Activer la rotation des sauvegardes</translation>
-	<translation key="_backupRetentionLabel">Conservation (jours) :</translation>
-	<translation key="_maxBackupCountLabel">Nombre maximum de sauvegardes :</translation>
+	<translation key="_backupRetentionLabel">Conservation (jours) :</translation>
+	<translation key="_maxBackupCountLabel">Nombre maximum de sauvegardes :</translation>
 	<translation key="Options.Tooltip.EnableBackup">Activer ou désactiver la sauvegarde automatique des paramètres avant chaque enregistrement</translation>
 	<translation key="Options.Tooltip.EnableBackupRotation">Activer la suppression automatique des anciens fichiers de sauvegarde</translation>
 	<translation key="Options.Tooltip.BackupRetention">Nombre de jours de conservation des fichiers de sauvegarde</translation>
@@ -407,25 +386,25 @@
 	<!-- Monitoring Tab -->
 	<translation key="_monitoringTab">Surveillance</translation>
 	<translation key="_enableMemoryMonitorCheckBox">Activer la surveillance mémoire</translation>
-	<translation key="_memoryCheckIntervalLabel">Intervalle de vérification (secondes) :</translation>
+	<translation key="_memoryCheckIntervalLabel">Intervalle de vérification (secondes) :</translation>
 	<translation key="Options.Tooltip.MemoryInterval">Fréquence de vérification de l'utilisation mémoire (en secondes)</translation>
 	<translation key="_dailyRestartCheckBox">Activer le redémarrage quotidien du service</translation>
-	<translation key="_dailyRestartTimeLabel">Heure de redémarrage :</translation>
+	<translation key="_dailyRestartTimeLabel">Heure de redémarrage :</translation>
 	<translation key="_dailyRestartNotificationCheckBox">Envoyer une notification par courriel au redémarrage</translation>
 	<translation key="Options.Tooltip.DailyRestart">Redémarrer le service quotidiennement pour récupérer la mémoire et les handles. Le redémarrage est ignoré si une tâche est en cours ou planifiée dans les 5 prochaines minutes.</translation>
-	<translation key="Options.Tooltip.DailyRestartTime">Heure du redémarrage quotidien du service (par défaut : 03h00)</translation>
+	<translation key="Options.Tooltip.DailyRestartTime">Heure du redémarrage quotidien du service (par défaut : 03h00)</translation>
 	<translation key="Options.Tooltip.DailyRestartNotification">Envoyer une notification par courriel lors du redémarrage quotidien</translation>
 
 	<!-- Task / Action Validation -->
 	<translation key="Validation.Error">Erreur de validation</translation>
 	<translation key="Validation.Action.NameRequired">Le nom de l'action est requis</translation>
 	<translation key="Validation.Action.TargetRequired">La cible de l'action est requise</translation>
-	<translation key="Validation.Action.TargetMissing">Le fichier cible n'existe pas : {0}</translation>
+	<translation key="Validation.Action.TargetMissing">Le fichier cible n'existe pas : {0}</translation>
 	<translation key="Validation.Action.TimeoutMin">Le délai d'expiration doit être d'au moins 1 minute</translation>
 	<translation key="Validation.Action.RetryCountNegative">Le nombre de tentatives ne peut pas être négatif</translation>
 	<translation key="Validation.Action.RetryDelayNegative">Le délai entre tentatives ne peut pas être négatif</translation>
 	<translation key="Validation.Action.DependsOnSelf">L'action '{0}' ne peut pas dépendre d'elle-même</translation>
-	<translation key="Validation.Action.DependsOnUnknown">DependsOn référence une action inconnue : {0}</translation>
+	<translation key="Validation.Action.DependsOnUnknown">DependsOn référence une action inconnue : {0}</translation>
 	<translation key="Validation.IntervalRange">Veuillez saisir un intervalle entre 1 et 1440 minutes.</translation>
 	<!-- Outils > Gérer les outils -->
 	<translation key="Tools.Manage.Title">LiteTask - Gérer les outils</translation>
@@ -440,19 +419,294 @@
 	<translation key="Tools.Manage.Installed">Installé</translation>
 	<translation key="Tools.Manage.NotInstalled">Non installé</translation>
 	<translation key="Tools.Manage.Done">Terminé.</translation>
-	<translation key="Tools.Manage.DoneWithErrors">Terminé avec {0} erreur(s) ; voir le journal ci-dessus.</translation>
-	<translation key="Tools.Manage.ConfirmRemove">Supprimer {0} de cet ordinateur ?</translation>
+	<translation key="Tools.Manage.DoneWithErrors">Terminé avec {0} erreur(s) ; voir le journal ci-dessus.</translation>
+	<translation key="Tools.Manage.ConfirmRemove">Supprimer {0} de cet ordinateur ?</translation>
 	<translation key="Tools.Manage.Removed">{0} supprimé.</translation>
-	<translation key="Tools.Manage.RemoveFailed">{0} n'a pas pu être supprimé (en cours d'utilisation ?). Voir le journal de l'application.</translation>
+	<translation key="Tools.Manage.RemoveFailed">{0} n'a pas pu être supprimé (en cours d'utilisation ?). Voir le journal de l'application.</translation>
 	<translation key="Tools.Description.sqlcmd">Microsoft go-sqlcmd. Requis par les tâches SQL.</translation>
 	<translation key="Tools.Description.LitePM">Lite Process Manager. Utilisé par Outils > Gestionnaire de processus.</translation>
 	<translation key="Tools.Description.LiteDeploy">Utilitaire de déploiement et de gestion à distance (autonome).</translation>
-	<translation key="Tools.Progress.Querying">{0} : consultation des versions de {1}...</translation>
-	<translation key="Tools.Progress.Downloading">{0} : téléchargement de {1} ({2})...</translation>
-	<translation key="Tools.Progress.NotSigned">{0} : attention, {1} n'est pas signé ({2})</translation>
+	<translation key="Tools.Progress.Querying">{0} : consultation des versions de {1}...</translation>
+	<translation key="Tools.Progress.Downloading">{0} : téléchargement de {1} ({2})...</translation>
+	<translation key="Tools.Progress.NotSigned">{0} : attention, {1} n'est pas signé ({2})</translation>
 	<translation key="Tools.Progress.Installed">{0} {1} installé</translation>
-	<translation key="Tools.Manage.OpenError">Erreur à l'ouverture du gestionnaire d'outils : {0}</translation>
+	<translation key="Tools.Manage.OpenError">Erreur à l'ouverture du gestionnaire d'outils : {0}</translation>
 	<translation key="RunTab.NothingToRun">Saisissez un script ou une commande, ou choisissez un fichier cible.</translation>
-	<translation key="RunTab.TargetNotFound">Fichier cible introuvable : {0}</translation>
-	<translation key="Tools.LitePMMissing">LitePM n'est pas installé. Ouvrir Outils > Gérer les outils pour le télécharger ?</translation>
+	<translation key="RunTab.TargetNotFound">Fichier cible introuvable : {0}</translation>
+	<translation key="Tools.LitePMMissing">LitePM n'est pas installé. Ouvrir Outils > Gérer les outils pour le télécharger ?</translation>
+	<!-- Messages and texts set in the code -->
+	<translation key="ActionDialog.Error">Erreur</translation>
+	<translation key="ActionDialog.ErrorSavingAction">Erreur lors de l'enregistrement de l'action : {0}</translation>
+	<translation key="ActionDialog.ErrorSelectingFile">Erreur lors du choix du fichier : {0}</translation>
+	<translation key="ApplicationContext.ErrorInitializingApplication">Erreur lors de l'initialisation de l'application : {0}</translation>
+	<translation key="ApplicationContext.ErrorLoadingSettings">Erreur lors du chargement des paramètres : {0}</translation>
+	<translation key="ApplicationContext.InitializationError">Erreur d'initialisation</translation>
+	<translation key="ApplicationContext.SettingsError">Erreur de paramètres</translation>
+	<translation key="Common.None">(Aucun)</translation>
+	<translation key="CredentialManagerForm.AccountType">Type de compte</translation>
+	<translation key="CredentialManagerForm.AreSureWantDeleteCredential">Voulez-vous vraiment supprimer l'identifiant de « {0} » ({1}) ?</translation>
+	<translation key="CredentialManagerForm.ConfirmDelete">Confirmer la suppression</translation>
+	<translation key="CredentialManagerForm.CredentialAddedSuccessfully">Identifiant ajouté.</translation>
+	<translation key="CredentialManagerForm.CredentialDeletedSuccessfully">Identifiant supprimé.</translation>
+	<translation key="CredentialManagerForm.CredentialUpdatedSuccessfully">Identifiant mis à jour.</translation>
+	<translation key="CredentialManagerForm.DeleteCredential">Supprimer l'identifiant</translation>
+	<translation key="CredentialManagerForm.Error">Erreur</translation>
+	<translation key="CredentialManagerForm.ErrorPopulatingCredentialList">Erreur lors du chargement de la liste des identifiants : {0}</translation>
+	<translation key="CredentialManagerForm.FailedAddCredential">Impossible d'ajouter l'identifiant : {0}</translation>
+	<translation key="CredentialManagerForm.FailedDeleteCredential">Impossible de supprimer l'identifiant : {0}</translation>
+	<translation key="CredentialManagerForm.FailedUpdateCredential">Impossible de mettre à jour l'identifiant : {0}</translation>
+	<translation key="CredentialManagerForm.Information">Information</translation>
+	<translation key="CredentialManagerForm.NoCredentialsFoundUnableRetrieve">Aucun identifiant trouvé, ou impossible de lire les identifiants.</translation>
+	<translation key="CredentialManagerForm.PasswordRequired">Le mot de passe est obligatoire.</translation>
+	<translation key="CredentialManagerForm.SelectAccountType">Choisissez un type de compte.</translation>
+	<translation key="CredentialManagerForm.SelectCredentialDelete">Choisissez l'identifiant à supprimer.</translation>
+	<translation key="CredentialManagerForm.SelectCredentialUpdate">Choisissez l'identifiant à mettre à jour.</translation>
+	<translation key="CredentialManagerForm.Success">Succès</translation>
+	<translation key="CredentialManagerForm.Target">Cible</translation>
+	<translation key="CredentialManagerForm.TargetRequired">La cible est obligatoire.</translation>
+	<translation key="CredentialManagerForm.UpdateCredential">Mettre à jour l'identifiant</translation>
+	<translation key="CredentialManagerForm.Username">Nom d'utilisateur</translation>
+	<translation key="CredentialManagerForm.UsernameRequired">Le nom d'utilisateur est obligatoire.</translation>
+	<translation key="CredentialManagerForm.ValidationError">Erreur de validation</translation>
+	<translation key="ErrorHandler.CriticalError">Erreur critique</translation>
+	<translation key="ErrorHandler.CriticalErrorOccurredCheckApplication">Une erreur critique s'est produite. Consultez les journaux de l'application.</translation>
+	<translation key="ErrorHandler.Error">Erreur</translation>
+	<translation key="ErrorHandler.ErrorOccurred">Une erreur s'est produite dans {0} :{1}{2}{3}</translation>
+	<translation key="ErrorHandler.RequiredSettingMissingEmpty">Le paramètre obligatoire « {0} » est absent ou vide</translation>
+	<translation key="MainForm.AboutLiteTask">À propos de LiteTask</translation>
+	<translation key="MainForm.ActionS">{0} action(s)</translation>
+	<translation key="MainForm.ChangesMayNotHaveBeen">Les modifications n'ont peut-être pas été enregistrées. Vérifiez les tâches.</translation>
+	<translation key="MainForm.CompletedErrorSCheckLog">Terminé avec {0} erreur(s). Consultez le journal pour les détails.</translation>
+	<translation key="MainForm.ConfirmDelete">Confirmer la suppression</translation>
+	<translation key="MainForm.CredentialManagerNotInitialized">Le gestionnaire d'identifiants n'est pas initialisé.</translation>
+	<translation key="MainForm.CustomSchedulerNotInitialized">Le planificateur n'est pas initialisé.</translation>
+	<translation key="MainForm.DeleteSelectedTasks">Supprimer les tâches sélectionnées ({0})</translation>
+	<translation key="MainForm.DeleteTask">Supprimer la tâche</translation>
+	<translation key="MainForm.EditTask">Modifier la tâche</translation>
+	<translation key="MainForm.ElevationError">Erreur d'élévation</translation>
+	<translation key="MainForm.Error">Erreur</translation>
+	<translation key="MainForm.Error2">Erreur : {0}</translation>
+	<translation key="MainForm.ErrorCheckingUpdates">Erreur lors de la recherche de mises à jour : {0}</translation>
+	<translation key="MainForm.ErrorCreatingTask">Erreur lors de la création de la tâche : {0}</translation>
+	<translation key="MainForm.ErrorDeletingTaskS">Erreur lors de la suppression des tâches : {0}</translation>
+	<translation key="MainForm.ErrorDeletingTasks">Erreur lors de la suppression des tâches : {0}</translation>
+	<translation key="MainForm.ErrorEditingTask">Erreur lors de la modification de la tâche : {0}</translation>
+	<translation key="MainForm.ErrorExportingTasks">Erreur lors de l'exportation des tâches : {0}</translation>
+	<translation key="MainForm.ErrorImportingTasks">Erreur lors de l'importation des tâches : {0}</translation>
+	<translation key="MainForm.ErrorInitializingTaskList">Erreur lors de l'initialisation de la liste des tâches : {0}</translation>
+	<translation key="MainForm.ErrorInstallingModules">Erreur lors de l'installation des modules : {0}</translation>
+	<translation key="MainForm.ErrorLaunchingLiteProcessManager">Erreur lors du lancement de Lite Process Manager : {0}</translation>
+	<translation key="MainForm.ErrorLoadingSettings">Erreur lors du chargement des paramètres : {0}</translation>
+	<translation key="MainForm.ErrorOccurredWhileInitializingTabs">Une erreur s'est produite lors de l'initialisation des onglets : {0}</translation>
+	<translation key="MainForm.ErrorOccurredWhileLoadingTab">Une erreur s'est produite lors du chargement de l'onglet : {0}</translation>
+	<translation key="MainForm.ErrorOccurredWhileRefreshing">Une erreur s'est produite lors de l'actualisation : {0}</translation>
+	<translation key="MainForm.ErrorPerformingServiceOperation">Erreur lors de l'opération sur le service : {0}</translation>
+	<translation key="MainForm.ErrorRefreshingTaskList">Erreur lors de l'actualisation de la liste des tâches : {0}</translation>
+	<translation key="MainForm.ErrorRefreshingUI">Erreur lors de l'actualisation de l'interface : {0}</translation>
+	<translation key="MainForm.ErrorRunningTask">Erreur lors de l'exécution de la tâche {0} : {1}</translation>
+	<translation key="MainForm.ErrorRunningTask2">Erreur lors de l'exécution de la tâche : {0}</translation>
+	<translation key="MainForm.ErrorTogglingTaskState">Erreur lors du changement d'état de la tâche : {0}</translation>
+	<translation key="MainForm.ErrorVerifyingDependencies">Erreur lors de la vérification des dépendances : {0}</translation>
+	<translation key="MainForm.ExportError">Erreur d'exportation</translation>
+	<translation key="MainForm.ExportSelectedTasks">Exporter les tâches sélectionnées ({0})</translation>
+	<translation key="MainForm.ExportSuccessful">Exportation réussie</translation>
+	<translation key="MainForm.FailedRestartElevatedPrivileges">Impossible de redémarrer avec des privilèges élevés.</translation>
+	<translation key="MainForm.ImportError">Erreur d'importation</translation>
+	<translation key="MainForm.ImportSuccessful">Importation réussie</translation>
+	<translation key="MainForm.InitializationError">Erreur d'initialisation</translation>
+	<translation key="MainForm.InvalidOperation">Opération non valide.</translation>
+	<translation key="MainForm.LiteTaskVersion">LiteTask version {0}</translation>
+	<translation key="MainForm.ModulesInstalledSuccessfully">Modules installés.</translation>
+	<translation key="MainForm.NoTaskSelected">Aucune tâche sélectionnée</translation>
+	<translation key="MainForm.NoTasksSelected">Aucune tâche sélectionnée</translation>
+	<translation key="MainForm.Ready">Prêt</translation>
+	<translation key="MainForm.RunSelectedTasks">Exécuter les tâches sélectionnées ({0})</translation>
+	<translation key="MainForm.SaveError">Erreur d'enregistrement</translation>
+	<translation key="MainForm.SelectOneTaskDelete">Choisissez au moins une tâche à supprimer.</translation>
+	<translation key="MainForm.SelectOneTaskExport">Choisissez au moins une tâche à exporter.</translation>
+	<translation key="MainForm.SelectTaskEdit">Choisissez une tâche à modifier.</translation>
+	<translation key="MainForm.SelectTaskRun">Choisissez une tâche à exécuter.</translation>
+	<translation key="MainForm.SelectedTaskCouldNotLoaded">Impossible de charger la tâche sélectionnée.</translation>
+	<translation key="MainForm.ServiceInstallation">Installation du service</translation>
+	<translation key="MainForm.ServiceInstalled">Service {0} installé.</translation>
+	<translation key="MainForm.ServiceStart">Démarrage du service</translation>
+	<translation key="MainForm.ServiceStarted">Service {0} démarré.</translation>
+	<translation key="MainForm.ServiceStop">Arrêt du service</translation>
+	<translation key="MainForm.ServiceStopped">Service {0} arrêté.</translation>
+	<translation key="MainForm.ServiceUninstallation">Désinstallation du service</translation>
+	<translation key="MainForm.ServiceUninstalled">Service {0} désinstallé.</translation>
+	<translation key="MainForm.SettingsError">Erreur de paramètres</translation>
+	<translation key="MainForm.Success">Succès</translation>
+	<translation key="MainForm.SuccessfullyExportedTaskS">{0} tâche(s) exportée(s).</translation>
+	<translation key="MainForm.SuccessfullyImportedTasks">{0} tâche(s) importée(s).</translation>
+	<translation key="MainForm.TaskAlreadyExists">Tâche existante</translation>
+	<translation key="MainForm.TaskDeletedSuccessfully">Tâche supprimée.</translation>
+	<translation key="MainForm.TaskNameAlreadyExistsDo">Une tâche nommée « {0} » existe déjà. Voulez-vous la remplacer ?</translation>
+	<translation key="MainForm.TaskNotFound">Tâche introuvable : {0}</translation>
+	<translation key="MainForm.TasksDeletedSuccessfully">{0} tâches supprimées.</translation>
+	<translation key="MainForm.ToolCheckResult">Vérification des outils</translation>
+	<translation key="MainForm.Warning">Avertissement</translation>
+	<translation key="ModulesForm.Close">Fermer</translation>
+	<translation key="ModulesForm.ConfirmClose">Confirmer la fermeture</translation>
+	<translation key="ModulesForm.Error">Erreur</translation>
+	<translation key="ModulesForm.ErrorInitializingForm">Erreur lors de l'initialisation de la fenêtre : {0}</translation>
+	<translation key="ModulesForm.ErrorInstallingModules">Erreur lors de l'installation des modules : {0}</translation>
+	<translation key="ModulesForm.InstallSelected">Installer la sélection</translation>
+	<translation key="ModulesForm.InstallationAlreadyProgress">Une installation est déjà en cours.</translation>
+	<translation key="ModulesForm.InstallationComplete">Installation terminée</translation>
+	<translation key="ModulesForm.InstallationError">Erreur d'installation</translation>
+	<translation key="ModulesForm.InstallationProgressAreSureWant">Une installation est en cours. Voulez-vous vraiment fermer ?</translation>
+	<translation key="ModulesForm.ModulesInstalledSuccessfully">Modules installés.</translation>
+	<translation key="ModulesForm.NoModulesSelected">Aucun module sélectionné</translation>
+	<translation key="ModulesForm.SelectModulesInstall">Choisissez les modules à installer</translation>
+	<translation key="ModulesForm.SelectOneModuleInstall">Choisissez au moins un module à installer.</translation>
+	<translation key="ModulesForm.SomeModulesFailedInstallCheck">Certains modules n'ont pas pu être installés. Consultez le journal de l'application pour les détails.</translation>
+	<translation key="ModulesForm.Wait">Veuillez patienter</translation>
+	<translation key="OptionsForm.AlertLevel">Niveau d'alerte :</translation>
+	<translation key="OptionsForm.Browse">Parcourir...</translation>
+	<translation key="OptionsForm.CommandTimeout">Délai d'expiration des commandes :</translation>
+	<translation key="OptionsForm.DefaultDatabase">Base de données par défaut :</translation>
+	<translation key="OptionsForm.DefaultServer">Serveur par défaut :</translation>
+	<translation key="OptionsForm.Email">Courriel</translation>
+	<translation key="OptionsForm.EmailNotifications">Notifications par courriel</translation>
+	<translation key="OptionsForm.EnableEmailNotifications">Activer les notifications par courriel</translation>
+	<translation key="OptionsForm.IncludeTaskLogNotifications">Joindre le journal de la tâche aux notifications</translation>
+	<translation key="OptionsForm.LogFolder">Dossier des journaux :</translation>
+	<translation key="OptionsForm.LogLevel">Niveau de journalisation :</translation>
+	<translation key="OptionsForm.Logging">Journalisation</translation>
+	<translation key="OptionsForm.MaxBatchSize">Taille maximale du lot :</translation>
+	<translation key="OptionsForm.MaxLogSizeMB">Taille maximale du journal (Mo) :</translation>
+	<translation key="OptionsForm.RetentionDays">Jours de conservation :</translation>
+	<translation key="OptionsForm.SMTPPort">Port SMTP :</translation>
+	<translation key="OptionsForm.SMTPServer">Serveur SMTP :</translation>
+	<translation key="OptionsForm.SendTestEmail">Envoyer un courriel d'essai</translation>
+	<translation key="OptionsForm.UseCredentials">Utiliser un identifiant</translation>
+	<translation key="OptionsForm.UseSSL">Utiliser SSL</translation>
+	<translation key="Program.AnotherInstanceLiteTaskAlreadyRunning">Une autre instance de LiteTask est déjà ouverte.</translation>
+	<translation key="Program.CriticalError">Erreur critique</translation>
+	<translation key="Program.CriticalError2">Erreur critique : {0}</translation>
+	<translation key="Program.CriticalErrorOccurredErrorDetails">Une erreur critique s'est produite : {0}{1}{2}Détails de l'erreur : {3}</translation>
+	<translation key="Program.ElevationRequired">Élévation requise</translation>
+	<translation key="Program.ErrorRegisteringService">Erreur lors de l'inscription du service : {0}</translation>
+	<translation key="Program.ErrorUnregisteringService">Erreur lors de la désinscription du service : {0}</translation>
+	<translation key="Program.FatalError">Erreur fatale</translation>
+	<translation key="Program.ServiceInstallation">Installation du service</translation>
+	<translation key="Program.ServiceInstallationError">Erreur d'installation du service</translation>
+	<translation key="Program.ServiceRegistered">Service {0} inscrit.</translation>
+	<translation key="Program.ServiceUninstallation">Désinstallation du service</translation>
+	<translation key="Program.ServiceUninstallationError">Erreur de désinstallation du service</translation>
+	<translation key="Program.ServiceUnregistered">Service {0} désinscrit.</translation>
+	<translation key="Program.ThisOperationRequiresAdministrativePrivileges">Cette opération exige des privilèges d'administrateur.</translation>
+	<translation key="RunTab.AutoDetectExecutionType">Détecter automatiquement le type d'exécution</translation>
+	<translation key="RunTab.Credential">Identifiant :</translation>
+	<translation key="RunTab.ExecutionType">Type d'exécution :</translation>
+	<translation key="RunTab.Output">Sortie :</translation>
+	<translation key="RunTab.Run">Exécution</translation>
+	<translation key="RunTab.RunElevatedPrivileges">Exécuter avec des privilèges élevés</translation>
+	<translation key="RunTab.RunScript">Exécuter le script</translation>
+	<translation key="RunTab.Script">Script :</translation>
+	<translation key="RunTab.Target">Cible :</translation>
+	<translation key="ServiceRegistration.CommandSc">Commande : sc {0}{1}</translation>
+	<translation key="SettingsValidator.ActionCannotDependItself">L'action « {0} » ne peut pas dépendre d'elle-même</translation>
+	<translation key="SettingsValidator.ActionNameRequired">Le nom de l'action est obligatoire</translation>
+	<translation key="SettingsValidator.ActionNull">Action absente</translation>
+	<translation key="SettingsValidator.ActionTargetRequired">La cible de l'action est obligatoire</translation>
+	<translation key="SettingsValidator.DependsOnReferencesUnknownAction">La dépendance désigne une action inconnue : {0}</translation>
+	<translation key="SettingsValidator.EmailAddressRequired">L'adresse du destinataire est obligatoire</translation>
+	<translation key="SettingsValidator.ErrorValidatingEmailSettings">Erreur lors de la validation des paramètres de courriel : {0}</translation>
+	<translation key="SettingsValidator.ErrorValidatingLogSettings">Erreur lors de la validation des paramètres de journalisation : {0}</translation>
+	<translation key="SettingsValidator.ErrorValidatingTaskAction">Erreur lors de la validation de l'action : {0}</translation>
+	<translation key="SettingsValidator.FromEmailAddressRequired">L'adresse de l'expéditeur est obligatoire</translation>
+	<translation key="SettingsValidator.InvalidEmailAddressFormat">Adresse du destinataire non valide : {0}</translation>
+	<translation key="SettingsValidator.InvalidFromEmailAddressFormat">Adresse de l'expéditeur non valide</translation>
+	<translation key="SettingsValidator.InvalidLogLevelSpecified">Niveau de journalisation non valide</translation>
+	<translation key="SettingsValidator.LogFolderNotAccessible">Le dossier des journaux est inaccessible : {0}</translation>
+	<translation key="SettingsValidator.LogFolderPathRequired">Le dossier des journaux est obligatoire</translation>
+	<translation key="SettingsValidator.LogRetentionDaysMustGreater">La durée de conservation des journaux doit être supérieure à 0</translation>
+	<translation key="SettingsValidator.MaxLogSizeMustGreater">La taille maximale du journal doit être supérieure à 0 Mo</translation>
+	<translation key="SettingsValidator.RetryCountCannotNegative">Le nombre de reprises ne peut pas être négatif</translation>
+	<translation key="SettingsValidator.RetryDelayCannotNegative">Le délai entre les reprises ne peut pas être négatif</translation>
+	<translation key="SettingsValidator.SMTPPortMustBetween">Le port SMTP doit être entre 1 et 65535</translation>
+	<translation key="SettingsValidator.SMTPServerRequiredWhenNotifications">Le serveur SMTP est obligatoire quand les notifications sont activées</translation>
+	<translation key="SettingsValidator.TargetFileDoesNotExist">Le fichier cible n'existe pas : {0}</translation>
+	<translation key="SettingsValidator.TimeoutMustMinute">Le délai d'expiration doit être d'au moins 1 minute</translation>
+	<translation key="SqlTab">SQL</translation>
+	<translation key="SqlTab.Connect">Connecter</translation>
+	<translation key="SqlTab.ConnectionError">Erreur de connexion</translation>
+	<translation key="SqlTab.Credential">Identifiant :</translation>
+	<translation key="SqlTab.DataSavedSuccessfully">Données enregistrées.</translation>
+	<translation key="SqlTab.Database">Base de données :</translation>
+	<translation key="SqlTab.DatabaseMustSelected">Choisissez une base de données</translation>
+	<translation key="SqlTab.EnterValidSQLQuery">Entrez une requête SQL valide.</translation>
+	<translation key="SqlTab.Error">Erreur</translation>
+	<translation key="SqlTab.ErrorConnectingServer">Erreur de connexion au serveur : {0}</translation>
+	<translation key="SqlTab.ErrorExecutingQuery">Erreur lors de l'exécution de la requête : {0}</translation>
+	<translation key="SqlTab.ErrorPopulatingObjectList">Erreur lors du chargement de la liste des objets : {0}</translation>
+	<translation key="SqlTab.ErrorSavingCSV">Erreur lors de l'enregistrement du CSV : {0}</translation>
+	<translation key="SqlTab.ExecutingQuery">Exécution de la requête...</translation>
+	<translation key="SqlTab.InvalidQuery">Requête non valide</translation>
+	<translation key="SqlTab.Object">Objet :</translation>
+	<translation key="SqlTab.Output">Sortie :</translation>
+	<translation key="SqlTab.PopulationError">Erreur de chargement</translation>
+	<translation key="SqlTab.Query">Requête :</translation>
+	<translation key="SqlTab.QueryExecutedSuccessfullyNoOutput">Requête exécutée, aucune sortie</translation>
+	<translation key="SqlTab.QueryType">Type de requête :</translation>
+	<translation key="SqlTab.ReturnLastEntry">Dernière entrée</translation>
+	<translation key="SqlTab.RunQuery">Exécuter la requête</translation>
+	<translation key="SqlTab.SQL">SQL</translation>
+	<translation key="SqlTab.SaveComplete">Enregistrement terminé</translation>
+	<translation key="SqlTab.SaveError">Erreur d'enregistrement</translation>
+	<translation key="SqlTab.SaveResults">Enregistrer les résultats</translation>
+	<translation key="SqlTab.SelectAllSaveAsCSV">Tout sélectionner (CSV)</translation>
+	<translation key="SqlTab.SelectDatabase">(Choisir une base de données)</translation>
+	<translation key="SqlTab.SelectObject">(Choisir un objet)</translation>
+	<translation key="SqlTab.Server">Serveur :</translation>
+	<translation key="SqlTab.ServerMustSpecified">Indiquez le serveur</translation>
+	<translation key="SqlTab.ThisOptionOnlyAvailableSELECT">Cette option n'est offerte que pour les requêtes SELECT.</translation>
+	<translation key="SqlTab.WouldLikeSaveResultsAs">Voulez-vous enregistrer les résultats dans un fichier CSV ?</translation>
+	<translation key="TaskForm.AddOneDailyTime">Ajoutez au moins une heure quotidienne.</translation>
+	<translation key="TaskForm.Error">Erreur</translation>
+	<translation key="TaskForm.ErrorAddingTime">Erreur lors de l'ajout de l'heure : {0}</translation>
+	<translation key="TaskForm.ErrorSavingTask">Erreur lors de l'enregistrement de la tâche : {0}</translation>
+	<translation key="TaskForm.Name">Nom</translation>
+	<translation key="TaskForm.Order">Ordre</translation>
+	<translation key="TaskForm.SelectValidDayMonth">Choisissez un jour du mois valide (1-31).</translation>
+	<translation key="TaskForm.Target">Cible</translation>
+	<translation key="TaskForm.TaskNameRequired">Le nom de la tâche est obligatoire.</translation>
+	<translation key="TaskForm.Type">Type</translation>
+	<translation key="TaskForm.ValidationError">Erreur de validation</translation>
+	<translation key="UpdateManager.Error">Erreur : {0}</translation>
+	<translation key="UpdateManager.PostBuildError">Erreur après la mise à jour : {0}</translation>
+	<translation key="UpdateManager.ServiceError">Erreur du service : {0}</translation>
+	<translation key="UpdateProgressForm.Close">Fermer</translation>
+	<translation key="UpdateProgressForm.UpdateProgress">Mise à jour en cours</translation>
+	<translation key="Type:">Type :</translation>
+	<translation key="Action Properties">Propriétés de l'action</translation>
+	<translation key="Recurring">Récurrente</translation>
+	<translation key="Order">Ordre</translation>
+	<translation key="Type">Type</translation>
+	<translation key="Target">Cible</translation>
+	<translation key="Parameters">Paramètres</translation>
+	<translation key="Requires Elevation">Exige une élévation</translation>
+	<translation key="Add">Ajouter</translation>
+	<translation key="Edit">Modifier</translation>
+	<translation key="Delete">Supprimer</translation>
+	<translation key="Move Up">Monter</translation>
+	<translation key="Move Down">Descendre</translation>
+	<translation key="Cancel">Annuler</translation>
+	<translation key="Date:">Date :</translation>
+	<translation key="Time:">Heure :</translation>
+	<translation key="Options">Options</translation>
+	<translation key="OptionsForm.InitializationError">Erreur lors de l'initialisation de la fenêtre des options : {0}</translation>
+	<translation key="OptionsForm.InterfaceTab">Interface</translation>
+	<translation key="OptionsForm.LanguageLabel">Langue :</translation>
+	<translation key="OptionsForm.LanguageAutomatic">Automatique (langue d'affichage de Windows)</translation>
+	<translation key="OptionsForm.ThemeLabel">Affichage :</translation>
+	<translation key="OptionsForm.ThemeAutomatic">Automatique (mode clair ou sombre de Windows)</translation>
+	<translation key="OptionsForm.ThemeLight">Clair</translation>
+	<translation key="OptionsForm.ThemeDark">Sombre</translation>
+	<translation key="OptionsForm.InterfaceRestart">La nouvelle langue ou le nouvel affichage s'appliquera au prochain démarrage de LiteTask.</translation>
+	<translation key="Options.LoadErrorDetails">Erreur lors du chargement des paramètres : {0}</translation>
+	<translation key="Options.SaveErrorDetails">Erreur lors de l'enregistrement des paramètres : {0}</translation>
+	<translation key="Options.TestEmail.ErrorDetails">Erreur lors de l'envoi du courriel d'essai : {0}</translation>
 </translations>

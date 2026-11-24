@@ -12,6 +12,7 @@ Namespace LiteTask
         Public Sub New()
             InitializeComponent()
             Me.Translate()
+            Theme.Apply(Me)
         End Sub
 
         Private Sub InitializeComponent()
@@ -20,7 +21,7 @@ Namespace LiteTask
             ' Title label
             _titleLabel = New Label With {
                 .Name = "_titleLabel",
-                .Text = "Update Progress",
+                .Text = TranslationManager.T("UpdateProgressForm.UpdateProgress", "Update Progress"),
                 .Dock = DockStyle.Top,
                 .Height = 30,
                 .Font = New Font(Font.FontFamily, 10, FontStyle.Bold),
@@ -55,7 +56,7 @@ Namespace LiteTask
             ' Close button
             _closeButton = New Button With {
                 .Name = "_closeButton",
-                .Text = "Close",
+                .Text = TranslationManager.T("UpdateProgressForm.Close", "Close"),
                 .Dock = DockStyle.Bottom,
                 .Height = 35,
                 .Enabled = False

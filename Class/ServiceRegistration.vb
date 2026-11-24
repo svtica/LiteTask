@@ -78,7 +78,7 @@ Namespace LiteTask
         Public Shared Sub RunSc(arguments As String, operationType As String, logPath As String, Optional logger As Logger = Nothing)
             Dim scPath As String = Path.Combine(Environment.SystemDirectory, "sc.exe")
             AppendLog(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {operationType}{Environment.NewLine}" &
-                               $"Command: sc {arguments}{Environment.NewLine}")
+                               TranslationManager.F("ServiceRegistration.CommandSc", "Command: sc {0}{1}", arguments, Environment.NewLine))
 
             Dim startInfo As New ProcessStartInfo With {
                 .FileName = scPath,
