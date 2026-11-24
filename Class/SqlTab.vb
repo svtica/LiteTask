@@ -108,18 +108,18 @@ Namespace LiteTask
 
                 Dim query = _queryTextBox.Text
                 If Not query.Trim().ToUpper().StartsWith("SELECT") AndAlso (selectAll OrElse lastEntry) Then
-                    MessageBox.Show("This option is only available for SELECT queries.", "Invalid Query", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                    MessageBox.Show(TranslationManager.T("SqlTab.ThisOptionOnlyAvailableSELECT", "This option is only available for SELECT queries."), TranslationManager.T("SqlTab.InvalidQuery", "Invalid Query"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                     Return
                 End If
 
                 Dim sqlConfig = _xmlManager.GetSqlConfiguration()
                 Dim server = If(Not String.IsNullOrWhiteSpace(_serverTextBox?.Text), _serverTextBox.Text, sqlConfig("DefaultServer"))
                 Dim database = If(_databaseComboBox?.SelectedItem IsNot Nothing AndAlso
-                                 _databaseComboBox.SelectedItem.ToString() <> "(Select a database)",
+                                 _databaseComboBox.SelectedItem.ToString() <> TranslationManager.T("SqlTab.SelectDatabase", "(Select a database)"),
                                  _databaseComboBox.SelectedItem.ToString(),
                                  sqlConfig("DefaultDatabase"))
 
-                Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), "(None)")
+                Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), TranslationManager.NoneItem)
 
                 _logger.LogInfo($"Executing query on {server}.{database}, credential: {selectedCredential}")
 
@@ -147,7 +147,7 @@ Namespace LiteTask
 
                             If selectAll Then
                                 ' Offer to save as CSV
-                                If MessageBox.Show("Would you like to save the results as a CSV file?", "Save Results", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
+                                If MessageBox.Show(TranslationManager.T("SqlTab.WouldLikeSaveResultsAs", "Would you like to save the results as a CSV file?"), TranslationManager.T("SqlTab.SaveResults", "Save Results"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
                                     Await SaveResultsAsCsv(result.Data) ' Save all data, not just displayed data
                                 End If
                             End If
@@ -164,7 +164,7 @@ Namespace LiteTask
                         _outputTextBox.Text = message & Environment.NewLine & DataTableToString(result.Data)
                         _logger.LogInfo(message)
                     Else
-                        _outputTextBox.Text = "Query executed successfully with no output"
+                        _outputTextBox.Text = TranslationManager.T("SqlTab.QueryExecutedSuccessfullyNoOutput", "Query executed successfully with no output")
                         _logger.LogInfo("Query executed successfully with no output")
                     End If
                 Else
@@ -189,7 +189,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error in ExecuteAndDisplayQuery: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                _outputTextBox.Text = $"Error executing query: {ex.Message}"
+                _outputTextBox.Text = TranslationManager.F("SqlTab.ErrorExecutingQuery", "Error executing query: {0}", ex.Message)
             End Try
         End Function
 
@@ -224,7 +224,7 @@ Namespace LiteTask
 
                         ' Get credential if specified
                         Dim credential As CredentialInfo = Nothing
-                        If Not String.IsNullOrEmpty(credentialTarget) AndAlso credentialTarget <> "(None)" Then
+                        If Not String.IsNullOrEmpty(credentialTarget) AndAlso credentialTarget <> TranslationManager.NoneItem Then
                             credential = _credentialManager.GetCredential(credentialTarget, "Windows Vault")
                         End If
 
@@ -277,7 +277,7 @@ Namespace LiteTask
                 _logger?.LogInfo("Starting InitializeComponent for SqlTab")
 
                 ' Initialize TabPage
-                _tabPage = New TabPage("SQL")
+                _tabPage = New TabPage(TranslationManager.T("SqlTab.SQL", "SQL"))
 
                 ' Initialize TableLayoutPanel
                 _tableLayoutPanel = New TableLayoutPanel With {
@@ -309,7 +309,7 @@ Namespace LiteTask
         }
 
                 _connectButton = New Button With {
-            .Text = "Connect",
+            .Text = TranslationManager.T("SqlTab.Connect", "Connect"),
             .Dock = DockStyle.Fill,
             .AutoSize = True,
             .MinimumSize = New Size(80, 25),
@@ -351,31 +351,31 @@ Namespace LiteTask
 
                 ' Initialize Labels
                 _serverLabel = New Label With {
-            .Text = "Server:",
+            .Text = TranslationManager.T("SqlTab.Server", "Server:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _databaseLabel = New Label With {
-            .Text = "Database:",
+            .Text = TranslationManager.T("SqlTab.Database", "Database:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _queryLabel = New Label With {
-            .Text = "Query:",
+            .Text = TranslationManager.T("SqlTab.Query", "Query:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _outputLabel = New Label With {
-            .Text = "Output:",
+            .Text = TranslationManager.T("SqlTab.Output", "Output:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _queryTypeLabel = New Label With {
-            .Text = "Query Type:",
+            .Text = TranslationManager.T("SqlTab.QueryType", "Query Type:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
@@ -386,20 +386,20 @@ Namespace LiteTask
         }
 
                 _objectListLabel = New Label With {
-            .Text = "Object:",
+            .Text = TranslationManager.T("SqlTab.Object", "Object:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _credentialLabel = New Label With {
-            .Text = "Credential:",
+            .Text = TranslationManager.T("SqlTab.Credential", "Credential:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 ' Initialize buttons with specific sizes
                 _selectAllButton = New Button With {
-            .Text = "Select All (Save as CSV)",
+            .Text = TranslationManager.T("SqlTab.SelectAllSaveAsCSV", "Select All (Save as CSV)"),
             .Dock = DockStyle.None,
             .AutoSize = True,
             .MinimumSize = New Size(120, 25),
@@ -407,7 +407,7 @@ Namespace LiteTask
         }
 
                 _returnLastEntryButton = New Button With {
-            .Text = "Return Last Entry",
+            .Text = TranslationManager.T("SqlTab.ReturnLastEntry", "Return Last Entry"),
             .Dock = DockStyle.None,
             .AutoSize = True,
             .MinimumSize = New Size(120, 25),
@@ -415,7 +415,7 @@ Namespace LiteTask
         }
 
                 _runButton = New Button With {
-            .Text = "Run Query",
+            .Text = TranslationManager.T("SqlTab.RunQuery", "Run Query"),
             .Dock = DockStyle.None,
             .AutoSize = True,
             .MinimumSize = New Size(120, 25),
@@ -425,18 +425,18 @@ Namespace LiteTask
                 Try
                     If _translationManager IsNot Nothing Then
                         _logger?.LogInfo("Applying translations to SqlTab controls")
-                        _tabPage.Text = _translationManager.GetTranslation("SQLTab.Text")
-                        _serverLabel.Text = _translationManager.GetTranslation("SQLTab.ServerLabel")
-                        _databaseLabel.Text = _translationManager.GetTranslation("SQLTab.DatabaseLabel")
-                        _queryLabel.Text = _translationManager.GetTranslation("SQLTab.QueryLabel")
-                        _outputLabel.Text = _translationManager.GetTranslation("SQLTab.OutputLabel")
-                        _queryTypeLabel.Text = _translationManager.GetTranslation("SQLTab.QueryTypeLabel.Text")
-                        _objectListLabel.Text = _translationManager.GetTranslation("SQLTab.ObjectListLabel.Text")
-                        _credentialLabel.Text = _translationManager.GetTranslation("SQLTab.CredentialLabel")
-                        _connectButton.Text = _translationManager.GetTranslation("SQLTab.Connect")
-                        _selectAllButton.Text = _translationManager.GetTranslation("SQLTab.SelectAll")
-                        _returnLastEntryButton.Text = _translationManager.GetTranslation("SQLTab.LastEntry")
-                        _runButton.Text = _translationManager.GetTranslation("SQLTab.RunButton.Text")
+                        _tabPage.Text = _translationManager.GetTranslation("SQLTab.Text", "SQL")
+                        _serverLabel.Text = _translationManager.GetTranslation("SQLTab.ServerLabel", "Server:")
+                        _databaseLabel.Text = _translationManager.GetTranslation("SQLTab.DatabaseLabel", "Database:")
+                        _queryLabel.Text = _translationManager.GetTranslation("SQLTab.QueryLabel", "Query:")
+                        _outputLabel.Text = _translationManager.GetTranslation("SQLTab.OutputLabel", "Output:")
+                        _queryTypeLabel.Text = _translationManager.GetTranslation("SQLTab.QueryTypeLabel.Text", "Query type:")
+                        _objectListLabel.Text = _translationManager.GetTranslation("SQLTab.ObjectListLabel.Text", "Object:")
+                        _credentialLabel.Text = _translationManager.GetTranslation("SQLTab.CredentialLabel", "Credential:")
+                        _connectButton.Text = _translationManager.GetTranslation("SQLTab.Connect", "Connect")
+                        _selectAllButton.Text = _translationManager.GetTranslation("SQLTab.SelectAll", "Select all (CSV)")
+                        _returnLastEntryButton.Text = _translationManager.GetTranslation("SQLTab.LastEntry", "Last entry")
+                        _runButton.Text = _translationManager.GetTranslation("SQLTab.RunButton.Text", "Run")
                     Else
                         _logger?.LogWarning("TranslationManager is not initialized, using default texts")
                     End If
@@ -512,7 +512,7 @@ Namespace LiteTask
 
         Private Sub PopulateCredentialComboBox()
             _credentialComboBox.Items.Clear()
-            _credentialComboBox.Items.Add("(None)")
+            _credentialComboBox.Items.Add(TranslationManager.NoneItem)
             Dim targets = _credentialManager.GetAllCredentialTargets()
             For Each target In targets
                 _credentialComboBox.Items.Add(target)
@@ -524,7 +524,7 @@ Namespace LiteTask
 
             _databaseComboBox.Items.Clear()
             ' Add delay-loaded connection
-            _databaseComboBox.Items.Add("(Select a database)")
+            _databaseComboBox.Items.Add(TranslationManager.T("SqlTab.SelectDatabase", "(Select a database)"))
             _databaseComboBox.SelectedIndex = 0
 
             ' Load saved SQL settings
@@ -567,13 +567,13 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger?.LogError($"Error populating database list: {ex.Message}")
-                MessageBox.Show($"Error connecting to server: {ex.Message}", "Connection Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("SqlTab.ErrorConnectingServer", "Error connecting to server: {0}", ex.Message), TranslationManager.T("SqlTab.ConnectionError", "Connection Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
         Private Sub PopulateObjectListComboBox()
             _objectListComboBox.Items.Clear()
-            _objectListComboBox.Items.Add("(Select an object)")
+            _objectListComboBox.Items.Add(TranslationManager.T("SqlTab.SelectObject", "(Select an object)"))
 
             If _databaseComboBox.SelectedIndex <= 0 OrElse String.IsNullOrEmpty(_serverTextBox.Text) Then
                 _objectListComboBox.SelectedIndex = 0
@@ -619,7 +619,7 @@ Namespace LiteTask
                 End Using
 
             Catch ex As Exception
-                MessageBox.Show($"Error populating object list: {ex.Message}", "Population Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("SqlTab.ErrorPopulatingObjectList", "Error populating object list: {0}", ex.Message), TranslationManager.T("SqlTab.PopulationError", "Population Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 _logger?.LogError($"Error populating object list: {ex.Message}")
             End Try
         End Sub
@@ -628,10 +628,10 @@ Namespace LiteTask
             If _queryTypeComboBox IsNot Nothing Then
                 _queryTypeComboBox.Items.Clear()
                 _queryTypeComboBox.Items.AddRange({
-            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.Select"),
-            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.Table"),
-            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.View"),
-            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.StoredProcedure")
+            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.Select", "Select the query type"),
+            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.Table", "Table"),
+            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.View", "View"),
+            TranslationManager.Instance.GetTranslation("SQLTab.QueryType.StoredProcedure", "Stored procedure")
         })
                 _queryTypeComboBox.SelectedIndex = 0
             End If
@@ -650,7 +650,7 @@ Namespace LiteTask
         Private Async Sub RunButton_Click(sender As Object, e As EventArgs)
             Try
                 _runButton.Enabled = False
-                _outputTextBox.Text = "Executing query..."
+                _outputTextBox.Text = TranslationManager.T("SqlTab.ExecutingQuery", "Executing query...")
 
                 If Not ValidateInputs() Then Return
 
@@ -660,12 +660,12 @@ Namespace LiteTask
                        sqlConfig("DefaultServer"))
 
                 Dim database = If(_databaseComboBox?.SelectedItem IsNot Nothing AndAlso
-                         _databaseComboBox.SelectedItem.ToString() <> "(Select a database)",
+                         _databaseComboBox.SelectedItem.ToString() <> TranslationManager.T("SqlTab.SelectDatabase", "(Select a database)"),
                          _databaseComboBox.SelectedItem.ToString(),
                          sqlConfig("DefaultDatabase"))
 
-                Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), "(None)")
-                Dim credential = If(selectedCredential = "(None)",
+                Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), TranslationManager.NoneItem)
+                Dim credential = If(selectedCredential = TranslationManager.NoneItem,
                           Nothing,
                           _credentialManager.GetCredential(selectedCredential, "Windows Vault"))
 
@@ -696,7 +696,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"Error in RunButton_Click: {ex.Message}")
-                _outputTextBox.Text = $"Error executing query: {ex.Message}"
+                _outputTextBox.Text = TranslationManager.F("SqlTab.ErrorExecutingQuery", "Error executing query: {0}", ex.Message)
             Finally
                 _runButton.Enabled = True
             End Try
@@ -747,11 +747,11 @@ Namespace LiteTask
 
                     If saveFileDialog.ShowDialog() = DialogResult.OK Then
                         Await SaveDataTableToCsvAsync(data, saveFileDialog.FileName)
-                        MessageBox.Show("Data saved successfully.", "Save Complete", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.T("SqlTab.DataSavedSuccessfully", "Data saved successfully."), TranslationManager.T("SqlTab.SaveComplete", "Save Complete"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     End If
                 End Using
             Catch ex As Exception
-                MessageBox.Show($"Error saving CSV: {ex.Message}", "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("SqlTab.ErrorSavingCSV", "Error saving CSV: {0}", ex.Message), TranslationManager.T("SqlTab.SaveError", "Save Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 _logger.LogError($"Error saving CSV: {ex.Message}")
             End Try
         End Function
@@ -762,17 +762,17 @@ Namespace LiteTask
 
         Private Function ValidateInputs() As Boolean
             If String.IsNullOrWhiteSpace(_queryTextBox.Text) Then
-                MessageBox.Show("Please enter a valid SQL query.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("SqlTab.EnterValidSQLQuery", "Please enter a valid SQL query."), TranslationManager.T("SqlTab.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
 
             If String.IsNullOrWhiteSpace(_serverTextBox?.Text) Then
-                MessageBox.Show("Server must be specified", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("SqlTab.ServerMustSpecified", "Server must be specified"), TranslationManager.T("SqlTab.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
 
-            If _databaseComboBox?.SelectedItem Is Nothing OrElse _databaseComboBox.SelectedItem.ToString() = "(Select a database)" Then
-                MessageBox.Show("Database must be selected", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            If _databaseComboBox?.SelectedItem Is Nothing OrElse _databaseComboBox.SelectedItem.ToString() = TranslationManager.T("SqlTab.SelectDatabase", "(Select a database)") Then
+                MessageBox.Show(TranslationManager.T("SqlTab.DatabaseMustSelected", "Database must be selected"), TranslationManager.T("SqlTab.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End If
 

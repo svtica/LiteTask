@@ -51,6 +51,7 @@ Namespace LiteTask
                 InitializeData()
                 AddEventsHandlers()
                 Me.Translate()
+                Theme.Apply(Me)
 
             Catch ex As Exception
                 _logger?.LogError($"Error initializing ActionDialog: {ex.Message}")
@@ -67,7 +68,7 @@ Namespace LiteTask
 
                 ' Initialize Depends On ComboBox
                 _dependsOnCombo.Items.Clear()
-                _dependsOnCombo.Items.Add("(None)")
+                _dependsOnCombo.Items.Add(TranslationManager.NoneItem)
                 _dependsOnCombo.SelectedIndex = 0
 
                 PopulateDependencyCombo()
@@ -126,7 +127,7 @@ Namespace LiteTask
         Private Sub PopulateDependencyCombo()
             Try
                 _dependsOnCombo.Items.Clear()
-                _dependsOnCombo.Items.Add("(None)")
+                _dependsOnCombo.Items.Add(TranslationManager.NoneItem)
 
                 ' Get all tasks from scheduler
                 Dim scheduler = ApplicationContainer.GetService(Of CustomScheduler)()
@@ -173,7 +174,7 @@ Namespace LiteTask
                 End Using
             Catch ex As Exception
                 _logger.LogError($"Error in file browse dialog: {ex.Message}")
-                MessageBox.Show($"Error selecting file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("ActionDialog.ErrorSelectingFile", "Error selecting file: {0}", ex.Message), TranslationManager.T("ActionDialog.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -206,7 +207,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"Error saving action: {ex.Message}")
-                MessageBox.Show($"Error saving action: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("ActionDialog.ErrorSavingAction", "Error saving action: {0}", ex.Message), TranslationManager.T("ActionDialog.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 DialogResult = DialogResult.None
             End Try
         End Sub

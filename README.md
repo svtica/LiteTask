@@ -32,6 +32,14 @@ LiteTask is a comprehensive task scheduling application that can run as both a d
 - Comprehensive logging with rotation policies
 - Error tracking and diagnostic capabilities
 
+### Language and display
+- English or French interface: *Options > Interface > Language* (*Automatic* follows the Windows display
+  language)
+- Light or dark display: *Options > Interface > Display* (*Automatic* follows the light or dark mode of
+  Windows), with the Windows accent color for the selection in menus
+- Both are saved in `settings.xml` (`Interface/Language`: `auto`, `en` or `fr`; `Interface/Theme`: `auto`,
+  `light` or `dark`) and used the next time LiteTask starts
+
 ## Installation
 
 0. **Prerequisite**: [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) (`Microsoft.WindowsDesktop.App` 10.x)
@@ -74,6 +82,18 @@ LiteTask.exe [options]
 2. **Tool Setup**: Go to Tools > Check Tools to verify utilities
 3. **PowerShell Modules**: Tools > Install PowerShell Modules for additional functionality
 4. **Credentials**: File > Credential Manager to add authentication details (account type *LiteSuite*: shared with LiteDeploy)
+5. **Language and display**: Options > Interface (see *Language and display*)
+
+### Translations
+English texts live in the code; `LiteTaskData/lang/fr.xml` holds the French ones
+(`<translation key="...">...</translation>`). In the code, always give the English text with the key:
+`TranslationManager.T("Class.Name", "English text")`, or `TranslationManager.F(...)` with `{0}`
+placeholders (never build a sentence from translated pieces). Controls created by the designer or the code
+are translated by `Me.Translate()` (keys `<control name>.Text`, or the English text itself), then
+`Theme.Apply(Me)` sets the light or dark colors. A missing key keeps the English text. French follows the
+Quebec conventions: a non-breaking space before `:`, `?`, `!` and `;`. The tests (`LocalizationTests`) check
+that every key of the code has an English text and a French translation, with the same placeholders.
+`LITETASK_LANG` (`en`, `fr`) and `LITETASK_THEME` (`light`, `dark`) override the settings (tests).
 
 ## Directory Structure
 

@@ -439,21 +439,21 @@ Namespace LiteTask
 
             ' Create labels with names
             _nameLabel = New Label With {
-            .Text = TranslationManager.Instance.GetTranslation("_nameLabel.Text"),
+            .Text = TranslationManager.Instance.GetTranslation("_nameLabel.Text", "Name:"),
             .Location = New Point(20, 23),
             .AutoSize = True,
             .Name = "_nameLabel"
              }
 
             _descriptionLabel = New Label With {
-            .Text = TranslationManager.Instance.GetTranslation("_descriptionLabel.Text"),
+            .Text = TranslationManager.Instance.GetTranslation("_descriptionLabel.Text", "Description:"),
             .Location = New Point(20, 53),
             .AutoSize = True,
             .Name = "_descriptionLabel"
             }
 
             _credentialLabel = New Label With {
-            .Text = TranslationManager.Instance.GetTranslation("_credentialLabel.Text"),
+            .Text = TranslationManager.Instance.GetTranslation("_credentialLabel.Text", "Credential:"),
             .Location = New Point(20, 123),
             .AutoSize = True,
             .Name = "_credentialLabel"

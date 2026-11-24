@@ -34,7 +34,7 @@ Namespace LiteTask
                 _notifyIcon = New NotifyIcon() With {
             .Icon = AppIcon.Value,
             .Visible = True,
-            .Text = TranslationManager.Instance.GetTranslation("NotifyIcon.Text")
+            .Text = TranslationManager.Instance.GetTranslation("NotifyIcon.Text", "LiteTask")
         }
 
                 ' Create context menu  
@@ -42,22 +42,23 @@ Namespace LiteTask
 
                 ' Add menu items with translations
                 Dim showItem As New ToolStripMenuItem(
-            TranslationManager.Instance.GetTranslation("Show"),
+            TranslationManager.Instance.GetTranslation("Show", "Show"),
             Nothing,
             AddressOf ShowMainForm)
 
                 Dim optionsItem As New ToolStripMenuItem(
-            TranslationManager.Instance.GetTranslation("_optionsMenuItem.Text"),
+            TranslationManager.Instance.GetTranslation("_optionsMenuItem.Text", "Options"),
             Nothing,
             AddressOf ShowSettings)
 
                 Dim exitItem As New ToolStripMenuItem(
-            TranslationManager.Instance.GetTranslation("Exit"),
+            TranslationManager.Instance.GetTranslation("Exit", "Exit"),
             Nothing,
             AddressOf ExitApplication)
 
                 contextMenu.Items.AddRange({showItem, optionsItem, New ToolStripSeparator(), exitItem})
                 _notifyIcon.ContextMenuStrip = contextMenu
+                Theme.Apply(contextMenu)
 
                 ' Create main form but don't show it yet  
                 _mainForm = New MainForm()
@@ -74,7 +75,7 @@ Namespace LiteTask
 
                 _logger.LogInfo("Application context initialized successfully")
             Catch ex As Exception
-                MessageBox.Show($"Error initializing application: {ex.Message}", "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("ApplicationContext.ErrorInitializingApplication", "Error initializing application: {0}", ex.Message), TranslationManager.T("ApplicationContext.InitializationError", "Initialization Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 _logger?.LogError($"Error in LiteTaskApplicationContext constructor: {ex.Message}")
                 _logger?.LogError($"StackTrace: {ex.StackTrace}")
                 Application.Exit()
@@ -97,7 +98,7 @@ Namespace LiteTask
                 _logger.LogInfo("Settings loaded successfully")
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
-                MessageBox.Show($"Error loading settings: {ex.Message}", "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                MessageBox.Show(TranslationManager.F("ApplicationContext.ErrorLoadingSettings", "Error loading settings: {0}", ex.Message), TranslationManager.T("ApplicationContext.SettingsError", "Settings Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
             End Try
         End Sub
 
@@ -127,8 +128,8 @@ Namespace LiteTask
             Try
                 ' Ask for confirmation before exiting with translated message 
                 If MessageBox.Show(
-            TranslationManager.Instance.GetTranslation("ConfirmExit"),
-            TranslationManager.Instance.GetTranslation("ConfirmExitTitle"),
+            TranslationManager.Instance.GetTranslation("ConfirmExit", "Are you sure you want to exit LiteTask?"),
+            TranslationManager.Instance.GetTranslation("ConfirmExitTitle", "Confirm Exit"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question) = DialogResult.Yes Then
 
@@ -173,8 +174,8 @@ Namespace LiteTask
                 _mainForm.Hide()
                 _notifyIcon.ShowBalloonTip(
             3000,
-            TranslationManager.Instance.GetTranslation("NotifyIcon.BalloonTipTitle"),
-            TranslationManager.Instance.GetTranslation("NotifyIcon.BalloonTipText"),
+            TranslationManager.Instance.GetTranslation("NotifyIcon.BalloonTipTitle", "LiteTask"),
+            TranslationManager.Instance.GetTranslation("NotifyIcon.BalloonTipText", "The application was minimized to the notification area"),
             ToolTipIcon.Info)
             End If
         End Sub

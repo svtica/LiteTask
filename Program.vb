@@ -61,7 +61,7 @@ Namespace LiteTask
                         _mutex = New Mutex(True, LocalMutexName, createdNew)
                     End Try
                     If Not createdNew Then
-                        MessageBox.Show("Another instance of LiteTask is already running.", "LiteTask",
+                        MessageBox.Show(TranslationManager.T("Program.AnotherInstanceLiteTaskAlreadyRunning", "Another instance of LiteTask is already running."), "LiteTask",
                               MessageBoxButtons.OK, MessageBoxIcon.Information)
                         Return
                     End If
@@ -217,14 +217,14 @@ Namespace LiteTask
                 logger?.LogCritical($"Critical application error: {ex.Message}", ex)
 
                 If Environment.UserInteractive Then
-                    MessageBox.Show($"A critical error occurred: {ex.Message}{Environment.NewLine}{Environment.NewLine}Error Details: {ex.ToString()}",
-                                  "Critical Error",
+                    MessageBox.Show(TranslationManager.F("Program.CriticalErrorOccurredErrorDetails", "A critical error occurred: {0}{1}{2}Error Details: {3}", ex.Message, Environment.NewLine, Environment.NewLine, ex.ToString()),
+                                  TranslationManager.T("Program.CriticalError", "Critical Error"),
                                   MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End If
             Catch criticalEx As Exception
                 ' Last resort error handling
                 Console.WriteLine($"Critical Error: {criticalEx.Message}")
-                MessageBox.Show($"Critical Error: {criticalEx.Message}", "Critical Error",
+                MessageBox.Show(TranslationManager.F("Program.CriticalError2", "Critical Error: {0}", criticalEx.Message), TranslationManager.T("Program.CriticalError", "Critical Error"),
                               MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
@@ -319,11 +319,11 @@ Namespace LiteTask
 
                 ServiceRegistration.Install(GetLogPath("service.log"), TryGetService(Of Logger)())
 
-                MessageBox.Show($"Service {ServiceName} registered.", "Service Installation",
+                MessageBox.Show(TranslationManager.F("Program.ServiceRegistered", "Service {0} registered.", ServiceName), TranslationManager.T("Program.ServiceInstallation", "Service Installation"),
                       MessageBoxButtons.OK, MessageBoxIcon.Information)
 
             Catch ex As Exception
-                MessageBox.Show($"Error registering service: {ex.Message}", "Service Installation Error",
+                MessageBox.Show(TranslationManager.F("Program.ErrorRegisteringService", "Error registering service: {0}", ex.Message), TranslationManager.T("Program.ServiceInstallationError", "Service Installation Error"),
                       MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
@@ -388,8 +388,8 @@ Namespace LiteTask
                 End Using
                 Application.Exit()
             Catch ex As Exception
-                MessageBox.Show("This operation requires administrative privileges.",
-                       "Elevation Required",
+                MessageBox.Show(TranslationManager.T("Program.ThisOperationRequiresAdministrativePrivileges", "This operation requires administrative privileges."),
+                       TranslationManager.T("Program.ElevationRequired", "Elevation Required"),
                        MessageBoxButtons.OK,
                        MessageBoxIcon.Warning)
             End Try
@@ -495,7 +495,7 @@ Namespace LiteTask
 
             ' Show message box only if running in interactive mode
             If Environment.UserInteractive Then
-                MessageBox.Show(errorBuilder.ToString(), "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(errorBuilder.ToString(), TranslationManager.T("Program.FatalError", "Fatal Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             Else
                 ' Log to Windows Event Log when running as service
                 Try
@@ -528,7 +528,7 @@ Namespace LiteTask
 
         '    errorMessage &= $"{Environment.NewLine}The application will now close."
 
-        '    MessageBox.Show(errorMessage, "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        '    MessageBox.Show(errorMessage, TranslationManager.T("Program.FatalError", "Fatal Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
         '    Environment.Exit(1)
         'End Sub
 
@@ -550,11 +550,11 @@ Namespace LiteTask
 
                 ServiceRegistration.Uninstall(GetLogPath("service.log"), TryGetService(Of Logger)())
 
-                MessageBox.Show($"Service {ServiceName} unregistered.", "Service Uninstallation",
+                MessageBox.Show(TranslationManager.F("Program.ServiceUnregistered", "Service {0} unregistered.", ServiceName), TranslationManager.T("Program.ServiceUninstallation", "Service Uninstallation"),
                               MessageBoxButtons.OK, MessageBoxIcon.Information)
 
             Catch ex As Exception
-                MessageBox.Show($"Error unregistering service: {ex.Message}", "Service Uninstallation Error",
+                MessageBox.Show(TranslationManager.F("Program.ErrorUnregisteringService", "Error unregistering service: {0}", ex.Message), TranslationManager.T("Program.ServiceUninstallationError", "Service Uninstallation Error"),
                               MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub

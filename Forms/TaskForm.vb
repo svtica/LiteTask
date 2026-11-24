@@ -50,6 +50,7 @@ Namespace LiteTask
                 InitializeFormData()
                 InitializeActionsGrid()
                 Me.Translate()
+                Theme.Apply(Me)
                 TranslateComponents()
                 ' Add event handlers
                 AddEventHandlers()
@@ -120,7 +121,7 @@ Namespace LiteTask
                 End If
             Catch ex As Exception
                 _logger?.LogError($"Error adding time: {ex.Message}")
-                MessageBox.Show($"Error adding time: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("TaskForm.ErrorAddingTime", "Error adding time: {0}", ex.Message), TranslationManager.T("TaskForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -153,22 +154,22 @@ Namespace LiteTask
             _actionsGrid.Columns.AddRange(New DataGridViewColumn() {
         New DataGridViewTextBoxColumn() With {
             .DataPropertyName = "Order",
-            .HeaderText = "Order",
+            .HeaderText = TranslationManager.T("TaskForm.Order", "Order"),
             .Width = 60
         },
         New DataGridViewTextBoxColumn() With {
             .DataPropertyName = "Name",
-            .HeaderText = "Name",
+            .HeaderText = TranslationManager.T("TaskForm.Name", "Name"),
             .Width = 150
         },
         New DataGridViewTextBoxColumn() With {
             .DataPropertyName = "Type",
-            .HeaderText = "Type",
+            .HeaderText = TranslationManager.T("TaskForm.Type", "Type"),
             .Width = 100
         },
         New DataGridViewTextBoxColumn() With {
             .DataPropertyName = "Target",
-            .HeaderText = "Target",
+            .HeaderText = TranslationManager.T("TaskForm.Target", "Target"),
             .Width = 200
         }
     })
@@ -179,7 +180,7 @@ Namespace LiteTask
             Try
                 ' Initialize credentials combo
                 _credentialComboBox.Items.Clear()
-                _credentialComboBox.Items.Add("(None)")
+                _credentialComboBox.Items.Add(TranslationManager.NoneItem)
                 _credentialComboBox.Items.AddRange(_credentialManager.GetAllCredentialTargets().ToArray())
                 _credentialComboBox.SelectedIndex = 0
 
@@ -187,14 +188,14 @@ Namespace LiteTask
                 _recurrenceTypeCombo.Items.Clear()
                 ' Store the actual enum values as Tag property
                 Dim dailyItem As New ComboBoxItem(
-            TranslationManager.Instance.GetTranslation("Daily"),
+            TranslationManager.Instance.GetTranslation("Daily", "Daily"),
             RecurrenceType.Daily)
                 Dim intervalItem As New ComboBoxItem(
-            TranslationManager.Instance.GetTranslation("Interval"),
+            TranslationManager.Instance.GetTranslation("Interval", "Interval"),
             RecurrenceType.Interval)
 
                 Dim monthlyItem As New ComboBoxItem(
-            TranslationManager.Instance.GetTranslation("Monthly"),
+            TranslationManager.Instance.GetTranslation("Monthly", "Monthly"),
             RecurrenceType.Monthly)
 
                 _recurrenceTypeCombo.Items.Add(dailyItem)
@@ -336,7 +337,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger?.LogError($"Error saving task: {ex.Message}")
-                MessageBox.Show($"Error saving task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("TaskForm.ErrorSavingTask", "Error saving task: {0}", ex.Message), TranslationManager.T("TaskForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 DialogResult = DialogResult.None
             End Try
         End Sub
@@ -397,11 +398,11 @@ Namespace LiteTask
         End Sub
 
         Private Sub TranslateComponents()
-            _generalTab.Text = TranslationManager.Instance.GetTranslation("_generalTab.Text")
-            _nameLabel.Text = TranslationManager.Instance.GetTranslation("_nameLabel.Text")
-            _descriptionLabel.Text = TranslationManager.Instance.GetTranslation("_descriptionLabel.Text")
-            _credentialLabel.Text = TranslationManager.Instance.GetTranslation("_credentialLabel.Text")
-            _cancelButton.Text = TranslationManager.Instance.GetTranslation("_cancelButton.Text")
+            _generalTab.Text = TranslationManager.Instance.GetTranslation("_generalTab.Text", "General")
+            _nameLabel.Text = TranslationManager.Instance.GetTranslation("_nameLabel.Text", "Name:")
+            _descriptionLabel.Text = TranslationManager.Instance.GetTranslation("_descriptionLabel.Text", "Description:")
+            _credentialLabel.Text = TranslationManager.Instance.GetTranslation("_credentialLabel.Text", "Credential:")
+            _cancelButton.Text = TranslationManager.Instance.GetTranslation("_cancelButton.Text", "Cancel")
         End Sub
 
         Private Sub UpdateActionButtons()
@@ -501,7 +502,7 @@ Namespace LiteTask
 
         Private Function ValidateInput() As Boolean
             If String.IsNullOrWhiteSpace(_nameTextBox.Text) Then
-                MessageBox.Show("Task name is required.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                MessageBox.Show(TranslationManager.T("TaskForm.TaskNameRequired", "Task name is required."), TranslationManager.T("TaskForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                 Return False
             End If
 
@@ -521,7 +522,7 @@ Namespace LiteTask
 
                     Case RecurrenceType.Daily
                         If _dailyTimeList.Items.Count = 0 Then
-                            MessageBox.Show("Please add at least one daily time.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                            MessageBox.Show(TranslationManager.T("TaskForm.AddOneDailyTime", "Please add at least one daily time."), TranslationManager.T("TaskForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                             Return False
                         End If
 
@@ -529,7 +530,7 @@ Namespace LiteTask
 
                     Case RecurrenceType.Monthly
                         If _monthlyDayNumeric.Value < 1 OrElse _monthlyDayNumeric.Value > 31 Then
-                            MessageBox.Show("Please select a valid day of the month (1-31).", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                            MessageBox.Show(TranslationManager.T("TaskForm.SelectValidDayMonth", "Please select a valid day of the month (1-31)."), TranslationManager.T("TaskForm.ValidationError", "Validation Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                             Return False
                         End If
                 End Select
