@@ -172,6 +172,9 @@ Namespace LiteTask
             sp.GetRequiredService(Of Logger)(),
             sp.GetRequiredService(Of XMLManager)()
         )
+                                                             ' Light or dark display: read with the language, before any window is created
+                                                             Theme.Preference = Theme.ReadPreference(sp.GetRequiredService(Of XMLManager)())
+                                                             Theme.Reset()
                                                              Return translationManager
                                                          End Function)
 

@@ -81,35 +81,35 @@ Namespace LiteTask
                 _logger?.LogInfo("Starting InitializeComponent for RunTab")
 
                 ' Initialize TabPage
-                _tabPage = New TabPage("Run")
+                _tabPage = New TabPage(TranslationManager.T("RunTab.Run", "Run"))
 
                 ' Initialize Labels
                 _scriptLabel = New Label With {
-            .Text = "Script:",
+            .Text = TranslationManager.T("RunTab.Script", "Script:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _outputLabel = New Label With {
-            .Text = "Output:",
+            .Text = TranslationManager.T("RunTab.Output", "Output:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _targetLabel = New Label With {
-            .Text = "Target:",
+            .Text = TranslationManager.T("RunTab.Target", "Target:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _credentialLabel = New Label With {
-            .Text = "Credential:",
+            .Text = TranslationManager.T("RunTab.Credential", "Credential:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
 
                 _executionTypeLabel = New Label With {
-            .Text = "Execution Type:",
+            .Text = TranslationManager.T("RunTab.ExecutionType", "Execution Type:"),
             .Dock = DockStyle.Fill,
             .AutoSize = True
         }
@@ -149,7 +149,7 @@ Namespace LiteTask
 }
 
                 _runButton = New Button With {
-            .Text = "Run Script",
+            .Text = TranslationManager.T("RunTab.RunScript", "Run Script"),
             .Dock = DockStyle.Fill,
             .Height = 30
         }
@@ -160,12 +160,12 @@ Namespace LiteTask
         }
 
                 _requiresElevationCheckBox = New CheckBox With {
-            .Text = "Run with elevated privileges",
+            .Text = TranslationManager.T("RunTab.RunElevatedPrivileges", "Run with elevated privileges"),
             .Dock = DockStyle.Fill
         }
 
                 _autoDetectCheckBox = New CheckBox With {
-            .Text = "Auto-detect execution type",
+            .Text = TranslationManager.T("RunTab.AutoDetectExecutionType", "Auto-detect execution type"),
             .Checked = True,
             .Dock = DockStyle.Fill
         }
@@ -184,7 +184,7 @@ Namespace LiteTask
                 _executionTypeComboBox.SelectedIndex = 0
 
                 _autoDetectCheckBox = New CheckBox With {
-                    .Text = "Auto-detect execution type",
+                    .Text = TranslationManager.T("RunTab.AutoDetectExecutionType", "Auto-detect execution type"),
                     .Checked = True,
                     .Dock = DockStyle.Fill
                 }
@@ -193,15 +193,15 @@ Namespace LiteTask
                 Try
                     _logger?.LogInfo("Starting translations for RunTab")
                     If _translationManager IsNot Nothing Then
-                        _tabPage.Text = _translationManager.GetTranslation("RunTab.Text")
-                        _scriptLabel.Text = _translationManager.GetTranslation("RunTab.ScriptLabel")
-                        _outputLabel.Text = _translationManager.GetTranslation("RunTab.OutputLabel")
-                        _targetLabel.Text = _translationManager.GetTranslation("RunTab.TargetLabel")
-                        _credentialLabel.Text = _translationManager.GetTranslation("RunTab.CredentialLabel")
-                        _executionTypeLabel.Text = _translationManager.GetTranslation("RunTab.ExecutionTypeLabel")
-                        _requiresElevationCheckBox.Text = _translationManager.GetTranslation("RunTab.RequiresElevation")
-                        _autoDetectCheckBox.Text = _translationManager.GetTranslation("RunTab.AutoDetect")
-                        _runButton.Text = _translationManager.GetTranslation("RunTab.RunButton")
+                        _tabPage.Text = _translationManager.GetTranslation("RunTab.Text", "Run")
+                        _scriptLabel.Text = _translationManager.GetTranslation("RunTab.ScriptLabel", "Script:")
+                        _outputLabel.Text = _translationManager.GetTranslation("RunTab.OutputLabel", "Output:")
+                        _targetLabel.Text = _translationManager.GetTranslation("RunTab.TargetLabel", "Target:")
+                        _credentialLabel.Text = _translationManager.GetTranslation("RunTab.CredentialLabel", "Credential:")
+                        _executionTypeLabel.Text = _translationManager.GetTranslation("RunTab.ExecutionTypeLabel", "Execution type:")
+                        _requiresElevationCheckBox.Text = _translationManager.GetTranslation("RunTab.RequiresElevation", "Requires elevation")
+                        _autoDetectCheckBox.Text = _translationManager.GetTranslation("RunTab.AutoDetect", "Detect the execution type automatically")
+                        _runButton.Text = _translationManager.GetTranslation("RunTab.RunButton", "Run script")
                         _logger?.LogInfo("RunTab translations completed")
                     End If
                 Catch translationEx As Exception
@@ -435,7 +435,7 @@ Namespace LiteTask
 
         Private Sub PopulateCredentialComboBox()
             _credentialComboBox.Items.Clear()
-            _credentialComboBox.Items.Add("(None)")
+            _credentialComboBox.Items.Add(TranslationManager.NoneItem)
             Dim targets = _credentialManager.GetAllCredentialTargets()
             For Each target In targets
                 _credentialComboBox.Items.Add(target)
@@ -477,8 +477,8 @@ Namespace LiteTask
 
                 If Not ValidateInputs() Then Return
 
-                Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), "(None)")
-                Dim credential = If(selectedCredential = "(None)",
+                Dim selectedCredential = If(_credentialComboBox?.SelectedItem?.ToString(), TranslationManager.NoneItem)
+                Dim credential = If(selectedCredential = TranslationManager.NoneItem,
                               Nothing,
                               _credentialManager.GetCredential(selectedCredential, "Windows Vault"))
 

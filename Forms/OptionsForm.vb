@@ -11,6 +11,15 @@ Namespace LiteTask
         Private ReadOnly _errorHandler As ErrorHandler
         Private ReadOnly _settingValidator As SettingsValidator
         Private _includeTaskLogCheckBox As CheckBox
+        Private _interfaceTab As TabPage
+        Private _languageComboBox As ComboBox
+        Private _themeComboBox As ComboBox
+        Private _languageAtOpen As String = TranslationManager.Automatic
+        Private _themeAtOpen As String = Theme.Automatic
+
+        ' Order of the items of _languageComboBox and _themeComboBox
+        Private Shared ReadOnly Languages As String() = {TranslationManager.Automatic, TranslationManager.English, TranslationManager.French}
+        Private Shared ReadOnly Themes As String() = {Theme.Automatic, Theme.Light, Theme.Dark}
 
         Public Sub New(xmlManager As XMLManager)
             Try
@@ -29,14 +38,16 @@ Namespace LiteTask
                 InitializeSqlTab()
                 InitializeMonitoringTab()
                 InitializeBackupTab()
+                InitializeInterfaceTab()
 
                 ' Apply translations and load settings
                 ApplyTranslations()
+                Theme.Apply(Me)
                 AddEventHandlers()
                 LoadSettings()
             Catch ex As Exception
                 _logger?.LogError($"Error initializing OptionsForm: {ex.Message}")
-                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("InitializationError", "Error initializing settings form")}: {ex.Message}",
+                MessageBox.Show(TranslationManager.F("OptionsForm.InitializationError", "Error initializing settings form: {0}", ex.Message),
                                 TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Me.Close()
             End Try
@@ -54,38 +65,38 @@ Namespace LiteTask
         Private Sub ApplyTranslations()
             Try
                 ' Form title
-                Text = TranslationManager.Instance.GetTranslation("OptionsForm")
+                Text = TranslationManager.Instance.GetTranslation("OptionsForm", "Options")
 
                 ' Tabs
-                _loggingTab.Text = TranslationManager.Instance.GetTranslation("_loggingTab")
-                _notificationsTab.Text = TranslationManager.Instance.GetTranslation("_notificationsTab")
-                _sqlTab.Text = TranslationManager.Instance.GetTranslation("_sqlTab")
+                _loggingTab.Text = TranslationManager.Instance.GetTranslation("_loggingTab", "Logging")
+                _notificationsTab.Text = TranslationManager.Instance.GetTranslation("_notificationsTab", "Email notifications")
+                _sqlTab.Text = TranslationManager.Instance.GetTranslation("_sqlTab", "SQL settings")
 
                 ' Logging tab controls
-                _logFolderLabel.Text = TranslationManager.Instance.GetTranslation("_logFolderLabel")
-                _logLevelLabel.Text = TranslationManager.Instance.GetTranslation("_logLevelLabel")
-                _alertLevelLabel.Text = TranslationManager.Instance.GetTranslation("_alertLevelLabel")
-                _maxLogSizeLabel.Text = TranslationManager.Instance.GetTranslation("_maxLogSizeLabel")
-                _logRetentionLabel.Text = TranslationManager.Instance.GetTranslation("_logRetentionLabel")
-                _browseLogFolderButton.Text = TranslationManager.Instance.GetTranslation("_browseLogFolderButton")
+                _logFolderLabel.Text = TranslationManager.Instance.GetTranslation("_logFolderLabel", "Log folder:")
+                _logLevelLabel.Text = TranslationManager.Instance.GetTranslation("_logLevelLabel", "Log level:")
+                _alertLevelLabel.Text = TranslationManager.Instance.GetTranslation("_alertLevelLabel", "Alert level:")
+                _maxLogSizeLabel.Text = TranslationManager.Instance.GetTranslation("_maxLogSizeLabel", "Maximum log size (MB):")
+                _logRetentionLabel.Text = TranslationManager.Instance.GetTranslation("_logRetentionLabel", "Retention (days):")
+                _browseLogFolderButton.Text = TranslationManager.Instance.GetTranslation("_browseLogFolderButton", "Browse...")
 
                 ' Email tab controls
-                _emailNotificationsLabel.Text = TranslationManager.Instance.GetTranslation("_emailNotificationsLabel")
-                _enableNotificationsCheckBox.Text = TranslationManager.Instance.GetTranslation("_enableNotificationsCheckBox")
-                _smtpServerLabel.Text = TranslationManager.Instance.GetTranslation("_smtpServerLabel")
-                _smtpPortLabel.Text = TranslationManager.Instance.GetTranslation("_smtpPortLabel")
-                _emailFromLabel.Text = TranslationManager.Instance.GetTranslation("_emailFromLabel")
-                _emailToLabel.Text = TranslationManager.Instance.GetTranslation("_emailToLabel")
-                _useSSLCheckBox.Text = TranslationManager.Instance.GetTranslation("_useSSLCheckBox")
-                _useCredentialsCheckBox.Text = TranslationManager.Instance.GetTranslation("_useCredentialsCheckBox")
-                _testEmailButton.Text = TranslationManager.Instance.GetTranslation("_testEmailButton")
+                _emailNotificationsLabel.Text = TranslationManager.Instance.GetTranslation("_emailNotificationsLabel", "Notification settings")
+                _enableNotificationsCheckBox.Text = TranslationManager.Instance.GetTranslation("_enableNotificationsCheckBox", "Enable email notifications")
+                _smtpServerLabel.Text = TranslationManager.Instance.GetTranslation("_smtpServerLabel", "SMTP server:")
+                _smtpPortLabel.Text = TranslationManager.Instance.GetTranslation("_smtpPortLabel", "SMTP port:")
+                _emailFromLabel.Text = TranslationManager.Instance.GetTranslation("_emailFromLabel", "Email from:")
+                _emailToLabel.Text = TranslationManager.Instance.GetTranslation("_emailToLabel", "Email to:")
+                _useSSLCheckBox.Text = TranslationManager.Instance.GetTranslation("_useSSLCheckBox", "Use SSL")
+                _useCredentialsCheckBox.Text = TranslationManager.Instance.GetTranslation("_useCredentialsCheckBox", "Use credentials")
+                _testEmailButton.Text = TranslationManager.Instance.GetTranslation("_testEmailButton", "Send a test email")
                 _includeTaskLogCheckBox.Text = TranslationManager.Instance.GetTranslation("_includeTaskLogCheckBox", "Include the task log in notifications")
 
                 ' SQL tab controls
-                _defaultServerLabel.Text = TranslationManager.Instance.GetTranslation("_defaultServerLabel")
-                _defaultDatabaseLabel.Text = TranslationManager.Instance.GetTranslation("_defaultDatabaseLabel")
-                _commandTimeoutLabel.Text = TranslationManager.Instance.GetTranslation("_commandTimeoutLabel")
-                _maxBatchSizeLabel.Text = TranslationManager.Instance.GetTranslation("_maxBatchSizeLabel")
+                _defaultServerLabel.Text = TranslationManager.Instance.GetTranslation("_defaultServerLabel", "Default server:")
+                _defaultDatabaseLabel.Text = TranslationManager.Instance.GetTranslation("_defaultDatabaseLabel", "Default database:")
+                _commandTimeoutLabel.Text = TranslationManager.Instance.GetTranslation("_commandTimeoutLabel", "Command timeout (seconds):")
+                _maxBatchSizeLabel.Text = TranslationManager.Instance.GetTranslation("_maxBatchSizeLabel", "Maximum batch size:")
 
                 ' Backup tab controls
                 _backupTab.Text = TranslationManager.Instance.GetTranslation("_backupTab", "Backup")
@@ -100,26 +111,26 @@ Namespace LiteTask
                 _memoryCheckIntervalLabel.Text = TranslationManager.Instance.GetTranslation("_memoryCheckIntervalLabel", "Check Interval (seconds):")
 
                 ' Buttons
-                _okButton.Text = TranslationManager.Instance.GetTranslation("_okButton")
-                _cancelButton.Text = TranslationManager.Instance.GetTranslation("_cancelButton")
+                _okButton.Text = TranslationManager.Instance.GetTranslation("_okButton", "OK")
+                _cancelButton.Text = TranslationManager.Instance.GetTranslation("_cancelButton", "Cancel")
 
                 ' Add tooltips
                 Dim toolTip As New ToolTip()
-                toolTip.SetToolTip(_logFolderTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.LogFolder"))
-                toolTip.SetToolTip(_logLevelComboBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.LogLevel"))
-                toolTip.SetToolTip(_alertLevelComboBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.AlertLevel"))
+                toolTip.SetToolTip(_logFolderTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.LogFolder", "Folder where the log files are kept"))
+                toolTip.SetToolTip(_logLevelComboBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.LogLevel", "Level of detail of the logs"))
+                toolTip.SetToolTip(_alertLevelComboBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.AlertLevel", "Minimum level that sends a notification"))
                 toolTip.SetToolTip(_includeTaskLogCheckBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.IncludeTaskLog",
                     "Append the log lines written during the run (last 200 by default, EmailSettings/TaskLogMaxLines) to task notifications"))
-                toolTip.SetToolTip(_maxLogSizeNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MaxLogSize"))
-                toolTip.SetToolTip(_logRetentionNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.RetentionDays"))
-                toolTip.SetToolTip(_smtpServerTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.SmtpServer"))
-                toolTip.SetToolTip(_smtpPortNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.SmtpPort"))
-                toolTip.SetToolTip(_emailFromTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.EmailFrom"))
-                toolTip.SetToolTip(_emailToTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.EmailTo"))
-                toolTip.SetToolTip(_defaultServerLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.Server"))
-                toolTip.SetToolTip(_defaultDatabaseLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.Database"))
-                toolTip.SetToolTip(_commandTimeoutLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.Timeout"))
-                toolTip.SetToolTip(_maxBatchSizeLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.BatchSize"))
+                toolTip.SetToolTip(_maxLogSizeNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.MaxLogSize", "Maximum size of a log file before rotation"))
+                toolTip.SetToolTip(_logRetentionNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.RetentionDays", "Number of days the logs are kept"))
+                toolTip.SetToolTip(_smtpServerTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.SmtpServer", "Address of the SMTP server that sends the emails"))
+                toolTip.SetToolTip(_smtpPortNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.SmtpPort", "Port of the SMTP server (usually 25 or 587)"))
+                toolTip.SetToolTip(_emailFromTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.EmailFrom", "Email address used as the sender"))
+                toolTip.SetToolTip(_emailToTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.EmailTo", "Email addresses of the recipients (separated by semicolons)"))
+                toolTip.SetToolTip(_defaultServerLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.Server", "Default SQL server"))
+                toolTip.SetToolTip(_defaultDatabaseLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.Database", "Default database"))
+                toolTip.SetToolTip(_commandTimeoutLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.Timeout", "Maximum time allowed for a command"))
+                toolTip.SetToolTip(_maxBatchSizeLabel, TranslationManager.Instance.GetTranslation("Options.Tooltip.BatchSize", "Maximum number of records per batch"))
 
             Catch ex As Exception
                 _logger?.LogError($"Error applying translations: {ex.Message}")
@@ -169,7 +180,7 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeEmailTab()
-            Dim emailTab As New TabPage("Email")
+            Dim emailTab As New TabPage(TranslationManager.T("OptionsForm.Email", "Email"))
             Dim layout As New TableLayoutPanel With {
             .Dock = DockStyle.Fill,
             .Padding = New Padding(10),
@@ -183,23 +194,23 @@ Namespace LiteTask
 
             ' Initialize labels
             _emailNotificationsLabel = New Label With {
-                .Text = "Email Notifications",
+                .Text = TranslationManager.T("OptionsForm.EmailNotifications", "Email Notifications"),
                 .Dock = DockStyle.Fill
             }
 
             _smtpServerLabel = New Label With {
-                .Text = "SMTP Server:",
+                .Text = TranslationManager.T("OptionsForm.SMTPServer", "SMTP Server:"),
                 .Dock = DockStyle.Fill
             }
 
             _smtpPortLabel = New Label With {
-                .Text = "SMTP Port:",
+                .Text = TranslationManager.T("OptionsForm.SMTPPort", "SMTP Port:"),
                 .Dock = DockStyle.Fill
             }
 
             ' Initialize controls
             _enableNotificationsCheckBox = New CheckBox With {
-            .Text = "Enable Email Notifications",
+            .Text = TranslationManager.T("OptionsForm.EnableEmailNotifications", "Enable Email Notifications"),
             .Dock = DockStyle.Fill
         }
 
@@ -215,7 +226,7 @@ Namespace LiteTask
         }
 
             _useSSLCheckBox = New CheckBox With {
-            .Text = "Use SSL",
+            .Text = TranslationManager.T("OptionsForm.UseSSL", "Use SSL"),
             .Dock = DockStyle.Fill
         }
 
@@ -228,7 +239,7 @@ Namespace LiteTask
         }
 
             _useCredentialsCheckBox = New CheckBox With {
-            .Text = "Use Credentials",
+            .Text = TranslationManager.T("OptionsForm.UseCredentials", "Use Credentials"),
             .Dock = DockStyle.Fill
         }
 
@@ -239,17 +250,17 @@ Namespace LiteTask
         }
 
             _testEmailButton = New Button With {
-            .Text = "Send Test Email",
+            .Text = TranslationManager.T("OptionsForm.SendTestEmail", "Send Test Email"),
             .Dock = DockStyle.Fill
         }
 
             _includeTaskLogCheckBox = New CheckBox With {
-            .Text = "Include the task log in notifications",
+            .Text = TranslationManager.T("OptionsForm.IncludeTaskLogNotifications", "Include the task log in notifications"),
             .Dock = DockStyle.Fill
         }
 
             ' Populate credential combo
-            _credentialComboBox.Items.Add("(None)")
+            _credentialComboBox.Items.Add(TranslationManager.NoneItem)
             For Each cred In _credentialManager.GetAllCredentialTargets()
                 _credentialComboBox.Items.Add(cred)
             Next
@@ -278,7 +289,7 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeLoggingTab()
-            Dim loggingTab As New TabPage("Logging")
+            Dim loggingTab As New TabPage(TranslationManager.T("OptionsForm.Logging", "Logging"))
             Dim layout As New TableLayoutPanel With {
             .Dock = DockStyle.Fill,
             .Padding = New Padding(10),
@@ -293,27 +304,27 @@ Namespace LiteTask
 
             ' Initialize labels
             _logFolderLabel = New Label With {
-                .Text = "Log Folder:",
+                .Text = TranslationManager.T("OptionsForm.LogFolder", "Log Folder:"),
                 .Dock = DockStyle.Fill
                 }
 
             _logLevelLabel = New Label With {
-                .Text = "Log Level:",
+                .Text = TranslationManager.T("OptionsForm.LogLevel", "Log Level:"),
                 .Dock = DockStyle.Fill
                 }
 
             _alertLevelLabel = New Label With {
-                .Text = "Alert Level:",
+                .Text = TranslationManager.T("OptionsForm.AlertLevel", "Alert Level:"),
                 .Dock = DockStyle.Fill
                 }
 
             _maxLogSizeLabel = New Label With {
-                .Text = "Max Log Size (MB):",
+                .Text = TranslationManager.T("OptionsForm.MaxLogSizeMB", "Max Log Size (MB):"),
                 .Dock = DockStyle.Fill
                 }
 
             _logRetentionLabel = New Label With {
-                .Text = "Retention Days:",
+                .Text = TranslationManager.T("OptionsForm.RetentionDays", "Retention Days:"),
                 .Dock = DockStyle.Fill
                 }
 
@@ -324,7 +335,7 @@ Namespace LiteTask
         }
 
             _browseLogFolderButton = New Button With {
-            .Text = "Browse...",
+            .Text = TranslationManager.T("OptionsForm.Browse", "Browse..."),
             .Size = New Size(80, 23),
             .Anchor = AnchorStyles.Left
         }
@@ -357,7 +368,7 @@ Namespace LiteTask
 
             ' Add controls to layout
             _logFolderLabel = New Label With {
-            .Text = "Log Folder:",
+            .Text = TranslationManager.T("OptionsForm.LogFolder", "Log Folder:"),
             .Dock = DockStyle.Fill
             }
 
@@ -381,7 +392,7 @@ Namespace LiteTask
         End Sub
 
         Private Sub InitializeSqlTab()
-            _sqlTab = New TabPage(TranslationManager.Instance.GetTranslation("SqlTab"))
+            _sqlTab = New TabPage(TranslationManager.Instance.GetTranslation("SqlTab", "SQL"))
             Dim layout As New TableLayoutPanel With {
             .Dock = DockStyle.Fill,
             .Padding = New Padding(10),
@@ -393,22 +404,22 @@ Namespace LiteTask
             layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 70))
 
             _defaultServerLabel = New Label With {
-            .Text = "Default Server:",
+            .Text = TranslationManager.T("OptionsForm.DefaultServer", "Default Server:"),
             .Dock = DockStyle.Fill
         }
 
             _defaultDatabaseLabel = New Label With {
-            .Text = "Default Database:",
+            .Text = TranslationManager.T("OptionsForm.DefaultDatabase", "Default Database:"),
             .Dock = DockStyle.Fill
         }
 
             _commandTimeoutLabel = New Label With {
-            .Text = "Command Timeout:",
+            .Text = TranslationManager.T("OptionsForm.CommandTimeout", "Command Timeout:"),
             .Dock = DockStyle.Fill
         }
 
             _maxBatchSizeLabel = New Label With {
-            .Text = "Max Batch Size:",
+            .Text = TranslationManager.T("OptionsForm.MaxBatchSize", "Max Batch Size:"),
             .Dock = DockStyle.Fill
         }
 
@@ -436,10 +447,10 @@ Namespace LiteTask
 
             ' Add tooltips
             Dim toolTip As New ToolTip()
-            toolTip.SetToolTip(_defaultServerTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.Server"))
-            toolTip.SetToolTip(_defaultDatabaseTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.Database"))
-            toolTip.SetToolTip(_commandTimeoutNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.Timeout"))
-            toolTip.SetToolTip(_maxBatchSizeNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.BatchSize"))
+            toolTip.SetToolTip(_defaultServerTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.Server", "Default SQL server"))
+            toolTip.SetToolTip(_defaultDatabaseTextBox, TranslationManager.Instance.GetTranslation("Options.Tooltip.Database", "Default database"))
+            toolTip.SetToolTip(_commandTimeoutNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.Timeout", "Maximum time allowed for a command"))
+            toolTip.SetToolTip(_maxBatchSizeNumeric, TranslationManager.Instance.GetTranslation("Options.Tooltip.BatchSize", "Maximum number of records per batch"))
 
             ' Add controls to layout
             layout.Controls.Add(_defaultServerLabel, 0, 0)
@@ -633,8 +644,66 @@ Namespace LiteTask
             End Try
         End Function
 
+        ''' <summary>Interface tab: language and display (light or dark), used the next time LiteTask starts.</summary>
+        Private Sub InitializeInterfaceTab()
+            _interfaceTab = New TabPage(TranslationManager.T("OptionsForm.InterfaceTab", "Interface"))
+            Dim layout As New TableLayoutPanel With {
+                .Dock = DockStyle.Fill,
+                .Padding = New Padding(10),
+                .ColumnCount = 2,
+                .RowCount = 3
+            }
+            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 40))
+            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 60))
+
+            Dim languageLabel As New Label With {
+                .Text = TranslationManager.T("OptionsForm.LanguageLabel", "Language:"),
+                .Dock = DockStyle.Fill,
+                .TextAlign = ContentAlignment.MiddleLeft
+            }
+            ' Language names are written in their own language
+            _languageComboBox = New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList, .Dock = DockStyle.Fill}
+            _languageComboBox.Items.AddRange(New Object() {
+                TranslationManager.T("OptionsForm.LanguageAutomatic", "Automatic (Windows display language)"),
+                "English",
+                "Fran" & ChrW(231) & "ais"})
+
+            Dim themeLabel As New Label With {
+                .Text = TranslationManager.T("OptionsForm.ThemeLabel", "Display:"),
+                .Dock = DockStyle.Fill,
+                .TextAlign = ContentAlignment.MiddleLeft
+            }
+            _themeComboBox = New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList, .Dock = DockStyle.Fill}
+            _themeComboBox.Items.AddRange(New Object() {
+                TranslationManager.T("OptionsForm.ThemeAutomatic", "Automatic (Windows light or dark mode)"),
+                TranslationManager.T("OptionsForm.ThemeLight", "Light"),
+                TranslationManager.T("OptionsForm.ThemeDark", "Dark")})
+
+            layout.Controls.Add(languageLabel, 0, 0)
+            layout.Controls.Add(_languageComboBox, 1, 0)
+            layout.Controls.Add(themeLabel, 0, 1)
+            layout.Controls.Add(_themeComboBox, 1, 1)
+
+            _interfaceTab.Controls.Add(layout)
+            _tabControl.TabPages.Add(_interfaceTab)
+        End Sub
+
+        ''' <summary>Index of a saved value in a list of choices; 0 (Automatic) when unknown.</summary>
+        Public Shared Function ChoiceIndex(choices As String(), value As String) As Integer
+            For i = 0 To choices.Length - 1
+                If String.Equals(choices(i), value, StringComparison.OrdinalIgnoreCase) Then Return i
+            Next
+            Return 0
+        End Function
+
         Private Sub LoadSettings()
             Try
+                ' Interface
+                _languageAtOpen = Languages(ChoiceIndex(Languages, TranslationManager.ReadPreference(_xmlManager)))
+                _themeAtOpen = Themes(ChoiceIndex(Themes, Theme.ReadPreference(_xmlManager)))
+                _languageComboBox.SelectedIndex = ChoiceIndex(Languages, _languageAtOpen)
+                _themeComboBox.SelectedIndex = ChoiceIndex(Themes, _themeAtOpen)
+
                 ' Load logging settings
                 Dim logSettings = _xmlManager.GetLogSettings()
                 _logFolderTextBox.Text = GetSettingValue(logSettings, "LogFolder", Path.Combine(Application.StartupPath, "LiteTaskData", "logs"))
@@ -711,7 +780,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"Error loading settings: {ex.Message}")
-                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("Options.LoadError", "Error loading settings")}: {ex.Message}",
+                MessageBox.Show(TranslationManager.F("Options.LoadErrorDetails", "Error loading settings: {0}", ex.Message),
                                 TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
 
                 ' Set default values if loading fails
@@ -778,15 +847,26 @@ Namespace LiteTask
                     dailyRestartTime:=_dailyRestartTimePicker.Value.ToString("HH:mm"),
                     dailyRestartNotificationEnabled:=_dailyRestartNotificationCheckBox.Checked)
 
+                ' Save the interface settings (used the next time LiteTask starts)
+                Dim language = Languages(Math.Max(0, _languageComboBox.SelectedIndex))
+                Dim themeChoice = Themes(Math.Max(0, _themeComboBox.SelectedIndex))
+                _xmlManager.WriteValue(TranslationManager.SettingsSection, TranslationManager.LanguageSetting, language)
+                _xmlManager.WriteValue(TranslationManager.SettingsSection, Theme.ThemeSetting, themeChoice)
+                Dim interfaceChanged = language <> _languageAtOpen OrElse themeChoice <> _themeAtOpen
+
                 DialogResult = DialogResult.OK
                 _logger.LogInfo("Settings saved successfully")
+                If interfaceChanged Then
+                    MessageBox.Show(TranslationManager.T("OptionsForm.InterfaceRestart", "The new language or display is used the next time LiteTask starts."),
+                                    TranslationManager.T("OptionsForm.InterfaceTab", "Interface"), MessageBoxButtons.OK, MessageBoxIcon.Information)
+                End If
                 MessageBox.Show(TranslationManager.Instance.GetTranslation("Options.SaveSuccess", "Settings saved successfully."),
                                 TranslationManager.Instance.GetTranslation("Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Close()
 
             Catch ex As Exception
                 _logger.LogError($"Error saving settings: {ex.Message}")
-                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("Options.SaveError", "Error saving settings")}: {ex.Message}",
+                MessageBox.Show(TranslationManager.F("Options.SaveErrorDetails", "Error saving settings: {0}", ex.Message),
                                 TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 DialogResult = DialogResult.None
             End Try
@@ -861,7 +941,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"Error sending test email: {ex.Message}")
-                MessageBox.Show($"{TranslationManager.Instance.GetTranslation("Options.TestEmail.Error", "Error sending test email")}: {ex.Message}",
+                MessageBox.Show(TranslationManager.F("Options.TestEmail.ErrorDetails", "Error sending test email: {0}", ex.Message),
                                 TranslationManager.Instance.GetTranslation("Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub

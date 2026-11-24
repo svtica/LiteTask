@@ -118,6 +118,7 @@ Namespace LiteTask
                 InitializeTaskList()
                 InitializeTabs()
                 Me.Translate()
+                Theme.Apply(Me)
                 RefreshTaskList()
 
             Catch ex As Exception
@@ -127,7 +128,7 @@ Namespace LiteTask
 
 
         Private Sub AboutMenuItem_Click(sender As Object, e As EventArgs)
-            MessageBox.Show($"LiteTask Version {Application.ProductVersion}", "About LiteTask", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            MessageBox.Show(TranslationManager.F("MainForm.LiteTaskVersion", "LiteTask Version {0}", Application.ProductVersion), TranslationManager.T("MainForm.AboutLiteTask", "About LiteTask"), MessageBoxButtons.OK, MessageBoxIcon.Information)
         End Sub
 
         Private Sub AddEventsHandlers()
@@ -221,7 +222,7 @@ Namespace LiteTask
             For Each kvp In toolStatus
                 message &= $"{kvp.Key}: {If(kvp.Value, "Present", "Missing")}" & Environment.NewLine
             Next
-            MessageBox.Show(message, "Tool Check Result", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            MessageBox.Show(message, TranslationManager.T("MainForm.ToolCheckResult", "Tool Check Result"), MessageBoxButtons.OK, MessageBoxIcon.Information)
         End Sub
 
         Private Async Sub CheckUpdatesMenuItem_Click(sender As Object, e As EventArgs)
@@ -274,7 +275,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger?.LogError($"Error checking for updates: {ex.Message}")
-                MessageBox.Show($"Error checking for updates: {ex.Message}",
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorCheckingUpdates", "Error checking for updates: {0}", ex.Message),
                                TranslationManager.Instance.GetTranslation("Update.ErrorTitle", "Update Error"),
                                MessageBoxButtons.OK, MessageBoxIcon.Error)
                 UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Update.CheckFailed", "Update check failed."))
@@ -317,7 +318,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error creating task: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error creating task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorCreatingTask", "Error creating task: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -325,7 +326,7 @@ Namespace LiteTask
         Private Async Sub DeleteSelectedTasksAsync()
             Try
                 If _taskListView.SelectedItems.Count = 0 Then
-                    MessageBox.Show("Please select at least one task to delete.", "Delete Task",
+                    MessageBox.Show(TranslationManager.T("MainForm.SelectOneTaskDelete", "Please select at least one task to delete."), TranslationManager.T("MainForm.DeleteTask", "Delete Task"),
                           MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Return
                 End If
@@ -339,7 +340,7 @@ Namespace LiteTask
             $"Are you sure you want to delete the task '{tasksToDelete(0)}'?",
             $"Are you sure you want to delete these {tasksToDelete.Count} tasks?")
 
-                If MessageBox.Show(confirmMessage, "Confirm Delete",
+                If MessageBox.Show(confirmMessage, TranslationManager.T("MainForm.ConfirmDelete", "Confirm Delete"),
                          MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
 
                     Dim errorCount = 0
@@ -359,8 +360,8 @@ Namespace LiteTask
                         _logger.LogInfo("Changes saved successfully")
                     Catch ex As Exception
                         _logger.LogError($"Error saving changes: {ex.Message}")
-                        MessageBox.Show("Changes may not have been saved properly. Please verify tasks.",
-                              "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                        MessageBox.Show(TranslationManager.T("MainForm.ChangesMayNotHaveBeen", "Changes may not have been saved properly. Please verify tasks."),
+                              TranslationManager.T("MainForm.SaveError", "Save Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                     End Try
 
                     NotifyServiceTasksChanged()
@@ -369,19 +370,19 @@ Namespace LiteTask
 
                     If errorCount = 0 AndAlso tasksToDelete.Count > 0 Then
                         MessageBox.Show(If(tasksToDelete.Count = 1,
-                               "Task deleted successfully.",
-                               $"{tasksToDelete.Count} tasks deleted successfully."),
-                               "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                               TranslationManager.T("MainForm.TaskDeletedSuccessfully", "Task deleted successfully."),
+                               TranslationManager.F("MainForm.TasksDeletedSuccessfully", "{0} tasks deleted successfully.", tasksToDelete.Count)),
+                               TranslationManager.T("MainForm.Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     ElseIf errorCount > 0 Then
-                        MessageBox.Show($"Completed with {errorCount} error(s). Please check the log for details.",
-                              "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                        MessageBox.Show(TranslationManager.F("MainForm.CompletedErrorSCheckLog", "Completed with {0} error(s). Please check the log for details.", errorCount),
+                              TranslationManager.T("MainForm.Warning", "Warning"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                     End If
                 End If
 
             Catch ex As Exception
                 _logger.LogError($"Error in DeleteSelectedTasksAsync: {ex.Message}")
-                MessageBox.Show($"Error deleting tasks: {ex.Message}",
-                       "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorDeletingTasks", "Error deleting tasks: {0}", ex.Message),
+                       TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -391,8 +392,8 @@ Namespace LiteTask
                 DeleteSelectedTasksAsync()
             Catch ex As Exception
                 _logger.LogError($"Error in DeleteTaskButton_Click: {ex.Message}")
-                MessageBox.Show($"Error deleting task(s): {ex.Message}",
-                       "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorDeletingTaskS", "Error deleting task(s): {0}", ex.Message),
+                       TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -404,7 +405,7 @@ Namespace LiteTask
                 _logger.LogInfo("Edit task button clicked")
 
                 If _taskListView.SelectedItems.Count = 0 Then
-                    MessageBox.Show("Please select a task to edit.", "Edit Task", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("MainForm.SelectTaskEdit", "Please select a task to edit."), TranslationManager.T("MainForm.EditTask", "Edit Task"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Return
                 End If
 
@@ -414,7 +415,7 @@ Namespace LiteTask
 
                 If task Is Nothing Then
                     _logger.LogError($"Task not found: {taskName}")
-                    MessageBox.Show("Selected task could not be loaded.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.T("MainForm.SelectedTaskCouldNotLoaded", "Selected task could not be loaded."), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                     Return
                 End If
 
@@ -428,7 +429,7 @@ Namespace LiteTask
 
             Catch ex As Exception
                 _logger.LogError($"Error in EditTaskButton_Click: {ex.Message}")
-                MessageBox.Show($"Error editing task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorEditingTask", "Error editing task: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -436,8 +437,8 @@ Namespace LiteTask
         Private Sub ElevateMenuItem_Click(sender As Object, e As EventArgs)
             If Not IsElevated() Then
                 If MessageBox.Show(
-            TranslationManager.Instance.GetTranslation("ElevateConfirm.Message"),
-            TranslationManager.Instance.GetTranslation("ElevateConfirm.Title"),
+            TranslationManager.Instance.GetTranslation("ElevateConfirm.Message", "Running as administrator will restart the application. Continue?"),
+            TranslationManager.Instance.GetTranslation("ElevateConfirm.Title", "Elevation Required"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question) = DialogResult.Yes Then
 
@@ -500,8 +501,8 @@ Namespace LiteTask
 
         Private Sub ExitMenuItem_Click(sender As Object, e As EventArgs)
             If MessageBox.Show(
-            TranslationManager.Instance.GetTranslation("ExitConfirm.Message"),
-            TranslationManager.Instance.GetTranslation("ExitConfirm.Title"),
+            TranslationManager.Instance.GetTranslation("ExitConfirm.Message", "Are you sure you want to exit LiteTask?"),
+            TranslationManager.Instance.GetTranslation("ExitConfirm.Title", "Confirm Exit"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question) = DialogResult.Yes Then
                 Application.Exit()
@@ -520,7 +521,7 @@ Namespace LiteTask
                     End If
                 End Using
             Catch ex As Exception
-                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.Error2", "Error: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -564,7 +565,7 @@ Namespace LiteTask
 
                 Dim selectedTasks = GetSelectedTasks()
                 If selectedTasks Is Nothing OrElse selectedTasks.Count = 0 Then
-                    MessageBox.Show("Please select at least one task to export.", "No Tasks Selected", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("MainForm.SelectOneTaskExport", "Please select at least one task to export."), TranslationManager.T("MainForm.NoTasksSelected", "No Tasks Selected"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Return
                 End If
 
@@ -575,13 +576,13 @@ Namespace LiteTask
 
                     If saveFileDialog.ShowDialog() = DialogResult.OK Then
                         ExportTasks(saveFileDialog.FileName, selectedTasks)
-                        MessageBox.Show($"Successfully exported {selectedTasks.Count} task(s).", "Export Successful", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.F("MainForm.SuccessfullyExportedTaskS", "Successfully exported {0} task(s).", selectedTasks.Count), TranslationManager.T("MainForm.ExportSuccessful", "Export Successful"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     End If
                 End Using
             Catch ex As Exception
                 _logger.LogError($"Error exporting tasks: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error exporting tasks: {ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorExportingTasks", "Error exporting tasks: {0}", ex.Message), TranslationManager.T("MainForm.ExportError", "Export Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -605,7 +606,7 @@ Namespace LiteTask
                 RefreshTaskList()
             Catch ex As Exception
                 _logger.LogError($"Error toggling task enabled state: {ex.Message}")
-                MessageBox.Show($"Error toggling task state: {ex.Message}",
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorTogglingTaskState", "Error toggling task state: {0}", ex.Message),
                     TranslationManager.Instance.GetTranslation("Error", "Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
@@ -651,7 +652,7 @@ Namespace LiteTask
                 Debug.WriteLine(ex.StackTrace)
             End If
 
-            MessageBox.Show(errorMessage, "Initialization Error",
+            MessageBox.Show(errorMessage, TranslationManager.T("MainForm.InitializationError", "Initialization Error"),
                           MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Sub
 
@@ -680,26 +681,26 @@ Namespace LiteTask
                 Select Case operation.ToLower()
                     Case "install"
                         ServiceRegistration.Install(logPath, _logger)
-                        MessageBox.Show($"Service {serviceName} installed.", "Service Installation", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.F("MainForm.ServiceInstalled", "Service {0} installed.", serviceName), TranslationManager.T("MainForm.ServiceInstallation", "Service Installation"), MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     Case "uninstall"
                         ServiceRegistration.Uninstall(logPath, _logger)
-                        MessageBox.Show($"Service {serviceName} uninstalled.", "Service Uninstallation", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.F("MainForm.ServiceUninstalled", "Service {0} uninstalled.", serviceName), TranslationManager.T("MainForm.ServiceUninstallation", "Service Uninstallation"), MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     Case "start"
                         ExecuteServiceCommand($"sc start {serviceName}", "Service Start", logPath)
-                        MessageBox.Show($"Service {serviceName} started.", "Service Start", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.F("MainForm.ServiceStarted", "Service {0} started.", serviceName), TranslationManager.T("MainForm.ServiceStart", "Service Start"), MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     Case "stop"
                         ExecuteServiceCommand($"sc stop {serviceName}", "Service Stop", logPath)
-                        MessageBox.Show($"Service {serviceName} stopped.", "Service Stop", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.F("MainForm.ServiceStopped", "Service {0} stopped.", serviceName), TranslationManager.T("MainForm.ServiceStop", "Service Stop"), MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     Case Else
-                        MessageBox.Show("Invalid operation.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                        MessageBox.Show(TranslationManager.T("MainForm.InvalidOperation", "Invalid operation."), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End Select
             Catch ex As Exception
                 _logger.LogError($"Error in HandleServiceOperation: {ex.Message}")
-                MessageBox.Show($"Error performing service operation: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorPerformingServiceOperation", "Error performing service operation: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -714,8 +715,8 @@ Namespace LiteTask
 
                     ' Check if a task with the same name already exists
                     If _customScheduler.GetTask(taskName) IsNot Nothing Then
-                        Dim result = MessageBox.Show($"A task with the name '{taskName}' already exists. Do you want to overwrite it?",
-                                                 "Task Already Exists",
+                        Dim result = MessageBox.Show(TranslationManager.F("MainForm.TaskNameAlreadyExistsDo", "A task with the name '{0}' already exists. Do you want to overwrite it?", taskName),
+                                                 TranslationManager.T("MainForm.TaskAlreadyExists", "Task Already Exists"),
                                                  MessageBoxButtons.YesNoCancel,
                                                  MessageBoxIcon.Question)
 
@@ -740,12 +741,12 @@ Namespace LiteTask
 
                 NotifyServiceTasksChanged()
 
-                MessageBox.Show($"Successfully imported {importedTaskNames.Count} tasks.", "Import Successful", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                MessageBox.Show(TranslationManager.F("MainForm.SuccessfullyImportedTasks", "Successfully imported {0} tasks.", importedTaskNames.Count), TranslationManager.T("MainForm.ImportSuccessful", "Import Successful"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 _logger.LogInfo($"Imported {importedTaskNames.Count} tasks successfully")
             Catch ex As Exception
                 _logger.LogError($"Error importing tasks: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error importing tasks: {ex.Message}", "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorImportingTasks", "Error importing tasks: {0}", ex.Message), TranslationManager.T("MainForm.ImportError", "Import Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -761,7 +762,7 @@ Namespace LiteTask
                     End If
                 End Using
             Catch ex As Exception
-                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.Error2", "Error: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -841,7 +842,7 @@ Namespace LiteTask
             _taskTabPage.Name = "_taskTabPage"
             _taskTabPage.Size = New Size(693, 348)
             _taskTabPage.TabIndex = 0
-            _taskTabPage.Text = "Tasks"
+            _taskTabPage.Text = TranslationManager.T("_taskTabPage", "Tasks")
             ' 
             ' _taskTableLayout
             ' 
@@ -883,31 +884,31 @@ Namespace LiteTask
             ' 
             _runSelectedMenuItem.Name = "_runSelectedMenuItem"
             _runSelectedMenuItem.Size = New Size(193, 22)
-            _runSelectedMenuItem.Text = "Run Selected Task(s)"
+            _runSelectedMenuItem.Text = TranslationManager.T("_runSelectedMenuItem.Text", "Run Selected Task(s)")
             ' 
             ' _editSelectedMenuItem
             ' 
             _editSelectedMenuItem.Name = "_editSelectedMenuItem"
             _editSelectedMenuItem.Size = New Size(193, 22)
-            _editSelectedMenuItem.Text = "Edit Selected Task"
+            _editSelectedMenuItem.Text = TranslationManager.T("_editSelectedMenuItem.Text", "Edit Selected Task")
             ' 
             ' _deleteSelectedMenuItem
             ' 
             _deleteSelectedMenuItem.Name = "_deleteSelectedMenuItem"
             _deleteSelectedMenuItem.Size = New Size(193, 22)
-            _deleteSelectedMenuItem.Text = "Delete Selected Task(s)"
+            _deleteSelectedMenuItem.Text = TranslationManager.T("_deleteSelectedMenuItem.Text", "Delete Selected Task(s)")
             ' 
             ' _exportSelectedMenuItem
             ' 
             _exportSelectedMenuItem.Name = "_exportSelectedMenuItem"
             _exportSelectedMenuItem.Size = New Size(193, 22)
-            _exportSelectedMenuItem.Text = "Export Selected Task(s)"
+            _exportSelectedMenuItem.Text = TranslationManager.T("_exportSelectedMenuItem.Text", "Export Selected Task(s)")
             '
             ' _toggleEnableMenuItem
             '
             _toggleEnableMenuItem.Name = "_toggleEnableMenuItem"
             _toggleEnableMenuItem.Size = New Size(193, 22)
-            _toggleEnableMenuItem.Text = "Enable/Disable Task(s)"
+            _toggleEnableMenuItem.Text = TranslationManager.T("_toggleEnableMenuItem", "Enable/Disable Task(s)")
             '
             ' _buttonPanel
             ' 
@@ -932,7 +933,7 @@ Namespace LiteTask
             _runTaskButton.Name = "_runTaskButton"
             _runTaskButton.Size = New Size(88, 25)
             _runTaskButton.TabIndex = 0
-            _runTaskButton.Text = "Run task"
+            _runTaskButton.Text = TranslationManager.T("_runTaskButton.Text", "Run task")
             ' 
             ' _createTaskButton
             ' 
@@ -941,7 +942,7 @@ Namespace LiteTask
             _createTaskButton.Name = "_createTaskButton"
             _createTaskButton.Size = New Size(88, 25)
             _createTaskButton.TabIndex = 1
-            _createTaskButton.Text = "Create task"
+            _createTaskButton.Text = TranslationManager.T("_createTaskButton.Text", "Create task")
             ' 
             ' _editTaskButton
             ' 
@@ -950,7 +951,7 @@ Namespace LiteTask
             _editTaskButton.Name = "_editTaskButton"
             _editTaskButton.Size = New Size(88, 25)
             _editTaskButton.TabIndex = 2
-            _editTaskButton.Text = "Edit task"
+            _editTaskButton.Text = TranslationManager.T("_editTaskButton.Text", "Edit task")
             ' 
             ' _deleteTaskButton
             ' 
@@ -959,7 +960,7 @@ Namespace LiteTask
             _deleteTaskButton.Name = "_deleteTaskButton"
             _deleteTaskButton.Size = New Size(88, 25)
             _deleteTaskButton.TabIndex = 3
-            _deleteTaskButton.Text = "Delete task"
+            _deleteTaskButton.Text = TranslationManager.T("_deleteTaskButton.Text", "Delete task")
             ' 
             ' _menuStrip
             ' 
@@ -987,25 +988,25 @@ Namespace LiteTask
             '
             _fileMenu.Name = "_fileMenu"
             _fileMenu.Size = New Size(37, 20)
-            _fileMenu.Text = "File"
+            _fileMenu.Text = TranslationManager.T("_fileMenu.Text", "File")
             ' 
             ' _importMenuItem
             ' 
             _importMenuItem.Name = "_importMenuItem"
             _importMenuItem.Size = New Size(180, 22)
-            _importMenuItem.Text = "Import Tasks"
+            _importMenuItem.Text = TranslationManager.T("_importMenuItem.Text", "Import Tasks")
             ' 
             ' _exportMenuItem
             ' 
             _exportMenuItem.Name = "_exportMenuItem"
             _exportMenuItem.Size = New Size(180, 22)
-            _exportMenuItem.Text = "Export Tasks"
+            _exportMenuItem.Text = TranslationManager.T("_exportMenuItem.Text", "Export Tasks")
             ' 
             ' _exportAllMenuItem
             ' 
             _exportAllMenuItem.Name = "_exportAllMenuItem"
             _exportAllMenuItem.Size = New Size(180, 22)
-            _exportAllMenuItem.Text = "Export All Tasks"
+            _exportAllMenuItem.Text = TranslationManager.T("_exportAllMenuItem.Text", "Export All Tasks")
 
 
             ' 
@@ -1013,62 +1014,62 @@ Namespace LiteTask
             ' 
             _credentialManagerMenuItem.Name = "_credentialManagerMenuItem"
             _credentialManagerMenuItem.Size = New Size(180, 22)
-            _credentialManagerMenuItem.Text = "Credential Manager"
+            _credentialManagerMenuItem.Text = TranslationManager.T("_credentialManagerMenuItem.Text", "Credential Manager")
 
 
             ' _elevateMenuItem
             _elevateMenuItem.Name = "_elevateMenuItem"
             _elevateMenuItem.Size = New Size(180, 22)
-            _elevateMenuItem.Text = "Run as Administrator"
+            _elevateMenuItem.Text = TranslationManager.T("_elevateMenuItem.Text", "Run as Administrator")
 
             ' _exitMenuItem
             _exitMenuItem.Name = "_exitMenuItem"
             _exitMenuItem.Size = New Size(180, 22)
-            _exitMenuItem.Text = "Exit LiteTask"
+            _exitMenuItem.Text = TranslationManager.T("_exitMenuItem.Text", "Exit LiteTask")
             ' 
             ' _serviceMenu
             ' 
             _serviceMenu.DropDownItems.AddRange(New ToolStripItem() {_installServiceMenuItem, _uninstallServiceMenuItem, _startServiceMenuItem, _stopServiceMenuItem})
             _serviceMenu.Name = "_serviceMenu"
             _serviceMenu.Size = New Size(56, 20)
-            _serviceMenu.Text = "Service"
+            _serviceMenu.Text = TranslationManager.T("_serviceMenu.Text", "Service")
             ' 
             ' _installServiceMenuItem
             ' 
             _installServiceMenuItem.Name = "_installServiceMenuItem"
             _installServiceMenuItem.Size = New Size(180, 22)
-            _installServiceMenuItem.Text = "Install Service"
+            _installServiceMenuItem.Text = TranslationManager.T("_installServiceMenuItem.Text", "Install Service")
             ' 
             ' _uninstallServiceMenuItem
             ' 
             _uninstallServiceMenuItem.Name = "_uninstallServiceMenuItem"
             _uninstallServiceMenuItem.Size = New Size(180, 22)
-            _uninstallServiceMenuItem.Text = "Uninstall Service"
+            _uninstallServiceMenuItem.Text = TranslationManager.T("_uninstallServiceMenuItem.Text", "Uninstall Service")
             ' 
             ' _startServiceMenuItem
             ' 
             _startServiceMenuItem.Name = "_startServiceMenuItem"
             _startServiceMenuItem.Size = New Size(180, 22)
-            _startServiceMenuItem.Text = "Start Service"
+            _startServiceMenuItem.Text = TranslationManager.T("_startServiceMenuItem.Text", "Start Service")
             ' 
             ' _stopServiceMenuItem
             ' 
             _stopServiceMenuItem.Name = "_stopServiceMenuItem"
             _stopServiceMenuItem.Size = New Size(180, 22)
-            _stopServiceMenuItem.Text = "Stop Service"
+            _stopServiceMenuItem.Text = TranslationManager.T("_stopServiceMenuItem.Text", "Stop Service")
             ' 
             ' _viewMenu
             '
             _viewMenu.DropDownItems.AddRange(New ToolStripItem() {_refreshMenuItem, New ToolStripSeparator(), _openLogMenuItem})
             _viewMenu.Name = "_viewMenu"
             _viewMenu.Size = New Size(44, 20)
-            _viewMenu.Text = "View"
+            _viewMenu.Text = TranslationManager.T("_viewMenu.Text", "View")
             '
             ' _refreshMenuItem
             '
             _refreshMenuItem.Name = "_refreshMenuItem"
             _refreshMenuItem.Size = New Size(180, 22)
-            _refreshMenuItem.Text = "Refresh"
+            _refreshMenuItem.Text = TranslationManager.T("_refreshMenuItem.Text", "Refresh")
             '
             ' _openLogMenuItem
             '
@@ -1087,52 +1088,52 @@ Namespace LiteTask
 
             _toolsMenu.Name = "_toolsMenu"
             _toolsMenu.Size = New Size(46, 20)
-            _toolsMenu.Text = "Tools"
+            _toolsMenu.Text = TranslationManager.T("_toolsMenu.Text", "Tools")
             ' 
             ' _checkToolsMenuItem
             ' 
             _checkToolsMenuItem.Name = "_checkToolsMenuItem"
             _checkToolsMenuItem.Size = New Size(215, 22)
-            _checkToolsMenuItem.Text = "Check Tools"
+            _checkToolsMenuItem.Text = TranslationManager.T("_checkToolsMenuItem.Text", "Check Tools")
             ' 
             ' _updateToolsMenuItem
             ' 
             _updateToolsMenuItem.Name = "_updateToolsMenuItem"
             _updateToolsMenuItem.Size = New Size(215, 22)
-            _updateToolsMenuItem.Text = "Manage Tools..."
+            _updateToolsMenuItem.Text = TranslationManager.T("_updateToolsMenuItem.Text", "Manage Tools...")
             ' 
             '
             ' _monitorTasksMenuItem
             ' 
             _monitorTasksMenuItem.Name = "_monitorTasksMenuItem"
             _monitorTasksMenuItem.Size = New Size(215, 22)
-            _monitorTasksMenuItem.Text = "Monitor LiteTask Processes"
+            _monitorTasksMenuItem.Text = TranslationManager.T("_monitorTasksMenuItem.Text", "Monitor LiteTask Processes")
             '
             ' 
             ' _optionsMenuItem
             ' 
             _optionsMenuItem.Name = "_optionsMenuItem"
             _optionsMenuItem.Size = New Size(215, 22)
-            _optionsMenuItem.Text = "Options"
+            _optionsMenuItem.Text = TranslationManager.T("_optionsMenuItem.Text", "Options")
             ' 
             ' _helpMenu
             ' 
             _helpMenu.DropDownItems.AddRange(New ToolStripItem() {_aboutMenuItem, _checkUpdatesMenuItem})
             _helpMenu.Name = "_helpMenu"
             _helpMenu.Size = New Size(44, 20)
-            _helpMenu.Text = "Help"
+            _helpMenu.Text = TranslationManager.T("_helpMenu.Text", "Help")
             ' 
             ' _aboutMenuItem
             ' 
             _aboutMenuItem.Name = "_aboutMenuItem"
             _aboutMenuItem.Size = New Size(180, 22)
-            _aboutMenuItem.Text = "About"
+            _aboutMenuItem.Text = TranslationManager.T("_aboutMenuItem.Text", "About")
             ' 
             ' _checkUpdatesMenuItem
             ' 
             _checkUpdatesMenuItem.Name = "_checkUpdatesMenuItem"
             _checkUpdatesMenuItem.Size = New Size(180, 22)
-            _checkUpdatesMenuItem.Text = "Check for Updates"
+            _checkUpdatesMenuItem.Text = TranslationManager.T("_checkUpdatesMenuItem.Text", "Check for Updates")
             ' 
             ' _splitContainer
             ' 
@@ -1163,7 +1164,7 @@ Namespace LiteTask
             ' 
             _statusLabel.Name = "_statusLabel"
             _statusLabel.Size = New Size(39, 17)
-            _statusLabel.Text = "Ready"
+            _statusLabel.Text = TranslationManager.T("MainForm.Ready", "Ready")
             ' 
             ' MainForm
             ' 
@@ -1196,13 +1197,13 @@ Namespace LiteTask
             PerformLayout()
 
             ' Update Tabpage text
-            _taskTabPage.Text = TranslationManager.Instance.GetTranslation("_taskTabPage")
+            _taskTabPage.Text = TranslationManager.Instance.GetTranslation("_taskTabPage", "Tasks")
 
             ' Update button texts
-            _runTaskButton.Text = TranslationManager.Instance.GetTranslation("_runTaskButton.Text")
-            _createTaskButton.Text = TranslationManager.Instance.GetTranslation("_createTaskButton.Text")
-            _editTaskButton.Text = TranslationManager.Instance.GetTranslation("_editTaskButton.Text")
-            _deleteTaskButton.Text = TranslationManager.Instance.GetTranslation("_deleteTaskButton.Text")
+            _runTaskButton.Text = TranslationManager.Instance.GetTranslation("_runTaskButton.Text", "Run task")
+            _createTaskButton.Text = TranslationManager.Instance.GetTranslation("_createTaskButton.Text", "Create task")
+            _editTaskButton.Text = TranslationManager.Instance.GetTranslation("_editTaskButton.Text", "Edit task")
+            _deleteTaskButton.Text = TranslationManager.Instance.GetTranslation("_deleteTaskButton.Text", "Delete task")
 
             AddEventsHandlers()
             InitializeAutoRefresh()
@@ -1263,8 +1264,8 @@ Namespace LiteTask
                 AddHandler _tabControl.SelectedIndexChanged, AddressOf TabControl_SelectedIndexChanged
             Catch ex As Exception
                 _logger.LogError($"Error in InitializeTabs: {ex.Message}")
-                MessageBox.Show($"An error occurred while initializing tabs: {ex.Message}",
-                    "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorOccurredWhileInitializingTabs", "An error occurred while initializing tabs: {0}", ex.Message),
+                    TranslationManager.T("MainForm.InitializationError", "Initialization Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -1281,12 +1282,12 @@ Namespace LiteTask
                 If placeholder Is _runTabPlaceholder Then
                     Dim runTab = ApplicationContainer.GetService(Of RunTab)()
                     realPage = runTab?.GetTabPage()
-                    If realPage IsNot Nothing Then runTab.TranslateRunTab()
+                    If realPage IsNot Nothing Then runTab.TranslateRunTab() : Theme.Apply(realPage)
                     _runTabPlaceholder = Nothing
                 Else
                     Dim sqlTab = ApplicationContainer.GetService(Of SqlTab)()
                     realPage = sqlTab?.GetTabPage()
-                    If realPage IsNot Nothing Then sqlTab.TranslateSqlTab()
+                    If realPage IsNot Nothing Then sqlTab.TranslateSqlTab() : Theme.Apply(realPage)
                     _sqlTabPlaceholder = Nothing
                 End If
 
@@ -1302,8 +1303,8 @@ Namespace LiteTask
                 _tabControl.SelectedTab = realPage
             Catch ex As Exception
                 _logger.LogError($"Error loading tab: {ex.Message}")
-                MessageBox.Show($"An error occurred while loading the tab: {ex.Message}",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorOccurredWhileLoadingTab", "An error occurred while loading the tab: {0}", ex.Message),
+                    TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             Finally
                 Cursor = Cursors.Default
                 _loadingTab = False
@@ -1326,27 +1327,27 @@ Namespace LiteTask
                 ' Add columns with appropriate widths
                 _taskListView.Columns.AddRange(New ColumnHeader() {
                 New ColumnHeader With {
-                    .Text = TranslationManager.Instance.GetTranslation("NameColumn.HeaderText"),
+                    .Text = TranslationManager.Instance.GetTranslation("NameColumn.HeaderText", "Name"),
                     .Width = 150
                                       },
                 New ColumnHeader With {
-                    .Text = TranslationManager.Instance.GetTranslation("DescriptionColumn.HeaderText"),
+                    .Text = TranslationManager.Instance.GetTranslation("DescriptionColumn.HeaderText", "Description"),
                     .Width = 200
                     },
                 New ColumnHeader With {
-                    .Text = TranslationManager.Instance.GetTranslation("NextRunColumn.HeaderText"),
+                    .Text = TranslationManager.Instance.GetTranslation("NextRunColumn.HeaderText", "Next Run"),
                     .Width = 150
                     },
                 New ColumnHeader With {
-                    .Text = TranslationManager.Instance.GetTranslation("ScheduleTypeColumn.HeaderText"),
+                    .Text = TranslationManager.Instance.GetTranslation("ScheduleTypeColumn.HeaderText", "Schedule Type"),
                     .Width = 100
                     },
                 New ColumnHeader With {
-                    .Text = TranslationManager.Instance.GetTranslation("ActionsColumn.HeaderText"),
+                    .Text = TranslationManager.Instance.GetTranslation("ActionsColumn.HeaderText", "Actions"),
                     .Width = 100
                     },
                 New ColumnHeader With {
-                    .Text = TranslationManager.Instance.GetTranslation("StatusColumn.HeaderText"),
+                    .Text = TranslationManager.Instance.GetTranslation("StatusColumn.HeaderText", "Status"),
                     .Width = 80
                     }
                 })
@@ -1360,7 +1361,7 @@ Namespace LiteTask
                 AddHandler _taskListView.DoubleClick, AddressOf TaskListView_DoubleClick
             Catch ex As Exception
                 _logger.LogError($"Error initializing task list: {ex.Message}")
-                MessageBox.Show($"Error initializing task list: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorInitializingTaskList", "Error initializing task list: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -1384,14 +1385,14 @@ Namespace LiteTask
                     process.WaitForExit()
 
                     If process.ExitCode = 0 Then
-                        MessageBox.Show("Modules installés avec succès.", "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.T("MainForm.ModulesInstalledSuccessfully", "Modules installed successfully."), TranslationManager.T("MainForm.Success", "Success"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Else
-                        MessageBox.Show($"Erreur lors de l'installation des modules : {[error]}", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                        MessageBox.Show(TranslationManager.F("MainForm.ErrorInstallingModules", "Error installing modules: {0}", [error]), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                     End If
                 End Using
             Catch ex As Exception
                 _logger.LogError($"Error installing modules: {ex.Message}")
-                MessageBox.Show($"Error installing modules: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorInstallingModules", "Error installing modules: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -1409,8 +1410,8 @@ Namespace LiteTask
                 _logger?.LogInfo("MainForm settings loaded successfully")
             Catch ex As Exception
                 _logger?.LogError($"Error loading settings: {ex.Message}")
-                MessageBox.Show($"Error loading settings: {ex.Message}",
-                       "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorLoadingSettings", "Error loading settings: {0}", ex.Message),
+                       TranslationManager.T("MainForm.SettingsError", "Settings Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
             End Try
         End Sub
 
@@ -1463,7 +1464,7 @@ Namespace LiteTask
 
         Private Sub OpenCredentialManager(sender As Object, e As EventArgs)
             If _credentialManager Is Nothing Then
-                MessageBox.Show("Credential Manager is not initialized.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.T("MainForm.CredentialManagerNotInitialized", "Credential Manager is not initialized."), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return
             End If
 
@@ -1501,10 +1502,10 @@ Namespace LiteTask
                     }
                             item.SubItems.Add(task.Description)
                             item.SubItems.Add(If(task.NextRunTime = DateTime.MaxValue,
-                                      "One-time (Completed)",
+                                      TranslationManager.T("OneTimeCompleted", "One-time (Completed)"),
                                       task.NextRunTime.ToString("g")))
                             item.SubItems.Add(task.Schedule.ToString())
-                            item.SubItems.Add(task.Actions.Count.ToString() & " action(s)")
+                            item.SubItems.Add(TranslationManager.F("MainForm.ActionS", "{0} action(s)", task.Actions.Count))
 
                             ' Set status and color
                             Dim status = If(task.NextRunTime > DateTime.Now, "Pending", "Due")
@@ -1524,7 +1525,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error in RefreshUIAsync: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error refreshing UI: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorRefreshingUI", "Error refreshing UI: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
             Return Task.CompletedTask
         End Function
@@ -1546,7 +1547,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error launching Lite Process Manager: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error launching Lite Process Manager: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorLaunchingLiteProcessManager", "Error launching Lite Process Manager: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -1557,7 +1558,7 @@ Namespace LiteTask
                 _logger.LogInfo("Run task button clicked")
 
                 If _taskListView.SelectedItems.Count = 0 Then
-                    MessageBox.Show("Please select a task to run.", "No Task Selected", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("MainForm.SelectTaskRun", "Please select a task to run."), TranslationManager.T("MainForm.NoTaskSelected", "No Task Selected"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Return
                 End If
 
@@ -1567,7 +1568,7 @@ Namespace LiteTask
 
                 If task Is Nothing Then
                     _logger.LogError($"Task not found: {taskName}")
-                    MessageBox.Show("Selected task could not be loaded.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.T("MainForm.SelectedTaskCouldNotLoaded", "Selected task could not be loaded."), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                     Return
                 End If
 
@@ -1589,12 +1590,12 @@ Namespace LiteTask
                 Catch ex As Exception
                     _logger.LogError($"Error executing task: {ex.Message}")
                     UpdateStatusLabel(TranslationManager.Instance.GetTranslation("Status.ErrorRunningTask", "Error running task"), Color.Red)
-                    MessageBox.Show($"Error running task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.F("MainForm.ErrorRunningTask2", "Error running task: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End Try
 
             Catch ex As Exception
                 _logger.LogError($"Error in RunTaskButton_Click: {ex.Message}")
-                MessageBox.Show($"Error running task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorRunningTask2", "Error running task: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             Finally
             End Try
         End Sub
@@ -1608,11 +1609,11 @@ Namespace LiteTask
                     Await _customScheduler.RunTaskAsync(task)
                 Else
                     _logger.LogError($"Task not found: {taskName}")
-                    MessageBox.Show($"Task not found: {taskName}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.F("MainForm.TaskNotFound", "Task not found: {0}", taskName), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End If
             Catch ex As Exception
                 _logger.LogError($"Error running task {taskName}: {ex.Message}")
-                MessageBox.Show($"Error running task {taskName}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorRunningTask", "Error running task {0}: {1}", taskName, ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Function
 
@@ -1621,7 +1622,7 @@ Namespace LiteTask
                 _logger.LogInfo("RefreshMenuItem clicked")
                 If _customScheduler Is Nothing Then
                     _logger.LogError("CustomScheduler is null in RefreshMenuItem_Click")
-                    MessageBox.Show("CustomScheduler is not initialized.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(TranslationManager.T("MainForm.CustomSchedulerNotInitialized", "CustomScheduler is not initialized."), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                     Exit Sub
                 End If
                 _customScheduler.LoadTasks()
@@ -1629,7 +1630,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error in RefreshMenuItem_Click: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"An error occurred while refreshing: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorOccurredWhileRefreshing", "An error occurred while refreshing: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -1712,13 +1713,13 @@ Namespace LiteTask
 
                     ' Update menu item text to reflect selection count
                     If hasSelection AndAlso _taskListView.SelectedItems.Count > 1 Then
-                        _runSelectedMenuItem.Text = $"Run Selected Tasks ({_taskListView.SelectedItems.Count})"
-                        _deleteSelectedMenuItem.Text = $"Delete Selected Tasks ({_taskListView.SelectedItems.Count})"
-                        _exportSelectedMenuItem.Text = $"Export Selected Tasks ({_taskListView.SelectedItems.Count})"
+                        _runSelectedMenuItem.Text = TranslationManager.F("MainForm.RunSelectedTasks", "Run Selected Tasks ({0})", _taskListView.SelectedItems.Count)
+                        _deleteSelectedMenuItem.Text = TranslationManager.F("MainForm.DeleteSelectedTasks", "Delete Selected Tasks ({0})", _taskListView.SelectedItems.Count)
+                        _exportSelectedMenuItem.Text = TranslationManager.F("MainForm.ExportSelectedTasks", "Export Selected Tasks ({0})", _taskListView.SelectedItems.Count)
                     Else
-                        _runSelectedMenuItem.Text = "Run Selected Task"
-                        _deleteSelectedMenuItem.Text = "Delete Selected Task"
-                        _exportSelectedMenuItem.Text = "Export Selected Task"
+                        _runSelectedMenuItem.Text = TranslationManager.T("_runSelectedMenuItem.Text", "Run Selected Task")
+                        _deleteSelectedMenuItem.Text = TranslationManager.T("_deleteSelectedMenuItem.Text", "Delete Selected Task")
+                        _exportSelectedMenuItem.Text = TranslationManager.T("_exportSelectedMenuItem.Text", "Export Selected Task")
                     End If
                 End If
             Catch ex As Exception
@@ -1742,12 +1743,12 @@ Namespace LiteTask
                                     TranslationManager.Instance.GetTranslation("OneTimeCompleted", "One-time (Completed)"),
                                     task.NextRunTime.ToString("g")))
                         item.SubItems.Add(task.Schedule.ToString())
-                        item.SubItems.Add($"{task.Actions.Count} action(s)")
+                        item.SubItems.Add(TranslationManager.F("MainForm.ActionS", "{0} action(s)", task.Actions.Count))
                         item.SubItems.Add(GetTaskStatus(task))
 
                         ' Gray out disabled tasks
                         If Not task.Enabled Then
-                            item.ForeColor = Color.Gray
+                            item.ForeColor = Theme.DimmedText
                         End If
 
                         _taskListView.Items.Add(item)
@@ -1757,7 +1758,7 @@ Namespace LiteTask
             Catch ex As Exception
                 _logger.LogError($"Error refreshing task list: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error refreshing task list: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorRefreshingTaskList", "Error refreshing task list: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             Finally
                 _taskListView.EndUpdate()
             End Try
@@ -1805,8 +1806,8 @@ Namespace LiteTask
                 Process.Start(startInfo)
                 Application.Exit()
             Catch ex As Exception
-                MessageBox.Show("Failed to restart with elevated privileges.",
-                       "Elevation Error",
+                MessageBox.Show(TranslationManager.T("MainForm.FailedRestartElevatedPrivileges", "Failed to restart with elevated privileges."),
+                       TranslationManager.T("MainForm.ElevationError", "Elevation Error"),
                        MessageBoxButtons.OK,
                        MessageBoxIcon.Error)
             End Try
@@ -1986,9 +1987,10 @@ Namespace LiteTask
             Else
                 _statusLabel.Text = message
                 If color <> Nothing Then
-                    _statusLabel.ForeColor = color
+                    ' Red stays readable on the dark status bar
+                    _statusLabel.ForeColor = If(color = Drawing.Color.Red, Theme.ErrorColor, color)
                 Else
-                    _statusLabel.ForeColor = SystemColors.ControlText
+                    _statusLabel.ForeColor = Theme.Text
                 End If
             End If
         End Sub
@@ -2028,14 +2030,14 @@ Namespace LiteTask
                 If missingDependencies.Count > 0 Then
                     Dim message = $"The following dependencies are not initialized: {String.Join(", ", missingDependencies)}"
                     _logger?.LogError(message)
-                    MessageBox.Show(message, "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    MessageBox.Show(message, TranslationManager.T("MainForm.InitializationError", "Initialization Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                     Return False
                 End If
 
                 Return True
             Catch ex As Exception
                 _logger?.LogError($"Error verifying dependencies: {ex.Message}")
-                MessageBox.Show($"Error verifying dependencies: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorVerifyingDependencies", "Error verifying dependencies: {0}", ex.Message), TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
                 Return False
             End Try
         End Function

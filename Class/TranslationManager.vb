@@ -2,7 +2,20 @@
 Imports System.Xml
 
 Namespace LiteTask
+    ''' <summary>
+    ''' User interface language. English texts live in the code and the designer files;
+    ''' LiteTaskData\lang\fr.xml holds the French translations. A missing key keeps the
+    ''' English text. Language: the user's choice (Options, Interface/Language in
+    ''' settings.xml: auto, en or fr; auto follows the Windows display language), or the
+    ''' LITETASK_LANG environment variable (tests).
+    ''' </summary>
     Public Class TranslationManager
+        Public Const Automatic As String = "auto"
+        Public Const English As String = "en"
+        Public Const French As String = "fr"
+        Public Const SettingsSection As String = "Interface"
+        Public Const LanguageSetting As String = "Language"
+
         Private Shared _instance As TranslationManager
         Private ReadOnly _translations As Dictionary(Of String, String)
         Private ReadOnly _logger As Logger
@@ -11,14 +24,72 @@ Namespace LiteTask
         Private ReadOnly _currentLanguage As String
 
         Public Sub New(logger As Logger, xmlManager As XMLManager)
+            Me.New(logger, xmlManager, ReadPreference(xmlManager))
+        End Sub
+
+        ''' <summary>Loads the translations of a language preference (auto, en or fr).</summary>
+        Public Sub New(logger As Logger, xmlManager As XMLManager, preference As String)
+            Me.New(logger, xmlManager, preference, Path.Combine(Application.StartupPath, "LiteTaskData", "lang"))
+        End Sub
+
+        Public Sub New(logger As Logger, xmlManager As XMLManager, preference As String, langPath As String)
             _translations = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
             _logger = logger
             _xmlManager = xmlManager
-            _langPath = Path.Combine(Application.StartupPath, "LiteTaskData", "lang")
-            _currentLanguage = "fr"
-            LoadTranslations()
+            _langPath = langPath
+            _currentLanguage = ResolveLanguage(preference)
+            If _currentLanguage <> English Then LoadTranslations()
         End Sub
 
+        ''' <summary>Language in use: "en" or "fr".</summary>
+        Public ReadOnly Property Language As String
+            Get
+                Return _currentLanguage
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' The language to use: LITETASK_LANG when set, else the preference; "auto" (or empty)
+        ''' follows the Windows display language (French when it is French, else English).
+        ''' </summary>
+        Public Shared Function ResolveLanguage(preference As String) As String
+            Dim env = Environment.GetEnvironmentVariable("LITETASK_LANG")
+            Dim choice = If(String.IsNullOrEmpty(env), preference, env)
+            If String.IsNullOrEmpty(choice) OrElse String.Equals(choice, Automatic, StringComparison.OrdinalIgnoreCase) Then
+                choice = If(Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName = French, French, English)
+            End If
+            Return If(String.Equals(choice, French, StringComparison.OrdinalIgnoreCase), French, English)
+        End Function
+
+        ''' <summary>Interface/Language of settings.xml ("auto" when absent or unreadable).</summary>
+        Public Shared Function ReadPreference(xmlManager As XMLManager) As String
+            Try
+                If xmlManager Is Nothing Then Return Automatic
+                Return xmlManager.ReadValue(SettingsSection, LanguageSetting, Automatic)
+            Catch
+                Return Automatic
+            End Try
+        End Function
+
+        ''' <summary>Translation of key, or the English text (also before the manager is initialized).</summary>
+        Public Shared Function T(key As String, english As String) As String
+            If _instance Is Nothing Then Return english
+            Return _instance.GetTranslation(key, english)
+        End Function
+
+        ''' <summary>String.Format of the translation of key (or of the English format).</summary>
+        Public Shared Function F(key As String, englishFormat As String, ParamArray args As Object()) As String
+            Return String.Format(T(key, englishFormat), args)
+        End Function
+
+        ''' <summary>First item of a list where nothing is chosen ("(None)"); compare with this, never with a literal.</summary>
+        Public Shared ReadOnly Property NoneItem As String
+            Get
+                Return T("Common.None", "(None)")
+            End Get
+        End Property
+
+        ''' <summary>Translation of key; the key itself when it has none (prefer the overload with an English text).</summary>
         Public Function GetTranslation(key As String) As String
             Try
                 If _translations.ContainsKey(key) Then
@@ -232,7 +303,7 @@ Namespace LiteTask
 
             Public Sub TranslateControl(control As Control)
                 Try
-                    If String.IsNullOrEmpty(control.Name) Then Return
+                    ' A control created in code may have no name: its text is still a key, and its children are translated
 
                     Select Case True
 

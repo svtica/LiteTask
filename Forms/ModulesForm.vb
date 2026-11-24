@@ -29,11 +29,12 @@ Namespace LiteTask
             _logger = ApplicationContainer.GetService(Of Logger)()
             InitializeComponent()
             Me.Translate()
+            Theme.Apply(Me)
         End Sub
 
         Private Sub CloseButton_Click(sender As Object, e As EventArgs)
             If _isInstalling Then
-                If MessageBox.Show("Installation is in progress. Are you sure you want to close?", "Confirm Close", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) = DialogResult.No Then
+                If MessageBox.Show(TranslationManager.T("ModulesForm.InstallationProgressAreSureWant", "Installation is in progress. Are you sure you want to close?"), TranslationManager.T("ModulesForm.ConfirmClose", "Confirm Close"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) = DialogResult.No Then
                     Return
                 End If
             End If
@@ -57,13 +58,13 @@ Namespace LiteTask
             }
 
             _installButton = New Button With {
-                .Text = "Install Selected",
+                .Text = TranslationManager.T("ModulesForm.InstallSelected", "Install Selected"),
                 .Dock = DockStyle.Bottom,
                 .Height = 30
             }
 
             _closeButton = New Button With {
-                .Text = "Close",
+                .Text = TranslationManager.T("ModulesForm.Close", "Close"),
                 .Dock = DockStyle.Bottom,
                 .Height = 30
             }
@@ -94,7 +95,7 @@ Namespace LiteTask
 
         Private Async Sub InstallButton_Click(sender As Object, e As EventArgs)
             If _isInstalling Then
-                MessageBox.Show("Installation is already in progress.", "Please Wait", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                MessageBox.Show(TranslationManager.T("ModulesForm.InstallationAlreadyProgress", "Installation is already in progress."), TranslationManager.T("ModulesForm.Wait", "Please Wait"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Return
             End If
 
@@ -106,7 +107,7 @@ Namespace LiteTask
             ToArray()
 
                 If selectedModules.Length = 0 Then
-                    MessageBox.Show("Please select at least one module to install.", "No Modules Selected", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    MessageBox.Show(TranslationManager.T("ModulesForm.SelectOneModuleInstall", "Please select at least one module to install."), TranslationManager.T("ModulesForm.NoModulesSelected", "No Modules Selected"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Return
                 End If
 
@@ -168,7 +169,7 @@ Namespace LiteTask
 
                     If process.ExitCode = 0 Then
                         UpdateStatus("Installation completed successfully")
-                        MessageBox.Show("Modules installed successfully.", "Installation Complete", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        MessageBox.Show(TranslationManager.T("ModulesForm.ModulesInstalledSuccessfully", "Modules installed successfully."), TranslationManager.T("ModulesForm.InstallationComplete", "Installation Complete"), MessageBoxButtons.OK, MessageBoxIcon.Information)
                         RefreshModuleStatus()
                     Else
                         UpdateStatus("Installation completed with errors")
@@ -176,7 +177,7 @@ Namespace LiteTask
                             Dim logContent = Await File.ReadAllTextAsync(logFile)
                             _logger.LogError($"Installation log:{Environment.NewLine}{logContent}")
                         End If
-                        MessageBox.Show("Some modules failed to install. Check the application log for details.", "Installation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                        MessageBox.Show(TranslationManager.T("ModulesForm.SomeModulesFailedInstallCheck", "Some modules failed to install. Check the application log for details."), TranslationManager.T("ModulesForm.InstallationError", "Installation Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning)
                     End If
                 End Using
 
@@ -184,7 +185,7 @@ Namespace LiteTask
                 UpdateStatus("Installation failed")
                 _logger.LogError($"Error installing modules: {ex.Message}")
                 _logger.LogError($"StackTrace: {ex.StackTrace}")
-                MessageBox.Show($"Error installing modules: {ex.Message}", "Installation Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("ModulesForm.ErrorInstallingModules", "Error installing modules: {0}", ex.Message), TranslationManager.T("ModulesForm.InstallationError", "Installation Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             Finally
                 _isInstalling = False
                 _installButton.Enabled = True
@@ -195,10 +196,10 @@ Namespace LiteTask
         Private Sub ModulesForm_Load(sender As Object, e As EventArgs)
             Try
                 RefreshModuleStatus()
-                _statusLabel.Text = "Select modules to install"
+                _statusLabel.Text = TranslationManager.T("ModulesForm.SelectModulesInstall", "Select modules to install")
             Catch ex As Exception
                 _logger.LogError($"Error in ModulesForm_Load: {ex.Message}")
-                MessageBox.Show($"Error initializing form: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                MessageBox.Show(TranslationManager.F("ModulesForm.ErrorInitializingForm", "Error initializing form: {0}", ex.Message), TranslationManager.T("ModulesForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
 
@@ -229,7 +230,7 @@ Namespace LiteTask
 
         Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)
             If _isInstalling Then
-                If MessageBox.Show("Installation is in progress. Are you sure you want to close?", "Confirm Close", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) = DialogResult.No Then
+                If MessageBox.Show(TranslationManager.T("ModulesForm.InstallationProgressAreSureWant", "Installation is in progress. Are you sure you want to close?"), TranslationManager.T("ModulesForm.ConfirmClose", "Confirm Close"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) = DialogResult.No Then
                     e.Cancel = True
                     Return
                 End If

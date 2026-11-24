@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Language and display options.** *Options > Interface*: *Language* (Automatic: the Windows display
+  language, English, Français) and *Display* (Automatic: the light or dark mode of Windows, Light, Dark),
+  saved in `settings.xml` (`Interface/Language`, `Interface/Theme`) and used at the next start. The French
+  translation was always used before, whatever Windows said.
+- **Dark mode** on every window, the Run and SQL tabs, menus and the notification area menu: dark title
+  bar and scroll bars, dark lists and tabs, Windows accent color for the selection; the task states keep a
+  dark tint of their color.
+- `LocalizationTests`: English and French texts, `LITETASK_LANG`, Quebec typography, every key of the code
+  with an English text and a French translation (same placeholders), display choice.
+
+### Changed
+
+- **Complete French interface.** The messages, titles, column headers and texts set in the code
+  (about 270 new keys) are translated; every text of the code has an English default, so the English
+  interface no longer shows raw keys. French follows the Quebec conventions (non-breaking space before
+  `:`, `?`, `!` and `;`; *courriel*). Keys defined twice in `fr.xml` were removed (the last value, the one
+  in use, is kept).
+
 ### Removed
 
 - `docs/analysis-litetask.md` and the internal ticket references in comments: site data, kept
