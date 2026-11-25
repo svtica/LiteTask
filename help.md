@@ -14,7 +14,8 @@ This document provides detailed information on how to use LiteTask, a lightweigh
 8. [Command-line Interface](#command-line-interface)
 9. [Tool Management](#tool-management)
 10. [PowerShell Module Management](#powershell-module-management)
-11. [Troubleshooting](#troubleshooting)
+11. [Language and Display](#language-and-display)
+12. [Troubleshooting](#troubleshooting)
 
 ## Task Types
 
@@ -147,6 +148,19 @@ LiteTask now includes PowerShell module management capabilities:
    - VMware.PowerCLI
    - SqlServer
    - AWS.Tools.Common
+
+## Language and Display
+
+*Options > Interface*:
+
+- **Language**: *Automatic (Windows display language)*, *English* or *Français*. Automatic uses French
+  when the Windows display language is French, English otherwise.
+- **Display**: *Automatic (Windows light or dark mode)*, *Light* or *Dark*. The dark mode darkens every
+  window, the Run and SQL tabs and the menus; the task states keep a dark tint of their color. Message
+  boxes and date pickers are drawn by Windows and stay light.
+
+Both choices are saved in `settings.xml` (`Interface/Language`, `Interface/Theme`) and apply the next time
+LiteTask starts.
 
 ## Troubleshooting
 
