@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dark mode: crash when opening the Run or SQL tab.** The tab replaces its placeholder, and Windows could
+  ask to draw a tab that no longer existed: the dark tab drawing now ignores it instead of stopping
+  LiteTask ("index must be less than..."). The strip behind the tabs and the frame of the page are now
+  dark too (they stayed light).
+
 ### Added
 
 - **Language and display options.** *Options > Interface*: *Language* (Automatic: the Windows display
