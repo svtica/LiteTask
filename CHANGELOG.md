@@ -6,9 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- **Dark mode: crash when opening the Run or SQL tab.** The tab replaces its placeholder, and Windows could
-  ask to draw a tab that no longer existed: the dark tab drawing now ignores it instead of stopping
-  LiteTask ("index must be less than..."). The strip behind the tabs and the frame of the page are now
+- **Dark mode: crash when opening the Run or SQL tab.** The tab was inserted next to its placeholder, then
+  the placeholder removed, and Windows could ask to draw a tab that no longer existed ("index must be less
+  than..."). The placeholder is now replaced in place, and the dark tab drawing ignores an index that no
+  longer exists. The strip behind the tabs and the frame of the page are now
   dark too (they stayed light).
 
 ### Added
