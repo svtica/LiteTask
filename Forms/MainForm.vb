@@ -1296,9 +1296,10 @@ Namespace LiteTask
                     Return
                 End If
 
+                ' Replace the placeholder in place: inserting the real page then removing the placeholder
+                ' left, for a moment, one tab more than the strip shows, and Windows could ask to draw it
                 Dim index = _tabControl.TabPages.IndexOf(placeholder)
-                _tabControl.TabPages.Insert(index, realPage)
-                _tabControl.TabPages.Remove(placeholder)
+                _tabControl.TabPages(index) = realPage
                 placeholder.Dispose()
                 _tabControl.SelectedTab = realPage
             Catch ex As Exception
