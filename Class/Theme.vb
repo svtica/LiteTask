@@ -341,6 +341,9 @@ Namespace LiteTask
             tabs.DrawMode = TabDrawMode.OwnerDrawFixed
             AddHandler tabs.DrawItem,
                 Sub(s, e)
+                    ' A tab page can be removed while Windows still asks to draw it (the Run and SQL
+                    ' tabs replace their placeholder): ignore an index that no longer exists
+                    If e.Index < 0 OrElse e.Index >= tabs.TabPages.Count Then Return
                     Dim selected = e.Index = tabs.SelectedIndex
                     Using back As New SolidBrush(If(selected, Surface, Window))
                         e.Graphics.FillRectangle(back, e.Bounds)
@@ -353,7 +356,47 @@ Namespace LiteTask
                     TextRenderer.DrawText(e.Graphics, tabs.TabPages(e.Index).Text, tabs.Font, e.Bounds, Text,
                         TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.NoPrefix)
                 End Sub
+            ' The strip behind the tabs and the frame of the page are painted by Windows in light colors
+            Dim painter As New DarkTabStrip(tabs)
         End Sub
+
+        ''' <summary>
+        ''' Paints, after Windows, what a dark owner-drawn TabControl leaves light: the strip right of the
+        ''' tabs and the frame around the page (everything but the tabs and the page itself).
+        ''' </summary>
+        Private NotInheritable Class DarkTabStrip
+            Inherits NativeWindow
+
+            Private Const WM_PAINT As Integer = &HF
+            Private ReadOnly _tabs As TabControl
+
+            Public Sub New(tabs As TabControl)
+                _tabs = tabs
+                If tabs.IsHandleCreated Then AssignHandle(tabs.Handle)
+                AddHandler tabs.HandleCreated, Sub(s, e) AssignHandle(_tabs.Handle)
+                AddHandler tabs.HandleDestroyed, Sub(s, e) ReleaseHandle()
+            End Sub
+
+            Protected Overrides Sub WndProc(ByRef m As Message)
+                MyBase.WndProc(m)
+                If m.Msg <> WM_PAINT Then Return
+                Try
+                    Using g = Graphics.FromHwnd(_tabs.Handle)
+                        Using area As New Region(_tabs.ClientRectangle)
+                            area.Exclude(_tabs.DisplayRectangle)
+                            For i = 0 To _tabs.TabPages.Count - 1
+                                area.Exclude(_tabs.GetTabRect(i))
+                            Next
+                            Using back As New SolidBrush(Window)
+                                g.FillRegion(back, area)
+                            End Using
+                        End Using
+                    End Using
+                Catch
+                    ' painting only: never stop the window for it
+                End Try
+            End Sub
+        End Class
 
         ' Selection in menus and tool bars: the accent color (both modes); dark menus in dark mode
         Private NotInheritable Class Colors
