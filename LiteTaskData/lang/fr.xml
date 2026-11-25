@@ -488,7 +488,7 @@
 	<translation key="MainForm.Error2">Erreur : {0}</translation>
 	<translation key="MainForm.ErrorCheckingUpdates">Erreur lors de la recherche de mises à jour : {0}</translation>
 	<translation key="MainForm.ErrorCreatingTask">Erreur lors de la création de la tâche : {0}</translation>
-	<translation key="MainForm.ErrorDeletingTaskS">Erreur lors de la suppression des tâches : {0}</translation>
+	<translation key="MainForm.ErrorDeletingSelectedTasks">Erreur lors de la suppression des tâches : {0}</translation>
 	<translation key="MainForm.ErrorDeletingTasks">Erreur lors de la suppression des tâches : {0}</translation>
 	<translation key="MainForm.ErrorEditingTask">Erreur lors de la modification de la tâche : {0}</translation>
 	<translation key="MainForm.ErrorExportingTasks">Erreur lors de l'exportation des tâches : {0}</translation>
@@ -631,7 +631,7 @@
 	<translation key="SettingsValidator.TargetFileDoesNotExist">Le fichier cible n'existe pas : {0}</translation>
 	<translation key="SettingsValidator.TimeoutMustMinute">Le délai d'expiration doit être d'au moins 1 minute</translation>
 	<translation key="SqlTab">SQL</translation>
-	<translation key="SqlTab.Connect">Connecter</translation>
+	<translation key="SqlTab.ConnectButton">Connecter</translation>
 	<translation key="SqlTab.ConnectionError">Erreur de connexion</translation>
 	<translation key="SqlTab.Credential">Identifiant :</translation>
 	<translation key="SqlTab.DataSavedSuccessfully">Données enregistrées.</translation>

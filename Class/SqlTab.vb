@@ -309,7 +309,7 @@ Namespace LiteTask
         }
 
                 _connectButton = New Button With {
-            .Text = TranslationManager.T("SqlTab.Connect", "Connect"),
+            .Text = TranslationManager.T("SqlTab.ConnectButton", "Connect"),
             .Dock = DockStyle.Fill,
             .AutoSize = True,
             .MinimumSize = New Size(80, 25),
