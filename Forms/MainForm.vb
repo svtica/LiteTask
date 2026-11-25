@@ -392,7 +392,7 @@ Namespace LiteTask
                 DeleteSelectedTasksAsync()
             Catch ex As Exception
                 _logger.LogError($"Error in DeleteTaskButton_Click: {ex.Message}")
-                MessageBox.Show(TranslationManager.F("MainForm.ErrorDeletingTaskS", "Error deleting task(s): {0}", ex.Message),
+                MessageBox.Show(TranslationManager.F("MainForm.ErrorDeletingSelectedTasks", "Error deleting task(s): {0}", ex.Message),
                        TranslationManager.T("MainForm.Error", "Error"), MessageBoxButtons.OK, MessageBoxIcon.Error)
             End Try
         End Sub
