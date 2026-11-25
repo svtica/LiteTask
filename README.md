@@ -102,6 +102,7 @@ LiteTaskData/
 ├── logs/              # Application and task logs
 ├── Modules/           # PowerShell modules  
 ├── tools/             # Downloaded tools (sqlcmd.exe, LitePM\, LiteDeploy\)
+├── lang/              # Translations (fr.xml)
 ├── temp/              # Temporary files
 └── settings.xml       # Configuration file
 ```
