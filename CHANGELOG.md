@@ -80,8 +80,8 @@ All notable changes to this project are documented in this file.
 
 ### Removed
 
-- `docs/analysis-4302-litetask.md` and the internal ticket references in comments: site data, kept
-  in the ticket system instead of this public repository.
+- An internal incident analysis document (`docs/`) and the internal references in comments: site
+  data, kept outside this public repository.
 
 ### Fixed
 
