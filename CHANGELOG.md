@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Run and SQL tabs empty** (1.3.0.11): the placeholder was replaced through the tab collection indexer,
+  which changes the tab of the strip without adding the page to the window. The real page is inserted
+  again, then the placeholder removed; the dark tab drawing still ignores the removed index.
+
 ## [1.3.0.11] - 2026-11-25
 
 ### Fixed
