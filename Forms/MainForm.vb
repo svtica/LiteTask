@@ -1296,10 +1296,12 @@ Namespace LiteTask
                     Return
                 End If
 
-                ' Replace the placeholder in place: inserting the real page then removing the placeholder
-                ' left, for a moment, one tab more than the strip shows, and Windows could ask to draw it
+                ' Insert the real page, then remove the placeholder. Not TabPages(index) = realPage: that
+                ' replaces the tab in the strip without adding the page to the controls, so it stays empty.
+                ' Windows may still ask to draw the removed index for a moment: Theme ignores it.
                 Dim index = _tabControl.TabPages.IndexOf(placeholder)
-                _tabControl.TabPages(index) = realPage
+                _tabControl.TabPages.Insert(index, realPage)
+                _tabControl.TabPages.Remove(placeholder)
                 placeholder.Dispose()
                 _tabControl.SelectedTab = realPage
             Catch ex As Exception
