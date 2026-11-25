@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.3.0.11] - 2026-11-25
+
 ### Fixed
 
 - **Dark mode: crash when opening the Run or SQL tab.** The tab was inserted next to its placeholder, then
@@ -11,6 +13,8 @@ All notable changes to this project are documented in this file.
   than..."). The placeholder is now replaced in place, and the dark tab drawing ignores an index that no
   longer exists. The strip behind the tabs and the frame of the page are now
   dark too (they stayed light).
+
+## [1.3.0.10] - 2026-11-25
 
 ### Added
 
@@ -32,11 +36,6 @@ All notable changes to this project are documented in this file.
   `:`, `?`, `!` and `;`; *courriel*). Keys defined twice in `fr.xml` were removed (the last value, the one
   in use, is kept).
 
-### Removed
-
-- `docs/analysis-4302-litetask.md` and the internal ticket references in comments: site data, kept
-  in the ticket system instead of this public repository.
-
 ### Fixed
 
 - **SQL tab: Last entry / Select All (CSV) on a table.** The object list now carries schema-qualified,
@@ -44,6 +43,10 @@ All notable changes to this project are documented in this file.
   object list is rebuilt when the database changes; before, a table picked in one database could be
   queried in another one. A query that returns no row now says so, with the server, database and
   column headers, instead of "Query executed successfully with no output".
+
+## [1.3.0.8] - 2026-11-18
+
+### Fixed
 
 - **E-mail notifications follow the log levels.** Each notification now carries the level of the
   log line of its event, and `EmailSettings/AlertLevel` works like the log level: an e-mail is sent
@@ -73,12 +76,14 @@ All notable changes to this project are documented in this file.
   "sent successfully" (the error was only logged). It now uses the values on screen through the
   same SMTP client as the notifications and shows the error.
 
-- A task running longer than 15 minutes logged "Attempting to cleanup potentially abandoned lock"
-  every 5 minutes although nothing was released. It now logs "still running (N min, timeout M min)",
-  and a warning only past its timeout.
+## [1.3.0.7] - 2026-11-17
 
-- File menu: two separators in a row between *Credential Manager* and *Exit* when LiteTask runs
-  as administrator (the separator of the hidden *Run as Administrator* item stayed visible).
+### Removed
+
+- `docs/analysis-4302-litetask.md` and the internal ticket references in comments: site data, kept
+  in the ticket system instead of this public repository.
+
+### Fixed
 
 - `LiteTask.exe -register` (InstallUtil, which does not exist for .NET 10) and the internal service
   registration pointed to `LiteTask.dll`, which is not a service executable: the service did not work
@@ -107,10 +112,31 @@ All notable changes to this project are documented in this file.
   `ImagePath` does not point to this `LiteTask.exe` is stopped by LiteTask as before, and must then
   be started again by hand. New `Update.Progress.*` strings (download, package, script failures).
 
+## [1.3.0.6] - 2026-11-17
+
+### Fixed
+
+- A task running longer than 15 minutes logged "Attempting to cleanup potentially abandoned lock"
+  every 5 minutes although nothing was released. It now logs "still running (N min, timeout M min)",
+  and a warning only past its timeout.
+
+### Changed
+
 - **`Reliability/SqlGatedTasks` is empty by default** (it held site task names). Tasks with a SQL
   action are still gated automatically; a task that reaches SQL Server from an executable must now
   be listed in `settings.xml`, e.g. `<Reliability><SqlGatedTasks>TaskName</SqlGatedTasks></Reliability>`.
   **Before updating**, add that setting on servers that relied on the former default.
+
+## [1.3.0.5] - 2026-11-13
+
+### Fixed
+
+- File menu: two separators in a row between *Credential Manager* and *Exit* when LiteTask runs
+  as administrator (the separator of the hidden *Run as Administrator* item stayed visible).
+
+## [1.3.0.4] - 2026-11-13
+
+### Changed
 
 - **LiteSuite.Common NuGet package** (svtica/LiteSuite.Common 1.0.1, GitHub Packages, `nuget.config`
   with package source mapping; token `LITESUITE_PACKAGES_TOKEN`) replaces the LiteTask copies of
@@ -120,7 +146,6 @@ All notable changes to this project are documented in this file.
   `LiteSuite.Common.dll` ships next to `LiteTask.exe`. Differences: the failure message writes
   the duration with the invariant culture (`39.8 s`) and counts the stdout lines kept correctly.
   PsExec64.exe stays embedded in LiteTask, and passwords stay masked in the task output.
-
 - **New publisher certificate**: the pinned thumbprint is now
   `D21B5D39EA4C7BDC69C94C86FC4602E8A1CA15B4` (the old private key was lost). An installed
   LiteTask signed with the old certificate refuses the first update signed with the new one:
@@ -132,10 +157,158 @@ All notable changes to this project are documented in this file.
   bumps the version (patch / minor / major or an explicit version), commits and tags it on
   `main`, then builds, signs and publishes the release. `bump-version.ps1` gains `-Bump`,
   refuses an existing tag or a version that is not greater, and stops on a failed push.
+
+## [1.3.0.2] - 2026-11-11
+
+### Added
+
 - **LiteSuite credentials**: new account type "LiteSuite" (File > Credential Manager and the task
   credential lists). The accounts live in the Windows Credential Manager of the user, target
   `LiteSuite:<name>`, the same store as LiteDeploy (Tools > Credentials): an account saved in one
   tool is usable in the other. Unit-tested with a real round trip (`LiteSuiteCredentialStoreTests`).
+
+### Changed - licensing
+
+- **Source headers match the license**: the `' Copyright (c) svtica. All rights reserved.` line in 26 `.vb` files (`Class/`, `Forms/`, `Tests/`) contradicted `LICENSE` (The Unlicense, public domain). It now reads `' LiteTask - part of LiteSuite. Released under The Unlicense (see LICENSE).` No other copyright notice was found (no `AssemblyInfo.vb`, no `<Copyright>` in `LiteTask.vbproj`, nothing in the README or the UI). No code change.
+
+### Added - memory diagnostics (measure before removing the forced GCs)
+
+- **Per-task memory line in the log** after every run: `[Memory] Task <name>: private 412.5 MB (+12.5), GC heap 85.0 MB (+3.0), handles 1204 (+6), gen2 GCs +1` (`MemoryDiagnostics`, unit-tested). The task that keeps memory or handles after it ends can now be identified from the log, instead of only seeing the total grow until the auto-restart.
+- **`Reliability/ForceGcAfterTask`** (default `True`, previous behaviour): the three forced full garbage collections (after every task in the scheduler, after every PowerShell task — blocking, with `WaitForPendingFinalizers` — and after every Run tab execution) are now one setting. Set it to `False` in `settings.xml` to compare memory and CPU over a few days; the memory monitor and its auto-restart stay as the safety net.
+- Runspaces are deliberately **not pooled**: every PowerShell task keeps its own fresh runspace (no state, variables or modules leaking from one task to the next). Assemblies loaded by modules stay in the process either way (.NET cannot unload them from the default load context), so a pool would not reduce that part of the memory.
+
+### Fixed - Run (PowerShell) tab
+
+- **Typed commands always failed**: without a target file, the Script box was sent as the *parameters* of a missing file (`File.ReadAllText(Nothing)`). Typed commands are now written to a temporary `.ps1` / `.bat` / `.sql` file (deleted after the run) and executed; the Executable type runs them with `cmd /c`. With a target file, the Script box still holds its parameters.
+- **"Command" execution type** was listed but is not a task type: selecting it made the run fail (`Enum.Parse`). The list now holds PowerShell, Batch, SQL, Executable. Auto-detect only applies to a target file, and the type list stays usable for typed commands.
+- **Output mixed with scheduled tasks**: the tab was permanently subscribed to every `TaskRunner` output, so scheduled tasks printed into it. It now subscribes only for the duration of its own run, filtered to that run.
+- Clear messages when there is nothing to run or the target file does not exist (French translations included).
+
+## [1.3.0.1] - 2026-11-11
+
+### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
+
+- **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
+- **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.
+- `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Hosting.WindowsServices`, `System.ServiceProcess.ServiceController` 10.0.14 (were 9.0.0, end of support).
+- CI builds with the .NET 10 SDK.
+- `System.Text.Encoding.CodePages` package removed (part of .NET 10, NU1510). WinForms analyzer `WFO1000` disabled: it targets designer-serialized forms, LiteTask's forms are built in code.
+- Removed `EnableUnsafeBinaryFormatterSerialization`: BinaryFormatter no longer exists in .NET 9+ and LiteTask does not use it (the form `.resx` hold icons and images as byte arrays, read without BinaryFormatter).
+- Kept on purpose: `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`). (`EnableUnsafeBinaryFormatterSerialization` was also kept here on the wrong assumption that the `.resx` files needed it; it is removed with the .NET 10 migration.)
+
+## [1.2.2.5] - 2026-11-11
+
+### Fixed - PowerShell scripts and Mark of the Web
+
+- **`InstallModules.ps1` could not run**: the `param` block came after other statements, the default module array ended with a trailing comma and the file with an extra `}` (three parse errors), and it called `Install-Module -Destination`, a parameter that does not exist. Rewritten: `Save-Module -Path` into `LiteTaskData\Modules`, modules passed as one comma-separated string (how LiteTask calls it) are split, "already installed" only counts a copy in LiteTask's folder, `-Force` updates, and the Mark of the Web is removed from the saved files. Default list: `Az`, `Microsoft.Graph`, `ImportExcel`, `PSWindowsUpdate` (AzureAD and MSOnline are retired).
+- **Tools > Install PowerShell Modules** looked for the script in a `tools` folder that does not exist; it now uses `LiteTaskData\InstallModules.ps1`.
+- **`LiteTask-Post-Build.ps1` worked on the current directory**: run from another folder (for example Downloads) it deleted that folder's sub-folders. It now works on its own folder only, does nothing if `LiteTask.exe` is not next to it, and unblocks every file that carries the Mark of the Web (any extension, not only exe/dll/ps1).
+- **Mark of the Web removed by LiteTask itself** (`MarkOfTheWeb`, same effect as `Unblock-File`): on the extracted update package before it is installed, on every downloaded tool, on the tools folder at start-up (tools copied by hand from a browser download), and on LitePM before it is started through the shell (a marked executable shows the "Open File - Security Warning" prompt).
+- `bump-version.ps1` refuses a dirty tree or a branch other than `main`, and fast-forwards `main` before tagging. Stale `Unblock-Files.ps1` entry removed from the project (the file does not exist).
+
+### Fixed - after 1.2.2.4 testing
+
+- **LitePM could not be downloaded**: its v1.0 release asset does not follow the `LitePM-<version>-win-x64.zip` name the catalog expected. Any `LitePM*.zip` asset is now accepted, and the "no downloadable asset" message lists the assets found in the release.
+- **Tools > Manage Tools**, **Options** and the update progress window now show the LiteTask icon (`AppIcon`).
+
+## [1.2.2.4] - 2026-11-11
+
+### Changed - lighter user interface
+
+- **No more 3-second splash screen**: the `Loading` form stayed open for a fixed 3 seconds on every start while the main window was already built behind it. It is removed (form, designer, 400 KB `.resx`).
+- **One shared application icon** (`AppIcon`, loaded once from the embedded `res\ico\logo.ico`): each form embedded its own copy of the 230 KB icon (5 copies in the `.resx` files, about 1 MB in `LiteTask.exe`) and decoded it on every open. The tray icon uses it too. `ModulesForm`, which asked for an icon its own resources did not contain, and `TaskForm`, which had none, now show the LiteTask icon.
+- **PowerShell and SQL tabs built on first use**: they used to be created at start-up, and the SQL tab connected to the default SQL Server to list its databases, on the UI thread, with a 5-second timeout when the server was unreachable. Placeholder tabs are replaced by the real ones the first time they are selected.
+- **Hidden window does no UI work**: while LiteTask is minimised to the notification area, the 30-second status refresh and the task-list refresh are paused (the scheduler keeps running); showing the window refreshes both.
+- `MainForm.vb`: about 230 lines of commented-out code removed (old log panel, old edit/run/delete handlers, `LogMessage`, `ToggleLogVisibility`...) and an empty `CheckForUpdates`.
+
+### Added - update safety before the .NET 10 migration
+
+- **The updater checks the .NET runtime first**: before any file is replaced, the update reads `LiteTask.runtimeconfig.json` from the downloaded package and verifies that every shared framework it needs (`Microsoft.NETCore.App`, `Microsoft.WindowsDesktop.App`) is installed with the same major version (default roll-forward). When one is missing the update stops with a message naming the .NET Desktop Runtime to install, and nothing is changed (`RuntimeRequirement`, unit-tested). This release must be installed **before** the release built on .NET 10, so that a server whose runtime was not upgraded refuses that update instead of ending up with a LiteTask and a service that no longer start.
+
+## [1.2.2.3] - 2026-11-11
+
+### Fixed
+
+- **Task notifications showed the wrong start and end times**: the "Start Time" / "End Time" in the e-mail were the 5-second batching window of `NotificationManager`, not the task run, so a run of several minutes looked like it took a few seconds. Task notifications now carry a run report (`TaskRunReport`, unit-tested): real start, end and duration of the run, then each action with its status, start, end, duration and error, and the actions never reached marked "Not run". A batch of a single message is now sent as-is; a batch of several messages states that its times are the batching window. The footer says "Notification queued" instead of "Timestamp".
+
+### Added
+
+- **Task log in notifications (optional)**: *Options > Email > Include the task log in notifications* (`EmailSettings/IncludeTaskLog`, off by default) appends the log lines written during that run (Info and above, whatever the configured log level, including child process output) to the e-mail. Only the lines of that run are included, even when several tasks run at the same time (capture scoped to the async flow of the run, `Logger.CurrentCapture`). Last 200 lines by default, `EmailSettings/TaskLogMaxLines` (max 500).
+
+### Changed
+
+- One e-mail per failed run instead of two: a failing action no longer sends its own "Task Action Failed" e-mail followed by the "FATAL ERROR" e-mail; the "FATAL ERROR" e-mail carries the full report. A failure in an action with `ContinueOnError` is reported once, at the end of the run, as "Task Completed With Errors". A manual run (`RunTaskAsync`) no longer sends a duplicate "Task Failed" e-mail when the run report was already sent, and its "Task Completed" e-mail carries the run report (and the chained task's).
+
+### Changed - lighter package, tools on demand
+
+- **Optional tools are no longer shipped**: `sqlcmd.exe` (23 MB, ~85 % of `LiteTaskData`), LitePM (with LitePMService, Aga.Controls, TaskDialog, SecureChannel, System.Windows.Forms.Ribbon, Logger.dll) and LiteDeploy were removed from the repository and the package. They are downloaded from their GitHub releases (`microsoft/go-sqlcmd` pinned to v1.8.2, `svtica/LitePM`, `svtica/LiteDeploy`) through the new **Tools > Manage Tools...** window: choose the tools to keep (`ToolSettings/SelectedTools`), download/update, remove. French translations included.
+- **sqlcmd is installed automatically** the first time a SQL task needs it (`ToolManager.EnsureInstalledAsync`). A missing sqlcmd is no longer a `TaskRunner` startup error, only a warning. Existing installations keep the copy they already have: an update copies files over and never deletes `LiteTaskData\tools`, and tools already present are selected by default.
+- Downloads accepted only from `https://github.com/.../releases/download/`. A file whose Authenticode signature does not match its content is refused; an unsigned file is installed with a warning. `ToolCatalog` (asset selection, URL check, selection setting) is unit-tested.
+- LitePM and LiteDeploy now install in their own subfolder (`tools\LitePM\`, `tools\LiteDeploy\`); the copy shipped at the tools root by older packages is still found. **Monitor LiteTask Processes** offers to download LitePM when it is missing.
+- **Smaller build output**: only English and French satellite resources (`SatelliteResourceLanguages`), and non-Windows `runtimes\*` folders of the PowerShell SDK are removed at build time (both were already deleted by `LiteTask-Post-Build.ps1` after installation; they are now out of the release zip).
+
+### Removed
+
+- Unused references and files: `lib\System.ServiceModel.dll` (legacy service interaction, no longer used), the duplicate `lib\System.ServiceProcess.ServiceController.dll` (the NuGet package is kept), `PackAsTool`, the `None Remove` entries with a developer's local NuGet paths. `SecurePasswordTextBox.dll`, the only one LiteTask itself references, moved to `lib\`.
+- Dead code: `CustomScheduler.ExecuteTask` (duplicate of `ExecuteTaskAsync`, only called from commented-out code), `CustomScheduler.HandleTaskError` (never called), the duplicate creation of `_enableNotificationsCheckBox` in `OptionsForm`.
+
+## [1.2.2.1] - 2026-11-10
+
+### Security
+
+- `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
+- `XMLManager`: every remaining `XmlDocument.Load` now sets `XmlResolver = Nothing` (XXE / external entity hardening), consistent with the task read/write paths.
+- `UpdateManager.CheckForUpdateAsync`: only accepts an `https://` asset URL from the GitHub release API, strips any directory component from the asset name before writing it under `LiteTaskData\temp`, and disposes the parsed JSON document.
+
+### Fixed
+
+- **`XMLManager.SaveToolSettings` erased the whole configuration**: it rebuilt `settings.xml` from scratch keeping only `<Task>` nodes, so `EmailSettings`, `Logging`, `SqlConfiguration`, `Reliability`, `BackupSettings` and `MemoryMonitor` were silently discarded whenever it ran (including at startup when the saved execution tool name was unknown). It now updates `ToolSettings/ExecutionTool` in place.
+- **`Tools > Update Tools` corrupted `sqlcmd.exe`**: `ToolManager.DownloadAndUpdateToolAsync` wrote the raw download (a zip archive) over `tools\sqlcmd.exe`, breaking every SQL task until the tool was reinstalled. The zip is now routed through `DownloadAndInstallSqlcmdAsync`, and embedded tools (PsExec64) are skipped instead of attempting a download.
+- **Logger rotation under the Windows service**: `_logFolder` was only set by GUI code paths, so in service mode the hourly rotation/cleanup task threw on every iteration and, because the delay was inside the `Try`, spun without pause. The folder now defaults to the log file's directory and the loop always waits between iterations, even after an error.
+- **Logger rotation stopped after the first archive**: the archive compression was awaited while holding the thread-affine `ReaderWriterLockSlim` write lock; the continuation resumed on another thread and the release threw, leaving the lock held forever. Compression now runs after the lock is released, and the log writer takes the lock as a reader so a rotation can never truncate the file mid-append.
+- `TaskRunner`: temporary `.sql` files for `sqlcmd` and stored-procedure runs are now suffixed with a GUID; two runs starting in the same second (staggered dispatch, SQL tab) previously shared and overwrote the same `sqlcmd_yyyyMMddHHmmss.sql` file.
+- `CredentialManager.GetAllCredentialTargets`: "Stored Account" entries are now listed from the file they are actually saved to and read from (`%LocalAppData%\LiteTask\SecureCredentials.dat`); the legacy location next to the executable is still listed for compatibility.
+- **Credentialed Batch/Executable tasks never ran as the selected account.** Both paths handed PsExec the literal placeholder `-p "%BATCH_PASS_xxx%"` / `-p "%EXEC_PASS_xxx%"` (the child is started with `UseShellExecute = False`, so nothing expanded it) and authentication always failed. The Executable path additionally started the target binary itself (as the LiteTask/service account) with PsExec arguments, so an executable tolerant of unknown arguments could appear to work, just not under the chosen account. Both now launch `LiteTaskData\tools\PsExec64.exe` (extracted from the embedded resource on first use; nothing wrote it to disk before) with `-u <user> -p <password>` through a new testable `PsExecCommandBuilder` module. The password is passed on the PsExec command line because PsExec has no environment or stdin alternative for `-p`: a process command line is readable only by the same user and by local administrators, so under the service (LocalSystem) it is visible to administrators only. The password is never logged; `RunProcessWithTimeout` masks any echo of it in the child's output before logging or raising it to the GUI. The `net use` prelude of credentialed Batch tasks now relies on the PsExec logon session's own credentials instead of writing a (non-expanding) password placeholder into the temp script. Removed the dead `ExecuteSecureProcess` (rundll32/`MemoryStream.ToString()`) and the 1 MB cached PsExec byte array. **Before deploying, inventory production tasks that combine a credential with a Batch or Executable action: they will now really run as that account.**
+- **Startup race after a full-server reboot silently disabling a task for days** (incident of 2026-07-10 → 2026-07-15). Root causes addressed:
+  - Per-action `TimeoutMinutes` (persisted since day one but never enforced) is now applied to every execution path: `Executable`/`Batch` child processes and `sqlcmd` run through `RunProcessWithTimeout`, which kills the entire process tree on expiry; the PowerShell in-process timeout now uses the action's configured value instead of a fixed 4 h. A scheduler-level backstop (`action timeout + 2 min`) additionally kills the tracked child processes and releases the task lock if the execution path itself hangs (e.g. output streams never closing).
+  - Stale-task recovery now actually recovers: `TaskRunner` tracks child processes by PID per task (`KillProcessesForTask`), and `CleanupStaleTasks` no longer resets the running state at 15 minutes (which caused endless re-dispatch into a held lock); instead it alerts, then at `sum of action timeouts + 10 min` it kills the owning process(es), force-releases the lock, and resets the state so the next schedule fires.
+  - Stale/blocked alerts now repeat every `Reliability/StaleAlertRepeatMinutes` (default 60) with an escalating `ALERT #N` counter while the condition persists; a task that keeps being skipped (lock unavailable) also raises repeating alerts instead of logging ~6,700 silent warnings.
+  - `ExecuteSqlTask` no longer reports success when `sqlcmd` fails or times out.
+- Scheduler tick no longer blocks for up to 30 s per task on lock acquisition: dispatch is offloaded to the thread pool with a pending-dispatch guard against double launch.
+
+### Changed
+
+- `TaskRunner.RunThroughPsExec`: PsExec's own progress messages ("Connecting to local system...", "Starting PSEXESVC service...", "... exited on HOST with error code 0."), which PsExec writes to stderr even with `-nobanner`, are now logged as `Process status` at Info level and shown as normal output in the Run tab, instead of one `[Warning] Process error` entry per line. The blank stderr lines PsExec emits between messages are dropped. Genuine stderr content ("Access is denied.", "Couldn't access HOST:") is still logged as a warning and kept for the failure report. Classification lives in `PsExecCommandBuilder.IsStatusLine` (unit-tested) and is shared with `ExecuteProcessWithOutput`, whose previous substring test (`Contains("Starting")`) could swallow a real error message.
+- `Logger`: `Logging/MaxLogSize` (MB) and `Logging/LogRetentionDays` from the Options form are now applied to log rotation and cleanup (previously hard-coded to 10 MB / 30 days). Queued log entries are written in batches with a single file open instead of one open/close per line, and the remaining queue is flushed on shutdown.
+- `NotificationManager`: failed e-mail sends back off 10 s / 20 s / 30 s between the three retries instead of retrying immediately.
+- **Self-update now verifies the Authenticode signature of the downloaded package before anything from it runs** (`UpdateManager.DownloadAndApplyUpdateAsync`). After extraction, `LiteTask.exe` is located with the same rules as the file-replacement script (archive root, single sub-folder, first match) and checked with `WinVerifyTrust` (new `AuthenticodeVerifier`): the signature must match the file content and the signer thumbprint must equal the pinned publisher certificate `res/certificate.cer` (CN=SVTI.ca, SHA-1 `EC2B412C4025C2F1C8DB512CEC66632E65C017F0`, the certificate `Release.yml` signs with) or the certificate that signed the running `LiteTask.exe`. Because that certificate is self-signed, `CERT_E_UNTRUSTEDROOT` counts as a verified digest and identity is enforced by the thumbprint pin instead of the machine's root store. Policy (`UpdateSignaturePolicy`):
+  - signed by the expected publisher: applied. The `LiteTask-Post-Build.ps1` shipped in the archive (executed with `-ExecutionPolicy Bypass` before files are replaced) must then also be validly signed by the same publisher, otherwise the update is rejected;
+  - unsigned package: rejected, **unless the running `LiteTask.exe` is itself unsigned** (development build), in which case it is applied with a visible warning so a dev build can still update when the CI signing secret is absent;
+  - tampered (digest mismatch), invalid, or signed by another certificate: rejected.
+  A rejected package stops before `RunPostBuildScriptAsync`, logs the reason, shows it in `UpdateProgressForm` and deletes the temporary archive and extracted folder. New `Update.Progress.*` strings with French translations in `LiteTaskData/lang/fr.xml`.
+- `Release.yml` now also signs the `*.ps1` files at the package root (currently `LiteTask-Post-Build.ps1`) when the signing certificate is present, so signed releases satisfy the script check above. Rotating the signing certificate requires updating `UpdateManager.ExpectedPublisherThumbprint` in a release still signed with the previous certificate.
+- Update download URL must use `https://`; the release asset name is reduced to its file name before being used as the local archive name.
+- `SettingsValidator`: removed stale `TODO Reimplement in Options` comment; the validator is already wired into `OptionsForm.ValidateSettings`.
+- `TaskRunner.ParseParameters`: now delegates to a new testable `LiteTask.ParameterParser` module that supports cmd-style quoting (`key="value with spaces"`) while remaining backward-compatible with `key=value`.
+- `CustomScheduler` / `LiteTaskService`: scheduler tick rate reduced from 60 s to 30 s to support minute-level interval recurrences with acceptable jitter.
+- `XMLManager.ParseInterval`: tolerates both the current "minutes as double" `<Interval>` format and legacy TimeSpan strings (e.g. `00:15:00`); writes use `InvariantCulture` to avoid locale-dependent decimals.
+- `TaskForm`: `Interval` recurrence input is now bounded to 1-1440 whole minutes with friendly validation; existing tasks load and round to the nearest minute.
+
+### Added
+
+- SQL Server readiness gate (`SqlReadinessChecker`): before dispatching SQL-dependent tasks (any task with a SQL action, plus names matching `Reliability/SqlGatedTasks`, empty by default since 1.3.0.6), the scheduler probes SQL Server with a 5 s connection test. While unavailable, the task is deferred to the next tick (schedule untouched) and probes retry with exponential backoff (15 s → 10 min cap), each attempt logged. Login/database errors count as "engine up" so a permissions issue cannot block tasks forever. Probe server: `Reliability/SqlReadinessServer`, falling back to `SqlConfiguration/DefaultServer`.
+- Configurable post-reboot startup grace: the service waits `Reliability/StartupDelaySeconds` (default 90) before the first dispatch, and simultaneous due tasks are staggered by `Reliability/TaskLaunchStaggerSeconds` (default 5) instead of all launching in the same second.
+- Non-interactive child execution: the service calls `SetErrorMode(SEM_FAILCRITICALERRORS Or SEM_NOGPFAULTERRORBOX Or SEM_NOOPENFILEERRORBOX)` at startup (inherited by children) so Windows hard-error dialogs cannot block a child invisibly, and the PsExec `-i` flag is only used in interactive sessions.
+- New `Reliability` settings section (all keys optional, defaults apply): `StartupDelaySeconds`, `TaskLaunchStaggerSeconds`, `SqlReadinessEnabled`, `SqlReadinessServer`, `SqlGatedTasks`, `StaleAlertRepeatMinutes`.
+- Task deletion not persisting when `LiteTaskService` is running: the service process keeps its own in-memory `_tasks` dictionary and re-writes the full set to `settings.xml` at the end of every execution (via `SaveTasks`). Because the GUI mutated XML directly without telling the service, the service's stale copy resurrected just-deleted tasks (and missed adds/edits) until the next service restart. The GUI now sends `LiteTaskService.CMD_RELOAD_TASKS` (custom service control 128) via `ServiceController.ExecuteCommand` after every task mutation (delete, create, edit, toggle-enable, import), which routes through `LiteTaskService.OnCustomCommand` → `CustomScheduler.ReloadTasks`. `ReloadTasks` evicts entries no longer present in XML (skipping anything currently executing) and refreshes the rest. The notification is best-effort and logs a warning when the GUI user lacks `SERVICE_USER_DEFINED_CONTROL` on the service.
+- Task deletion not persisting: `XMLManager.DeleteTask` only searched the canonical `LiteTaskSettings/Tasks/Task` path while `GetAllTaskNames`/`LoadTask` accept three layouts, so non-canonical entries survived deletion. `CustomScheduler.SaveTasks` then re-merged the surviving XML entry back into `_tasks` via `GetAllTasks`, resurrecting the task. `DeleteTask` now removes every matching node across supported layouts (under the existing write lock, with atomic save) and `SaveTasks` treats the in-memory `_tasks` dictionary as the source of truth.
+- `SettingsValidator.ValidateTaskAction(action[, siblings])`: validates name/target presence, target file existence for PowerShell/Batch/Executable types, non-negative retry parameters, timeout >= 1, and `DependsOn` referencing a sibling action's `Name`.
+- `ActionDialog` and `TaskForm` now run candidate actions through `ValidateTaskAction` on save; cross-action `DependsOn` consistency is checked at the task level.
+- `Tests/LiteTask.Tests.vbproj`: MSTest project covering `ParameterParser` (11 cases: basic form, quoted spaces, mixed quoting, empty values, dropped tokens, duplicate keys, whitespace tolerance).
+- French translations for the new `Validation.*` keys in `LiteTaskData/lang/fr.xml`.
+- `MainForm` View menu: new `Open Log File` item that opens the current log (resolved via `Logger._logFile`) in the default associated application; shows a friendly `NoLogAvailable` message when no log has been written yet.
+- Sub-hour interval recurrence: scheduling a task to run every N minutes (1-1440) is now first-class - parity with the Windows Task Scheduler "Repeat task every" setting.
+- `ScheduledTask.CalculateNextRunTime` / `UpdateNextRunTime`: defensive guards when `Interval` is zero (returns `DateTime.MaxValue` instead of dividing by zero or looping forever).
 
 ## [1.2.1.13] - 2026-11-10 - diagnostics and alerting only
 
@@ -152,128 +325,3 @@ All notable changes to this project are documented in this file.
 
 ### Out of scope (deliberately not in this release)
 - Readiness allow-list, cache invalidation after a failed action, sqlcmd `-b`/`-r`/`-l`/`-t`, `RetryCount` support, dead-letter replay.
-
-## [Unreleased]
-
-### Changed - licensing
-- **Source headers match the license**: the `' Copyright (c) svtica. All rights reserved.` line in 26 `.vb` files (`Class/`, `Forms/`, `Tests/`) contradicted `LICENSE` (The Unlicense, public domain). It now reads `' LiteTask - part of LiteSuite. Released under The Unlicense (see LICENSE).` No other copyright notice was found (no `AssemblyInfo.vb`, no `<Copyright>` in `LiteTask.vbproj`, nothing in the README or the UI). No code change.
-
-### Added - memory diagnostics (measure before removing the forced GCs)
-- **Per-task memory line in the log** after every run: `[Memory] Task <name>: private 412.5 MB (+12.5), GC heap 85.0 MB (+3.0), handles 1204 (+6), gen2 GCs +1` (`MemoryDiagnostics`, unit-tested). The task that keeps memory or handles after it ends can now be identified from the log, instead of only seeing the total grow until the auto-restart.
-- **`Reliability/ForceGcAfterTask`** (default `True`, previous behaviour): the three forced full garbage collections (after every task in the scheduler, after every PowerShell task — blocking, with `WaitForPendingFinalizers` — and after every Run tab execution) are now one setting. Set it to `False` in `settings.xml` to compare memory and CPU over a few days; the memory monitor and its auto-restart stay as the safety net.
-- Runspaces are deliberately **not pooled**: every PowerShell task keeps its own fresh runspace (no state, variables or modules leaking from one task to the next). Assemblies loaded by modules stay in the process either way (.NET cannot unload them from the default load context), so a pool would not reduce that part of the memory.
-
-### Fixed - Run (PowerShell) tab
-- **Typed commands always failed**: without a target file, the Script box was sent as the *parameters* of a missing file (`File.ReadAllText(Nothing)`). Typed commands are now written to a temporary `.ps1` / `.bat` / `.sql` file (deleted after the run) and executed; the Executable type runs them with `cmd /c`. With a target file, the Script box still holds its parameters.
-- **"Command" execution type** was listed but is not a task type: selecting it made the run fail (`Enum.Parse`). The list now holds PowerShell, Batch, SQL, Executable. Auto-detect only applies to a target file, and the type list stays usable for typed commands.
-- **Output mixed with scheduled tasks**: the tab was permanently subscribed to every `TaskRunner` output, so scheduled tasks printed into it. It now subscribes only for the duration of its own run, filtered to that run.
-- Clear messages when there is nothing to run or the target file does not exist (French translations included).
-
-### Changed - .NET 10 (LTS) and PowerShell 7.6 (LTS)
-- **Target framework `net10.0-windows`** (was `net8.0-windows`, out of support since 2026-11-10). **Prerequisite: the .NET 10 Desktop Runtime (x64)** on every machine running LiteTask. Updating from a release that has the runtime check (previous entry) refuses the update until it is installed; nothing is replaced.
-- **PowerShell SDK 7.6.9** (LTS, was 7.4.6, end of support with .NET 8). Hosted runspaces, modules (`LiteTaskData\Modules`) and scripts run on PowerShell 7.6. See the PowerShell 7.5 and 7.6 release notes for script-level changes.
-- `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Hosting.WindowsServices`, `System.ServiceProcess.ServiceController` 10.0.14 (were 9.0.0, end of support).
-- CI builds with the .NET 10 SDK.
-- `System.Text.Encoding.CodePages` package removed (part of .NET 10, NU1510). WinForms analyzer `WFO1000` disabled: it targets designer-serialized forms, LiteTask's forms are built in code.
-- Removed `EnableUnsafeBinaryFormatterSerialization`: BinaryFormatter no longer exists in .NET 9+ and LiteTask does not use it (the form `.resx` hold icons and images as byte arrays, read without BinaryFormatter).
-
-### Fixed - PowerShell scripts and Mark of the Web
-- **`InstallModules.ps1` could not run**: the `param` block came after other statements, the default module array ended with a trailing comma and the file with an extra `}` (three parse errors), and it called `Install-Module -Destination`, a parameter that does not exist. Rewritten: `Save-Module -Path` into `LiteTaskData\Modules`, modules passed as one comma-separated string (how LiteTask calls it) are split, "already installed" only counts a copy in LiteTask's folder, `-Force` updates, and the Mark of the Web is removed from the saved files. Default list: `Az`, `Microsoft.Graph`, `ImportExcel`, `PSWindowsUpdate` (AzureAD and MSOnline are retired).
-- **Tools > Install PowerShell Modules** looked for the script in a `tools` folder that does not exist; it now uses `LiteTaskData\InstallModules.ps1`.
-- **`LiteTask-Post-Build.ps1` worked on the current directory**: run from another folder (for example Downloads) it deleted that folder's sub-folders. It now works on its own folder only, does nothing if `LiteTask.exe` is not next to it, and unblocks every file that carries the Mark of the Web (any extension, not only exe/dll/ps1).
-- **Mark of the Web removed by LiteTask itself** (`MarkOfTheWeb`, same effect as `Unblock-File`): on the extracted update package before it is installed, on every downloaded tool, on the tools folder at start-up (tools copied by hand from a browser download), and on LitePM before it is started through the shell (a marked executable shows the "Open File - Security Warning" prompt).
-- `bump-version.ps1` refuses a dirty tree or a branch other than `main`, and fast-forwards `main` before tagging. Stale `Unblock-Files.ps1` entry removed from the project (the file does not exist).
-
-### Fixed - after 1.2.2.4 testing
-- **LitePM could not be downloaded**: its v1.0 release asset does not follow the `LitePM-<version>-win-x64.zip` name the catalog expected. Any `LitePM*.zip` asset is now accepted, and the "no downloadable asset" message lists the assets found in the release.
-- **Tools > Manage Tools**, **Options** and the update progress window now show the LiteTask icon (`AppIcon`).
-
-### Changed - lighter user interface
-- **No more 3-second splash screen**: the `Loading` form stayed open for a fixed 3 seconds on every start while the main window was already built behind it. It is removed (form, designer, 400 KB `.resx`).
-- **One shared application icon** (`AppIcon`, loaded once from the embedded `res\ico\logo.ico`): each form embedded its own copy of the 230 KB icon (5 copies in the `.resx` files, about 1 MB in `LiteTask.exe`) and decoded it on every open. The tray icon uses it too. `ModulesForm`, which asked for an icon its own resources did not contain, and `TaskForm`, which had none, now show the LiteTask icon.
-- **PowerShell and SQL tabs built on first use**: they used to be created at start-up, and the SQL tab connected to the default SQL Server to list its databases, on the UI thread, with a 5-second timeout when the server was unreachable. Placeholder tabs are replaced by the real ones the first time they are selected.
-- **Hidden window does no UI work**: while LiteTask is minimised to the notification area, the 30-second status refresh and the task-list refresh are paused (the scheduler keeps running); showing the window refreshes both.
-- `MainForm.vb`: about 230 lines of commented-out code removed (old log panel, old edit/run/delete handlers, `LogMessage`, `ToggleLogVisibility`...) and an empty `CheckForUpdates`.
-
-### Added - update safety before the .NET 10 migration
-- **The updater checks the .NET runtime first**: before any file is replaced, the update reads `LiteTask.runtimeconfig.json` from the downloaded package and verifies that every shared framework it needs (`Microsoft.NETCore.App`, `Microsoft.WindowsDesktop.App`) is installed with the same major version (default roll-forward). When one is missing the update stops with a message naming the .NET Desktop Runtime to install, and nothing is changed (`RuntimeRequirement`, unit-tested). This release must be installed **before** the release built on .NET 10, so that a server whose runtime was not upgraded refuses that update instead of ending up with a LiteTask and a service that no longer start.
-
-### Fixed
-- **Task notifications showed the wrong start and end times**: the "Start Time" / "End Time" in the e-mail were the 5-second batching window of `NotificationManager`, not the task run, so a run of several minutes looked like it took a few seconds. Task notifications now carry a run report (`TaskRunReport`, unit-tested): real start, end and duration of the run, then each action with its status, start, end, duration and error, and the actions never reached marked "Not run". A batch of a single message is now sent as-is; a batch of several messages states that its times are the batching window. The footer says "Notification queued" instead of "Timestamp".
-
-### Added
-- **Task log in notifications (optional)**: *Options > Email > Include the task log in notifications* (`EmailSettings/IncludeTaskLog`, off by default) appends the log lines written during that run (Info and above, whatever the configured log level, including child process output) to the e-mail. Only the lines of that run are included, even when several tasks run at the same time (capture scoped to the async flow of the run, `Logger.CurrentCapture`). Last 200 lines by default, `EmailSettings/TaskLogMaxLines` (max 500).
-
-### Changed
-- One e-mail per failed run instead of two: a failing action no longer sends its own "Task Action Failed" e-mail followed by the "FATAL ERROR" e-mail; the "FATAL ERROR" e-mail carries the full report. A failure in an action with `ContinueOnError` is reported once, at the end of the run, as "Task Completed With Errors". A manual run (`RunTaskAsync`) no longer sends a duplicate "Task Failed" e-mail when the run report was already sent, and its "Task Completed" e-mail carries the run report (and the chained task's).
-
-### Changed - lighter package, tools on demand
-- **Optional tools are no longer shipped**: `sqlcmd.exe` (23 MB, ~85 % of `LiteTaskData`), LitePM (with LitePMService, Aga.Controls, TaskDialog, SecureChannel, System.Windows.Forms.Ribbon, Logger.dll) and LiteDeploy were removed from the repository and the package. They are downloaded from their GitHub releases (`microsoft/go-sqlcmd` pinned to v1.8.2, `svtica/LitePM`, `svtica/LiteDeploy`) through the new **Tools > Manage Tools...** window: choose the tools to keep (`ToolSettings/SelectedTools`), download/update, remove. French translations included.
-- **sqlcmd is installed automatically** the first time a SQL task needs it (`ToolManager.EnsureInstalledAsync`). A missing sqlcmd is no longer a `TaskRunner` startup error, only a warning. Existing installations keep the copy they already have: an update copies files over and never deletes `LiteTaskData\tools`, and tools already present are selected by default.
-- Downloads accepted only from `https://github.com/.../releases/download/`. A file whose Authenticode signature does not match its content is refused; an unsigned file is installed with a warning. `ToolCatalog` (asset selection, URL check, selection setting) is unit-tested.
-- LitePM and LiteDeploy now install in their own subfolder (`tools\LitePM\`, `tools\LiteDeploy\`); the copy shipped at the tools root by older packages is still found. **Monitor LiteTask Processes** offers to download LitePM when it is missing.
-- **Smaller build output**: only English and French satellite resources (`SatelliteResourceLanguages`), and non-Windows `runtimes\*` folders of the PowerShell SDK are removed at build time (both were already deleted by `LiteTask-Post-Build.ps1` after installation; they are now out of the release zip).
-
-### Removed
-- Unused references and files: `lib\System.ServiceModel.dll` (legacy service interaction, no longer used), the duplicate `lib\System.ServiceProcess.ServiceController.dll` (the NuGet package is kept), `PackAsTool`, the `None Remove` entries with a developer's local NuGet paths. `SecurePasswordTextBox.dll`, the only one LiteTask itself references, moved to `lib\`.
-- Dead code: `CustomScheduler.ExecuteTask` (duplicate of `ExecuteTaskAsync`, only called from commented-out code), `CustomScheduler.HandleTaskError` (never called), the duplicate creation of `_enableNotificationsCheckBox` in `OptionsForm`.
-- Kept on purpose: `EnableUnsafeUTF7Encoding` (scripts may use `-Encoding UTF7`). (`EnableUnsafeBinaryFormatterSerialization` was also kept here on the wrong assumption that the `.resx` files needed it; it is removed with the .NET 10 migration.)
-
-### Security
-- `TaskRunner.ExecuteSqlCommandWithSqlCmd`: the SQL password is no longer passed to `sqlcmd` with `-P` on the command line (visible to every local user through Task Manager, WMI or `Get-Process`). It is now handed over through the `SQLCMDPASSWORD` environment variable of the child process only. A password containing a double quote also no longer breaks the argument list.
-- `XMLManager`: every remaining `XmlDocument.Load` now sets `XmlResolver = Nothing` (XXE / external entity hardening), consistent with the task read/write paths.
-- `UpdateManager.CheckForUpdateAsync`: only accepts an `https://` asset URL from the GitHub release API, strips any directory component from the asset name before writing it under `LiteTaskData\temp`, and disposes the parsed JSON document.
-
-### Fixed
-- **`XMLManager.SaveToolSettings` erased the whole configuration**: it rebuilt `settings.xml` from scratch keeping only `<Task>` nodes, so `EmailSettings`, `Logging`, `SqlConfiguration`, `Reliability`, `BackupSettings` and `MemoryMonitor` were silently discarded whenever it ran (including at startup when the saved execution tool name was unknown). It now updates `ToolSettings/ExecutionTool` in place.
-- **`Tools > Update Tools` corrupted `sqlcmd.exe`**: `ToolManager.DownloadAndUpdateToolAsync` wrote the raw download (a zip archive) over `tools\sqlcmd.exe`, breaking every SQL task until the tool was reinstalled. The zip is now routed through `DownloadAndInstallSqlcmdAsync`, and embedded tools (PsExec64) are skipped instead of attempting a download.
-- **Logger rotation under the Windows service**: `_logFolder` was only set by GUI code paths, so in service mode the hourly rotation/cleanup task threw on every iteration and, because the delay was inside the `Try`, spun without pause. The folder now defaults to the log file's directory and the loop always waits between iterations, even after an error.
-- **Logger rotation stopped after the first archive**: the archive compression was awaited while holding the thread-affine `ReaderWriterLockSlim` write lock; the continuation resumed on another thread and the release threw, leaving the lock held forever. Compression now runs after the lock is released, and the log writer takes the lock as a reader so a rotation can never truncate the file mid-append.
-- `TaskRunner`: temporary `.sql` files for `sqlcmd` and stored-procedure runs are now suffixed with a GUID; two runs starting in the same second (staggered dispatch, SQL tab) previously shared and overwrote the same `sqlcmd_yyyyMMddHHmmss.sql` file.
-- `CredentialManager.GetAllCredentialTargets`: "Stored Account" entries are now listed from the file they are actually saved to and read from (`%LocalAppData%\LiteTask\SecureCredentials.dat`); the legacy location next to the executable is still listed for compatibility.
-
-### Changed
-- `TaskRunner.RunThroughPsExec`: PsExec's own progress messages ("Connecting to local system...", "Starting PSEXESVC service...", "... exited on HOST with error code 0."), which PsExec writes to stderr even with `-nobanner`, are now logged as `Process status` at Info level and shown as normal output in the Run tab, instead of one `[Warning] Process error` entry per line. The blank stderr lines PsExec emits between messages are dropped. Genuine stderr content ("Access is denied.", "Couldn't access HOST:") is still logged as a warning and kept for the failure report. Classification lives in `PsExecCommandBuilder.IsStatusLine` (unit-tested) and is shared with `ExecuteProcessWithOutput`, whose previous substring test (`Contains("Starting")`) could swallow a real error message.
-- `Logger`: `Logging/MaxLogSize` (MB) and `Logging/LogRetentionDays` from the Options form are now applied to log rotation and cleanup (previously hard-coded to 10 MB / 30 days). Queued log entries are written in batches with a single file open instead of one open/close per line, and the remaining queue is flushed on shutdown.
-- `NotificationManager`: failed e-mail sends back off 10 s / 20 s / 30 s between the three retries instead of retrying immediately.
-
-- **Self-update now verifies the Authenticode signature of the downloaded package before anything from it runs** (`UpdateManager.DownloadAndApplyUpdateAsync`). After extraction, `LiteTask.exe` is located with the same rules as the file-replacement script (archive root, single sub-folder, first match) and checked with `WinVerifyTrust` (new `AuthenticodeVerifier`): the signature must match the file content and the signer thumbprint must equal the pinned publisher certificate `res/certificate.cer` (CN=SVTI.ca, SHA-1 `EC2B412C4025C2F1C8DB512CEC66632E65C017F0`, the certificate `Release.yml` signs with) or the certificate that signed the running `LiteTask.exe`. Because that certificate is self-signed, `CERT_E_UNTRUSTEDROOT` counts as a verified digest and identity is enforced by the thumbprint pin instead of the machine's root store. Policy (`UpdateSignaturePolicy`):
-  - signed by the expected publisher: applied. The `LiteTask-Post-Build.ps1` shipped in the archive (executed with `-ExecutionPolicy Bypass` before files are replaced) must then also be validly signed by the same publisher, otherwise the update is rejected;
-  - unsigned package: rejected, **unless the running `LiteTask.exe` is itself unsigned** (development build), in which case it is applied with a visible warning so a dev build can still update when the CI signing secret is absent;
-  - tampered (digest mismatch), invalid, or signed by another certificate: rejected.
-  A rejected package stops before `RunPostBuildScriptAsync`, logs the reason, shows it in `UpdateProgressForm` and deletes the temporary archive and extracted folder. New `Update.Progress.*` strings with French translations in `LiteTaskData/lang/fr.xml`.
-- `Release.yml` now also signs the `*.ps1` files at the package root (currently `LiteTask-Post-Build.ps1`) when the signing certificate is present, so signed releases satisfy the script check above. Rotating the signing certificate requires updating `UpdateManager.ExpectedPublisherThumbprint` in a release still signed with the previous certificate.
-- Update download URL must use `https://`; the release asset name is reduced to its file name before being used as the local archive name.
-
-### Fixed
-- **Credentialed Batch/Executable tasks never ran as the selected account.** Both paths handed PsExec the literal placeholder `-p "%BATCH_PASS_xxx%"` / `-p "%EXEC_PASS_xxx%"` (the child is started with `UseShellExecute = False`, so nothing expanded it) and authentication always failed. The Executable path additionally started the target binary itself (as the LiteTask/service account) with PsExec arguments, so an executable tolerant of unknown arguments could appear to work, just not under the chosen account. Both now launch `LiteTaskData\tools\PsExec64.exe` (extracted from the embedded resource on first use; nothing wrote it to disk before) with `-u <user> -p <password>` through a new testable `PsExecCommandBuilder` module. The password is passed on the PsExec command line because PsExec has no environment or stdin alternative for `-p`: a process command line is readable only by the same user and by local administrators, so under the service (LocalSystem) it is visible to administrators only. The password is never logged; `RunProcessWithTimeout` masks any echo of it in the child's output before logging or raising it to the GUI. The `net use` prelude of credentialed Batch tasks now relies on the PsExec logon session's own credentials instead of writing a (non-expanding) password placeholder into the temp script. Removed the dead `ExecuteSecureProcess` (rundll32/`MemoryStream.ToString()`) and the 1 MB cached PsExec byte array. **Before deploying, inventory production tasks that combine a credential with a Batch or Executable action: they will now really run as that account.**
-- **Startup race after a full-server reboot silently disabling a task for days** (incident of 2026-07-10 → 2026-07-15). Root causes addressed:
-  - Per-action `TimeoutMinutes` (persisted since day one but never enforced) is now applied to every execution path: `Executable`/`Batch` child processes and `sqlcmd` run through `RunProcessWithTimeout`, which kills the entire process tree on expiry; the PowerShell in-process timeout now uses the action's configured value instead of a fixed 4 h. A scheduler-level backstop (`action timeout + 2 min`) additionally kills the tracked child processes and releases the task lock if the execution path itself hangs (e.g. output streams never closing).
-  - Stale-task recovery now actually recovers: `TaskRunner` tracks child processes by PID per task (`KillProcessesForTask`), and `CleanupStaleTasks` no longer resets the running state at 15 minutes (which caused endless re-dispatch into a held lock); instead it alerts, then at `sum of action timeouts + 10 min` it kills the owning process(es), force-releases the lock, and resets the state so the next schedule fires.
-  - Stale/blocked alerts now repeat every `Reliability/StaleAlertRepeatMinutes` (default 60) with an escalating `ALERT #N` counter while the condition persists; a task that keeps being skipped (lock unavailable) also raises repeating alerts instead of logging ~6,700 silent warnings.
-  - `ExecuteSqlTask` no longer reports success when `sqlcmd` fails or times out.
-- Scheduler tick no longer blocks for up to 30 s per task on lock acquisition: dispatch is offloaded to the thread pool with a pending-dispatch guard against double launch.
-
-### Added
-- SQL Server readiness gate (`SqlReadinessChecker`): before dispatching SQL-dependent tasks (any task with a SQL action, plus names matching `Reliability/SqlGatedTasks`, empty by default since 1.3.0.6), the scheduler probes SQL Server with a 5 s connection test. While unavailable, the task is deferred to the next tick (schedule untouched) and probes retry with exponential backoff (15 s → 10 min cap), each attempt logged. Login/database errors count as "engine up" so a permissions issue cannot block tasks forever. Probe server: `Reliability/SqlReadinessServer`, falling back to `SqlConfiguration/DefaultServer`.
-- Configurable post-reboot startup grace: the service waits `Reliability/StartupDelaySeconds` (default 90) before the first dispatch, and simultaneous due tasks are staggered by `Reliability/TaskLaunchStaggerSeconds` (default 5) instead of all launching in the same second.
-- Non-interactive child execution: the service calls `SetErrorMode(SEM_FAILCRITICALERRORS Or SEM_NOGPFAULTERRORBOX Or SEM_NOOPENFILEERRORBOX)` at startup (inherited by children) so Windows hard-error dialogs cannot block a child invisibly, and the PsExec `-i` flag is only used in interactive sessions.
-- New `Reliability` settings section (all keys optional, defaults apply): `StartupDelaySeconds`, `TaskLaunchStaggerSeconds`, `SqlReadinessEnabled`, `SqlReadinessServer`, `SqlGatedTasks`, `StaleAlertRepeatMinutes`.
-- Task deletion not persisting when `LiteTaskService` is running: the service process keeps its own in-memory `_tasks` dictionary and re-writes the full set to `settings.xml` at the end of every execution (via `SaveTasks`). Because the GUI mutated XML directly without telling the service, the service's stale copy resurrected just-deleted tasks (and missed adds/edits) until the next service restart. The GUI now sends `LiteTaskService.CMD_RELOAD_TASKS` (custom service control 128) via `ServiceController.ExecuteCommand` after every task mutation (delete, create, edit, toggle-enable, import), which routes through `LiteTaskService.OnCustomCommand` → `CustomScheduler.ReloadTasks`. `ReloadTasks` evicts entries no longer present in XML (skipping anything currently executing) and refreshes the rest. The notification is best-effort and logs a warning when the GUI user lacks `SERVICE_USER_DEFINED_CONTROL` on the service.
-- Task deletion not persisting: `XMLManager.DeleteTask` only searched the canonical `LiteTaskSettings/Tasks/Task` path while `GetAllTaskNames`/`LoadTask` accept three layouts, so non-canonical entries survived deletion. `CustomScheduler.SaveTasks` then re-merged the surviving XML entry back into `_tasks` via `GetAllTasks`, resurrecting the task. `DeleteTask` now removes every matching node across supported layouts (under the existing write lock, with atomic save) and `SaveTasks` treats the in-memory `_tasks` dictionary as the source of truth.
-
-### Changed
-- `SettingsValidator`: removed stale `TODO Reimplement in Options` comment; the validator is already wired into `OptionsForm.ValidateSettings`.
-- `TaskRunner.ParseParameters`: now delegates to a new testable `LiteTask.ParameterParser` module that supports cmd-style quoting (`key="value with spaces"`) while remaining backward-compatible with `key=value`.
-- `CustomScheduler` / `LiteTaskService`: scheduler tick rate reduced from 60 s to 30 s to support minute-level interval recurrences with acceptable jitter.
-- `XMLManager.ParseInterval`: tolerates both the current "minutes as double" `<Interval>` format and legacy TimeSpan strings (e.g. `00:15:00`); writes use `InvariantCulture` to avoid locale-dependent decimals.
-- `TaskForm`: `Interval` recurrence input is now bounded to 1-1440 whole minutes with friendly validation; existing tasks load and round to the nearest minute.
-
-### Added
-- `SettingsValidator.ValidateTaskAction(action[, siblings])`: validates name/target presence, target file existence for PowerShell/Batch/Executable types, non-negative retry parameters, timeout >= 1, and `DependsOn` referencing a sibling action's `Name`.
-- `ActionDialog` and `TaskForm` now run candidate actions through `ValidateTaskAction` on save; cross-action `DependsOn` consistency is checked at the task level.
-- `Tests/LiteTask.Tests.vbproj`: MSTest project covering `ParameterParser` (11 cases: basic form, quoted spaces, mixed quoting, empty values, dropped tokens, duplicate keys, whitespace tolerance).
-- French translations for the new `Validation.*` keys in `LiteTaskData/lang/fr.xml`.
-- `MainForm` View menu: new `Open Log File` item that opens the current log (resolved via `Logger._logFile`) in the default associated application; shows a friendly `NoLogAvailable` message when no log has been written yet.
-- Sub-hour interval recurrence: scheduling a task to run every N minutes (1-1440) is now first-class - parity with the Windows Task Scheduler "Repeat task every" setting.
-- `ScheduledTask.CalculateNextRunTime` / `UpdateNextRunTime`: defensive guards when `Interval` is zero (returns `DateTime.MaxValue` instead of dividing by zero or looping forever).
